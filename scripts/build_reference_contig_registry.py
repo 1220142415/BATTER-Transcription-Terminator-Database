@@ -336,16 +336,17 @@ def build_reference_contig_registry(
     }
 
 
-def write_registry(provenance: Mapping[str, Any], output_tsv: str | Path, output_json: str | Path) -> None:
-    output_tsv = Path(output_tsv)
+def write_registry(provenance: Mapping[str, Any], output_tsv: str | Path | None, output_json: str | Path) -> None:
     output_json = Path(output_json)
-    output_tsv.parent.mkdir(parents=True, exist_ok=True)
     output_json.parent.mkdir(parents=True, exist_ok=True)
     rows = list(provenance["rows"])
-    with output_tsv.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=REFERENCE_CONTIG_COLUMNS, delimiter="\t", lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
+    if output_tsv is not None:
+        output_tsv = Path(output_tsv)
+        output_tsv.parent.mkdir(parents=True, exist_ok=True)
+        with output_tsv.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=REFERENCE_CONTIG_COLUMNS, delimiter="\t", lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(rows)
     output_json.write_text(json.dumps(provenance, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
@@ -353,7 +354,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--release-root", default="data/public/v0.2.0")
     parser.add_argument("--jbrowse-bundle", required=True)
-    parser.add_argument("--output-tsv", default="data/registry/reference_contigs.v0.2.0.tsv")
+    parser.add_argument("--output-tsv", default=None, help="optional compatibility TSV output")
     parser.add_argument("--output-json", default="data/registry/reference_contigs.v0.2.0.json")
     parser.add_argument(
         "--generated-at-utc",
@@ -366,11 +367,18 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        provenance = build_reference_contig_registry(
-            args.release_root,
-            args.jbrowse_bundle,
-            generated_at_utc=args.generated_at_utc,
-        )
+        release_root = Path(args.release_root)
+        if not release_root.is_dir() and args.release_root == "data/public/v0.2.0":
+            from scripts.v03_legacy_inputs import legacy_inputs
+
+            with legacy_inputs(Path(__file__).resolve().parent.parent) as (_repo, archived_release, _inventory):
+                provenance = build_reference_contig_registry(
+                    archived_release, args.jbrowse_bundle, generated_at_utc=args.generated_at_utc,
+                )
+        else:
+            provenance = build_reference_contig_registry(
+                release_root, args.jbrowse_bundle, generated_at_utc=args.generated_at_utc,
+            )
         write_registry(provenance, args.output_tsv, args.output_json)
     except (OSError, UnicodeError, json.JSONDecodeError, RegistryBuildError, ValueError) as exc:
         print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False))
@@ -382,7 +390,7 @@ def main(argv: list[str] | None = None) -> int:
                 "release_version": provenance["release_version"],
                 "source_count": provenance["source_count"],
                 "contig_count": provenance["contig_count"],
-                "output_tsv": str(Path(args.output_tsv)),
+                "output_tsv": str(Path(args.output_tsv)) if args.output_tsv else None,
                 "output_json": str(Path(args.output_json)),
             },
             ensure_ascii=False,

@@ -11,13 +11,7 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from backend.importer.materialize import materialize_release
-
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
-BUNDLE = REPO_ROOT.parent / "bted-v0.2/dist/BTED-v0.2.0-jbrowse"
-INVENTORY = REPO_ROOT / "data/registry/jbrowse_assets.v0.2.0.tsv"
-RELEASE = REPO_ROOT / "data/public/v0.2.0"
 
 
 def _load_module():
@@ -54,60 +48,6 @@ def _write_materialized_bundle(root: Path, assets: list[dict[str, Any]]) -> Path
     }
     (root / "manifest.json").write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
     return root
-
-
-@unittest.skipUnless(BUNDLE.is_dir() and INVENTORY.is_file(), "the frozen v0.2 JBrowse bundle is not available")
-class TestRealPublicAssetPlan(unittest.TestCase):
-    def test_real_materialized_bundle_selects_208_and_cross_checks_105_browser_objects(self) -> None:
-        module = _load_module()
-        with tempfile.TemporaryDirectory() as temp:
-            root = Path(temp)
-            staging = materialize_release(
-                RELEASE,
-                repo_root=REPO_ROOT,
-                output_dir=root / "staging",
-                asset_origin_base="https://assets.example.test/bted",
-                generated_at_utc="2026-08-22T00:00:00Z",
-                jbrowse_asset_inventory=INVENTORY,
-            ).output_dir
-            first = module.prepare_public_asset_objects(
-                materialized_bundle=staging,
-                inventory_path=INVENTORY,
-                bundle=BUNDLE,
-                release_root=RELEASE,
-                output_dir=root / "first",
-                manifest_only=True,
-            )
-            second = module.prepare_public_asset_objects(
-                materialized_bundle=staging,
-                inventory_path=INVENTORY,
-                bundle=BUNDLE,
-                release_root=RELEASE,
-                output_dir=root / "second",
-                manifest_only=True,
-            )
-            self.assertEqual(first["selection"], {
-                "policy": "materialized assets where is_public=true AND redistribution_status=verified_redistributable",
-            "selected_count": 208,
-            "excluded_count": 3,
-                "materialized_asset_count": 211,
-            "public_browser_crosscheck_count": 105,
-            })
-            self.assertEqual(len(first["objects"]), 208)
-            self.assertEqual((root / "first/ASSET_OBJECTS.json").read_bytes(), (root / "second/ASSET_OBJECTS.json").read_bytes())
-            self.assertEqual((root / "first/SHA256SUMS.txt").read_bytes(), (root / "second/SHA256SUMS.txt").read_bytes())
-            identities = {"asset_id", "object_path", "byte_size", "sha256"}
-            self.assertTrue(all(identities <= set(row) for row in first["objects"]))
-            paths = {row["object_path"] for row in first["objects"]}
-            self.assertIn("records/BATTER_S1_006/source_annotations.tsv", paths)
-            self.assertIn("records/BATTER_S1_006/endpoints.bed", paths)
-            self.assertIn("assemblies/GCF_000006765.1/reference/reference.fna", paths)
-            serialized = json.dumps(first).lower()
-            self.assertNotIn("batter_s1_002", serialized)
-            self.assertNotIn("external_link_only", serialized)
-            for forbidden in ("candidate", "signed-log", "normalized", ".config.json", "jbrowse-ui", "index.html"):
-                self.assertNotIn(forbidden, serialized)
-            self.assertEqual({path.name for path in (root / "first").iterdir()}, {"ASSET_OBJECTS.json", "SHA256SUMS.txt"})
 
 
 class TestSmallPublicAssetCopy(unittest.TestCase):

@@ -950,5 +950,25 @@
       "fasta_sha256": "427dc8cea7ffbbac1b0baa31362bb7a30cac0a3ca9052d73634adf9122a63b28",
       "source_id": "BATTER_S1_022"
     }
-  ]
+  ],
+  "table_columns": [
+    "release_version",
+    "assembly_accession",
+    "contig_accession",
+    "length_bp",
+    "max_endpoint_position_1based",
+    "supporting_source_ids",
+    "fasta_asset_basename",
+    "fasta_sha256",
+    "fai_asset_basename",
+    "fai_sha256",
+    "bundle_sha256sums_sha256",
+    "generator_version",
+    "generated_at_utc"
+  ],
+  "embedded_table_provenance": {
+    "source_path": "data/registry/reference_contigs.v0.2.0.tsv",
+    "source_sha256": "f183e540d129bae88f350ef8c98fcf00bf13731c806d6d4ca1ba31b42b72d76e",
+    "reason": "The original TSV rows are already embedded in this JSON alongside the generation metadata."
+  }
 }

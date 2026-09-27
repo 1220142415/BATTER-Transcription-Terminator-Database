@@ -8,6 +8,9 @@
     const selects = Array.from(document.querySelectorAll("[data-filter]"));
     const count = document.querySelector("[data-visible-count]");
     const empty = document.querySelector("[data-empty-state]");
+    const params = new URLSearchParams(window.location.search);
+    const initialSearch = params.get("search") || params.get("accession") || "";
+    if (search && initialSearch) search.value = initialSearch;
     const applyFilters = function () {
       const query = (search && search.value ? search.value : "").trim().toLowerCase();
       const active = Object.fromEntries(selects.map((select) => [select.dataset.filter, select.value]));
@@ -136,17 +139,24 @@
     status.textContent = "Preparing download…";
     try {
       const files = [];
+      const releaseResponse = await fetch("assets/data-release.json", { headers: { Accept: "application/json" } });
+      if (!releaseResponse.ok) throw new Error(`Release configuration request failed: ${releaseResponse.status}`);
+      const release = await releaseResponse.json();
+      const releaseBase = new URL(`${String(release.baseUrl || "").replace(/\/+$/, "")}/`, document.baseURI);
       for (const assembly of selected) {
-        const base = `downloads/assemblies/${encodeURIComponent(assembly)}`;
-        const metadata = await fetchFile(`${base}/metadata.json`, `${assembly}/metadata.json`, true);
-        const bed = await fetchFile(`${base}/endpoints.bed`, `${assembly}/endpoints.bed`, false);
+        const base = new URL(`assemblies/${encodeURIComponent(assembly)}/`, releaseBase);
+        const metadata = await fetchFile(new URL("metadata.json", base), `${assembly}/metadata.json`, true);
         files.push(metadata);
-        if (bed) files.push(bed);
+        const metadataDocument = JSON.parse(new TextDecoder().decode(metadata.data));
+        if (Number(metadataDocument.record_count) > 0) {
+          const gff3 = await fetchFile(new URL("endpoints.gff3", base), `${assembly}/endpoints.gff3`, true);
+          files.push(gff3);
+        }
       }
       const blob = createZip(files);
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `BTED-v0.2.0-${selected.length}-assemblies.zip`;
+      link.download = `BTED-v0.3.0-${selected.length}-assemblies.zip`;
       document.body.appendChild(link); link.click(); link.remove();
       URL.revokeObjectURL(link.href);
       status.textContent = `Packaged ${selected.length} genome assemblies.`;

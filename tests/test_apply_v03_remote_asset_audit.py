@@ -131,7 +131,10 @@ class TestApplyRemoteAssetAudit(unittest.TestCase):
 
     def _write_audit(self, *rows: dict) -> None:
         self.audit.write_text(
-            json.dumps({"schema_version": "1.1", "release_version": "v0.2.0", "objects": list(rows)}),
+            json.dumps({
+                "schema_version": "1.1", "release_version": "v0.2.0",
+                "origin_base": "https://cdn.example/assets", "objects": list(rows),
+            }),
             encoding="utf-8",
         )
 

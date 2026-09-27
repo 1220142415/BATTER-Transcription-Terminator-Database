@@ -1,0 +1,2 @@
+source_id	species	assembly	pmid	title	assay	record_count	evidence_class	release_status	article_license	redistribution_status	raw_data_accessions	known_limitations
+BATTER_S1_017	Streptomyces clavuligerus	GCF_005519465.1	33947798	Regulatory Elements for Transcription Termination in Streptomyces clavuligerus	Term-seq / dRNA-seq	1427	author_called_endpoint	published_standardized	CC BY	verified_redistributable	GSE128216;GSE138325	Hwang 2021 Data Set S1 imported independently: 1,427 author-called TEPs across CP027858.1 chromosome and CP027859.1 plasmid.

@@ -26,30 +26,31 @@ jobs:
     env:
       RELEASE_TAG: ${{ github.event.inputs.release_tag || 'preview-v0.2.0' }}
       GH_TOKEN: ${{ github.token }}
+      HF_DATA_BASE_URL: https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Validate tracked release and site
+      - name: Validate v0.3.0 release and repository layout
         run: |
-          python3 scripts/validate_bted_v0_2.py
-          python3 scripts/validate-site.py site
+          python3 scripts/validate_bted_v0_3.py
+          python3 scripts/validate_repo_layout.py
+          python3 scripts/check_markdown_links.py
       - name: Download versioned JBrowse asset
-        run: gh release download "$RELEASE_TAG" --pattern "BTED-v0.2.0-jbrowse-assets.tar.gz" --dir "$RUNNER_TEMP"
+        run: |
+          gh release download "$RELEASE_TAG" \
+            --pattern "BTED-v0.2.0-jbrowse-assets.tar.gz" \
+            --pattern "BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" \
+            --dir "$RUNNER_TEMP"
       - name: Stage Pages artifact
         run: |
-          mkdir -p _site/jbrowse
-          cp -R site/. _site/
-          cp -R data/public/v0.2.0 _site/downloads
-          python3 scripts/build_assembly_downloads.py --output-dir _site/downloads/assemblies
-          tar -xzf "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" --strip-components=1 -C _site/jbrowse
-          cp data/public/v0.2.0/jbrowse-config-overlays/*.config.json _site/jbrowse/
-          mkdir -p _site/jbrowse/assemblies
-          cp data/public/v0.2.0/jbrowse-config-overlays/assemblies/*.config.json _site/jbrowse/assemblies/
-          cp data/public/v0.2.0/jbrowse-config-overlays/catalog.json _site/jbrowse/catalog.json
-          python3 scripts/refresh_jbrowse_checksums.py _site/jbrowse
-          python3 scripts/validate_jbrowse_release.py _site/jbrowse
+          python3 scripts/stage_site.py \
+            --mode pages \
+            --release-archive "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" \
+            --release-sha256-file "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" \
+            --hf-data-base-url "$HF_DATA_BASE_URL" \
+            --output-dir _site
           python3 scripts/validate-site.py _site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

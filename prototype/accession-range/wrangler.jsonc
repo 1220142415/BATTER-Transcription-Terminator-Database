@@ -4,7 +4,7 @@
   "main": "src/worker.js",
   "compatibility_date": "2026-08-22",
   "assets": {
-    "directory": "../../site",
+    "directory": "../../dist/worker-site",
     "binding": "ASSETS"
   },
   "d1_databases": [
@@ -15,7 +15,6 @@
     }
   ],
   "vars": {
-    "HF_RESOLVE_BASE": "https://huggingface.co/datasets/seu-yolo/BTED-v0.3-assets/resolve/463cfc8bd582a5ed9d2c426822148c3f1e56c4d0",
     "ALLOWED_ORIGIN_HOST": "huggingface.co"
   }
 }

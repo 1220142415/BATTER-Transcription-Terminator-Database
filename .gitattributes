@@ -1,0 +1,5 @@
+# Published checksums cover exact bytes. Git must not rewrite line endings.
+data/public/v0.2.0/** -text
+data/public/v0.3.0/** -text
+data/archive/** -text
+data/registry/internal/** -text

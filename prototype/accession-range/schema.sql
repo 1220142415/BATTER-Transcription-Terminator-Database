@@ -165,8 +165,8 @@ CREATE TABLE IF NOT EXISTS endpoints (
   reference_name TEXT NOT NULL,
   replicon_label TEXT NOT NULL,
   biological_coordinate_1based INTEGER NOT NULL CHECK (biological_coordinate_1based >= 1),
-  bed_start_0based INTEGER NOT NULL CHECK (bed_start_0based >= 0),
-  bed_end_0based INTEGER NOT NULL CHECK (bed_end_0based > bed_start_0based),
+  gff_start_1based INTEGER NOT NULL CHECK (gff_start_1based >= 1),
+  gff_end_1based INTEGER NOT NULL CHECK (gff_end_1based >= gff_start_1based),
   strand TEXT NOT NULL CHECK (strand IN ('+', '-')),
   signal_or_score TEXT NOT NULL,
   author_category TEXT,
@@ -180,16 +180,14 @@ CREATE TABLE IF NOT EXISTS endpoints (
   note TEXT NOT NULL,
   UNIQUE (release_version, end_id),
   FOREIGN KEY (release_version, source_id) REFERENCES sources (release_version, source_id),
-  CHECK (bed_start_0based = biological_coordinate_1based - 1),
-  CHECK (bed_end_0based = biological_coordinate_1based)
+  CHECK (gff_start_1based = biological_coordinate_1based),
+  CHECK (gff_end_1based = biological_coordinate_1based)
 );
 
 CREATE INDEX IF NOT EXISTS contigs_by_assembly
   ON contigs (release_version, assembly_accession, contig_accession);
 CREATE INDEX IF NOT EXISTS sources_by_catalogue
   ON sources (release_version, source_id, assembly_accession);
-CREATE INDEX IF NOT EXISTS sources_by_augmentation
-  ON sources (release_version, used_for_batter_augmentation, source_id);
 CREATE INDEX IF NOT EXISTS tracks_by_assembly
   ON tracks (release_version, assembly_accession, display_order);
 CREATE INDEX IF NOT EXISTS assets_by_assembly

@@ -217,6 +217,17 @@ def main() -> int:
         publication = publication_by_pmid.get(str(source["publication_id_ref"]))
         raw = [a for a in accessions if a.get("source_id_ref") == source_id]
         bed = bed_by_source.get(source_id)
+        # v0.3 source BEDs are generated into the Pages/Worker static tree.
+        # When no remote BED asset is registered, retain a public track only
+        # for published, browser-enabled sources whose redistribution was
+        # explicitly approved. The Worker resolves the versioned local BED.
+        source_track_public = (
+            source.get("release_status") == "published_standardized"
+            and bool(source.get("has_jbrowse"))
+            and int(source.get("record_count") or 0) > 0
+            and source.get("redistribution_status") == "verified_redistributable"
+        )
+        track_public = bool(bed.get("is_public")) if bed else source_track_public
         track_rows.append(
             (
                 f"{source_id}--track", release_version, source_id, source.get("assembly_id_ref"),
@@ -227,7 +238,7 @@ def main() -> int:
                 publication.get("journal") if publication else None,
                 json_value(raw), source.get("assay_family"), source.get("evidence_class"),
                 source.get("record_count", 0), bed.get("asset_id") if bed else None,
-                1 if bed and bed.get("is_public") else 0, order,
+                1 if track_public else 0, order,
                 json_value({"source_note": source.get("source_note"), "decision_note": source.get("decision_note"), "known_limitations": source.get("known_limitations")}),
             )
         )
@@ -263,7 +274,7 @@ def main() -> int:
     endpoint_columns = (
         "end_id", "release_version", "source_id", "sample_id", "assay", "evidence_class",
         "author_endpoint_id", "published_reference_accession", "reference_assembly", "reference_name",
-        "replicon_label", "biological_coordinate_1based", "bed_start_0based", "bed_end_0based",
+        "replicon_label", "biological_coordinate_1based", "gff_start_1based", "gff_end_1based",
         "strand", "signal_or_score", "author_category", "associated_gene_or_locus", "pmid", "doi",
         "source_table_or_file", "coordinate_interpretation", "original_row_reference", "qc_status", "note",
     )
@@ -276,7 +287,11 @@ def main() -> int:
             "endpoints",
             endpoint_columns,
             (
-                tuple(row.get(column) for column in endpoint_columns[:-1]) + (row.get("note"),)
+                tuple(
+                    row.get("biological_coordinate_1based")
+                    if column in {"gff_start_1based", "gff_end_1based"} else row.get(column)
+                    for column in endpoint_columns
+                )
                 for row in batch
             ),
         )

@@ -1,0 +1,2 @@
+source_id	species	assembly	pmid	title	assay	record_count	evidence_class	release_status	article_license	redistribution_status	raw_data_accessions	known_limitations
+BATTER_S1_006	Streptococcus pneumoniae TIGR4	GCF_000006885.1	30517198	The Transcriptional landscape of Streptococcus pneumoniae TIGR4	RNA-seq / 3′ end mapping	1864	author_called_endpoint	published_standardized	CC BY	verified_redistributable	SRP136114	Warrier 2018 Supplementary Table S2 imported: 1,864 author-called Term-seq TTSs on NC_003028.3, called at coverage >=10 and >=2-fold enrichment over background.

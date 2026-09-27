@@ -5,6 +5,11 @@ const PUBLIC_EVIDENCE = new Set([
   "curated_record",
 ]);
 
+const CURRENT_RELEASE_VERSION = "v0.3.0";
+const RETIRED_RELEASE_ARCHIVE = "data/archive/BTED-v0.2.0.tar.gz";
+const DATA_RELEASE_MANIFEST_PATH = "/assets/data-release.json";
+const HF_DATA_BASE_PATTERN = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/v0\.3\.0$/;
+
 const RESPONSE_HEADERS = [
   "accept-ranges",
   "cache-control",
@@ -23,6 +28,15 @@ function json(payload, status = 200, extraHeaders = {}) {
 
 function bad(code, message, field) {
   return json({ error: { code, message, ...(field ? { field } : {}) } }, 422);
+}
+
+function retiredReleaseResponse(releaseVersion) {
+  return json({
+    error: "release_version_retired",
+    release_version: releaseVersion,
+    current_release_version: CURRENT_RELEASE_VERSION,
+    archive_path: RETIRED_RELEASE_ARCHIVE,
+  }, 410);
 }
 
 function decodePath(value) {
@@ -60,11 +74,10 @@ function pageResult(data, page, pageSize, total) {
   };
 }
 
-async function currentRelease(env, requested) {
-  const query = requested
-    ? "SELECT * FROM release_versions WHERE release_version = ?"
-    : "SELECT * FROM release_versions WHERE is_current = 1 LIMIT 1";
-  return env.BTED_DB.prepare(query).bind(...(requested ? [requested] : [])).first();
+async function currentRelease(env) {
+  return env.BTED_DB.prepare(
+    "SELECT * FROM release_versions WHERE release_version = ? AND is_current = 1 LIMIT 1",
+  ).bind(CURRENT_RELEASE_VERSION).first();
 }
 
 function releasePayload(release) {
@@ -78,8 +91,61 @@ function releasePayload(release) {
   };
 }
 
+function dataReleaseError(code) {
+  const error = new Error(code);
+  error.code = code;
+  return error;
+}
+
+function dataReleaseErrorResponse(error) {
+  const code = error?.code === "data_release_manifest_invalid"
+    ? error.code
+    : "data_release_manifest_missing";
+  return json({ error: code }, 503, { "cache-control": "no-store" });
+}
+
+async function fixedDataReleaseBase(env, request) {
+  if (!env.ASSETS || typeof env.ASSETS.fetch !== "function") {
+    throw dataReleaseError("data_release_manifest_missing");
+  }
+  let response;
+  try {
+    response = await env.ASSETS.fetch(new Request(
+      new URL(DATA_RELEASE_MANIFEST_PATH, request.url),
+      { method: "GET" },
+    ));
+  } catch {
+    throw dataReleaseError("data_release_manifest_missing");
+  }
+  if (!response || !response.ok) throw dataReleaseError("data_release_manifest_missing");
+
+  let manifest;
+  try {
+    manifest = await response.json();
+  } catch {
+    throw dataReleaseError("data_release_manifest_invalid");
+  }
+  if (!manifest || manifest.releaseVersion !== CURRENT_RELEASE_VERSION) {
+    throw dataReleaseError("data_release_manifest_invalid");
+  }
+  const base = typeof manifest.baseUrl === "string" ? manifest.baseUrl : "";
+  const match = HF_DATA_BASE_PATTERN.exec(base);
+  if (!match || manifest.revision !== match[1]) {
+    throw dataReleaseError("data_release_manifest_invalid");
+  }
+  return base;
+}
+
+function hfDataUrl(base, relativePath) {
+  const safePath = String(relativePath).replace(/^\/+/, "");
+  if (!safePath || safePath.split("/").includes("..")) {
+    throw dataReleaseError("data_release_manifest_invalid");
+  }
+  return new URL(safePath, `${base}/`).href;
+}
+
 async function withRelease(env, url) {
-  const release = await currentRelease(env, url.searchParams.get("release_version"));
+  const release = await currentRelease(env);
   return release ? { release, summary: releasePayload(release) } : null;
 }
 
@@ -126,13 +192,15 @@ async function publication(env, pmid) {
   return pmid ? env.BTED_DB.prepare("SELECT * FROM publications WHERE pmid = ?").bind(pmid).first() : null;
 }
 
-function publicBrowserAvailable(source, assets, assemblyAssets) {
-  const bed = source && source.release_status === "published_standardized" && Number(source.record_count) > 0
-    ? assets.find((asset) => asset.asset_kind === "bed" && Number(asset.is_public) === 1)
-    : null;
+function publicBrowserAvailable(source, track, assemblyAssets) {
+  const endpointTrack = source
+    && source.release_status === "published_standardized"
+    && Number(source.record_count) > 0
+    && track
+    && Number(track.is_public) === 1;
   const fasta = assemblyAssets.find((asset) => asset.asset_kind === "fasta" && Number(asset.is_public) === 1);
   const fai = assemblyAssets.find((asset) => asset.asset_kind === "fai" && Number(asset.is_public) === 1);
-  return Boolean(bed && fasta && fai);
+  return Boolean(endpointTrack && fasta && fai);
 }
 
 async function trackRows(env, releaseVersion, accession, sourceId) {
@@ -154,6 +222,12 @@ async function trackRows(env, releaseVersion, accession, sourceId) {
 async function sourcePayload(request, env, release, sourceId) {
   const source = await sourceRow(env, release.release_version, sourceId);
   if (!source) return null;
+  let dataBase;
+  try {
+    dataBase = await fixedDataReleaseBase(env, request);
+  } catch (error) {
+    return dataReleaseErrorResponse(error);
+  }
   const [paper, accessions, assets, tracks, assemblyAssets] = await Promise.all([
     publication(env, source.publication_pmid),
     sourceAccessions(env, release.release_version, sourceId),
@@ -161,12 +235,14 @@ async function sourcePayload(request, env, release, sourceId) {
     trackRows(env, release.release_version, null, sourceId),
     allAssets(env, release.release_version, source.assembly_accession, null),
   ]);
-  const browserAvailable = publicBrowserAvailable(source, assets, assemblyAssets);
+  const browserAvailable = tracks.some((track) => publicBrowserAvailable(source, track, assemblyAssets));
+  const { used_for_batter_augmentation: _unusedAugmentationFlag, ...publicSource } = source;
   const links = {
     bted_record: `/records/${encodeURIComponent(sourceId)}.html`,
   };
   if (source.release_status === "published_standardized" && Number(source.record_count) > 0) {
-    links.endpoints = `/api/endpoints?source_id=${encodeURIComponent(sourceId)}`;
+    links.gff3_download = hfDataUrl(dataBase, `records/${encodeURIComponent(sourceId)}/endpoints.gff3`);
+    links.endpoint_records = `/api/endpoints?source_id=${encodeURIComponent(sourceId)}`;
     if (browserAvailable) {
       const config = new URL(`/api/assemblies/${encodeURIComponent(source.assembly_accession)}/jbrowse-config`, request.url);
       config.searchParams.set("source_id", sourceId);
@@ -176,8 +252,7 @@ async function sourcePayload(request, env, release, sourceId) {
   return {
     release: releasePayload(release),
     source: {
-      ...source,
-      augmentation_eligible: Boolean(source.used_for_batter_augmentation),
+      ...publicSource,
       publication: paper,
       accessions,
       tracks,
@@ -206,12 +281,6 @@ async function sourcesList(request, env, release, url) {
       params.push(value);
     }
   }
-  const augmentation = url.searchParams.get("augmentation_eligible");
-  if (augmentation !== null) {
-    if (!["true", "false", "1", "0"].includes(augmentation)) return bad("invalid_filter", "augmentation_eligible must be true or false", "augmentation_eligible");
-    filters.push("s.used_for_batter_augmentation = ?");
-    params.push(["true", "1"].includes(augmentation) ? 1 : 0);
-  }
   const q = url.searchParams.get("q");
   if (q) {
     filters.push("(s.source_id LIKE ? OR s.species LIKE ? OR s.manifest_path LIKE ? OR p.pmid LIKE ? OR p.paper_title LIKE ?)");
@@ -221,12 +290,14 @@ async function sourcesList(request, env, release, url) {
   const where = filters.length ? ` AND ${filters.join(" AND ")}` : "";
   const count = await env.BTED_DB.prepare(`SELECT COUNT(*) AS total FROM sources s LEFT JOIN publications p ON p.pmid = s.publication_pmid WHERE s.release_version = ?${where}`).bind(...params).first();
   const rows = await env.BTED_DB.prepare(`SELECT s.*, p.paper_title, p.published_year, p.doi FROM sources s LEFT JOIN publications p ON p.pmid = s.publication_pmid WHERE s.release_version = ?${where} ORDER BY s.source_id LIMIT ? OFFSET ?`).bind(...params, pageSize, offset).all();
-  const data = (rows.results || []).map((row) => ({
-    ...row,
-    augmentation_eligible: Boolean(row.used_for_batter_augmentation),
-    links: { detail: `/api/sources/${encodeURIComponent(row.source_id)}` },
-    provenance: { release_version: release.release_version, source_manifest_sha256: row.manifest_sha256 },
-  }));
+  const data = (rows.results || []).map((row) => {
+    const { used_for_batter_augmentation: _unusedAugmentationFlag, ...publicRow } = row;
+    return {
+      ...publicRow,
+      links: { detail: `/api/sources/${encodeURIComponent(row.source_id)}` },
+      provenance: { release_version: release.release_version, source_manifest_sha256: row.manifest_sha256 },
+    };
+  });
   return json({ release: releasePayload(release), ...pageResult(data, page, pageSize, Number(count?.total || 0)) });
 }
 
@@ -235,6 +306,12 @@ async function assemblyPayload(request, env, release, accession) {
     "SELECT * FROM assemblies WHERE release_version = ? AND accession = ?",
   ).bind(release.release_version, accession).first();
   if (!assembly) return null;
+  let dataBase;
+  try {
+    dataBase = await fixedDataReleaseBase(env, request);
+  } catch (error) {
+    return dataReleaseErrorResponse(error);
+  }
   const [contigs, tracks, assets, registeredAssets, endpointCount] = await Promise.all([
     env.BTED_DB.prepare("SELECT contig_accession, contig_name, length_bp, sequence_sha256, provenance_json FROM contigs WHERE release_version = ? AND assembly_accession = ? ORDER BY contig_accession").bind(release.release_version, accession).all(),
     trackRows(env, release.release_version, accession, null),
@@ -244,12 +321,15 @@ async function assemblyPayload(request, env, release, accession) {
   ]);
   const trackData = [];
   for (const track of tracks) {
-    const source = await sourceRow(env, release.release_version, track.source_id);
+      const source = await sourceRow(env, release.release_version, track.source_id);
     const sourceAssets = registeredAssets.filter((asset) => asset.source_id === track.source_id);
     trackData.push({
       ...track,
       source_status: source?.release_status,
-      browser_available: publicBrowserAvailable(source, sourceAssets, assets),
+      browser_available: publicBrowserAvailable(source, track, assets),
+      gff3_url: source?.release_status === "published_standardized" && Number(source.record_count) > 0
+        ? hfDataUrl(dataBase, `records/${encodeURIComponent(track.source_id)}/endpoints.gff3`)
+        : null,
       links: { source: `/api/sources/${encodeURIComponent(track.source_id)}` },
     });
   }
@@ -263,6 +343,10 @@ async function assemblyPayload(request, env, release, accession) {
       assets,
       endpoint_count: Number(endpointCount?.total || 0),
       browser_available: browserAvailable,
+      gff3_url: Number(endpointCount?.total || 0) > 0
+        ? hfDataUrl(dataBase, `assemblies/${encodeURIComponent(accession)}/endpoints.gff3`)
+        : null,
+      metadata_url: hfDataUrl(dataBase, `assemblies/${encodeURIComponent(accession)}/metadata.json`),
       links: {
         catalogue: `/api/catalogue?assembly_accession=${encodeURIComponent(accession)}`,
         ...(browserAvailable ? { jbrowse_config: new URL(`/api/assemblies/${encodeURIComponent(accession)}/jbrowse-config`, request.url).href } : {}),
@@ -327,15 +411,6 @@ async function endpointsList(env, release, url) {
   return json({ release: releasePayload(release), ...pageResult(data, page, pageSize, Number(count?.total || 0)) });
 }
 
-async function augmentation(env, release, url) {
-  const paging = pageParams(url);
-  if (paging.error) return paging.error;
-  const { page, pageSize, offset } = paging;
-  const count = await env.BTED_DB.prepare("SELECT COUNT(*) AS total FROM sources WHERE release_version = ? AND used_for_batter_augmentation = 1").bind(release.release_version).first();
-  const rows = await env.BTED_DB.prepare("SELECT source_id, assembly_accession, evidence_class, record_count, publication_pmid, manifest_sha256 FROM sources WHERE release_version = ? AND used_for_batter_augmentation = 1 ORDER BY source_id LIMIT ? OFFSET ?").bind(release.release_version, pageSize, offset).all();
-  return json({ release: releasePayload(release), scope: "source", selection_rule: "BATTER Table S1 used_for_batter_augmentation = TRUE", eligible_source_count: Number(count?.total || 0), training_claim: "none; source-level eligibility only", ...pageResult(rows.results || [], page, pageSize, Number(count?.total || 0)) });
-}
-
 async function catalogue(env, release, url) {
   const [stats, assemblies] = await Promise.all([
     statsPayload(env, release),
@@ -346,11 +421,10 @@ async function catalogue(env, release, url) {
 }
 
 async function statsPayload(env, release) {
-  const [sources, endpoints, assemblies, augmentation, evidence] = await Promise.all([
+  const [sources, endpoints, assemblies, evidence] = await Promise.all([
     env.BTED_DB.prepare("SELECT release_status, COUNT(*) AS total FROM sources WHERE release_version = ? GROUP BY release_status").bind(release.release_version).all(),
     env.BTED_DB.prepare("SELECT COUNT(*) AS total FROM endpoints WHERE release_version = ?").bind(release.release_version).first(),
     env.BTED_DB.prepare("SELECT COUNT(*) AS total FROM assemblies WHERE release_version = ?").bind(release.release_version).first(),
-    env.BTED_DB.prepare("SELECT COUNT(*) AS total FROM sources WHERE release_version = ? AND used_for_batter_augmentation = 1").bind(release.release_version).first(),
     env.BTED_DB.prepare("SELECT evidence_class, COUNT(*) AS total FROM endpoints WHERE release_version = ? GROUP BY evidence_class ORDER BY evidence_class").bind(release.release_version).all(),
   ]);
   const sourceCounts = Object.fromEntries((sources.results || []).map((row) => [row.release_status, Number(row.total)]));
@@ -358,7 +432,6 @@ async function statsPayload(env, release) {
     sources: { total: Object.values(sourceCounts).reduce((sum, value) => sum + value, 0), published_standardized: sourceCounts.published_standardized || 0, audit_only: sourceCounts.audit_only || 0 },
     endpoints: { total: Number(endpoints?.total || 0), by_evidence_class: Object.fromEntries((evidence.results || []).map((row) => [row.evidence_class, Number(row.total)])) },
     assemblies: { total: Number(assemblies?.total || 0) },
-    augmentation: { eligible_sources: Number(augmentation?.total || 0), scope: "source" },
   };
 }
 
@@ -372,11 +445,14 @@ async function endpointDetail(env, release, endId) {
 }
 
 async function jbrowseConfig(request, env, release, accession, sourceId) {
+  let dataBase;
+  try {
+    dataBase = await fixedDataReleaseBase(env, request);
+  } catch (error) {
+    return dataReleaseErrorResponse(error);
+  }
   const assembly = await env.BTED_DB.prepare("SELECT * FROM assemblies WHERE release_version = ? AND accession = ?").bind(release.release_version, accession).first();
   if (!assembly) return json({ error: "assembly_not_found", accession }, 404);
-  const threeLayerPilot = new URL(request.url).searchParams.get("pilot") === "three-layer"
-    && accession === "GCF_000009045.1"
-    && (!sourceId || sourceId === "BATTER_S1_003");
   const [assemblyAssets, tracks] = await Promise.all([
     allAssets(env, release.release_version, accession, null),
     trackRows(env, release.release_version, accession, sourceId),
@@ -387,11 +463,9 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
   const publicTracks = [];
   for (const track of tracks) {
     const source = await sourceRow(env, release.release_version, track.source_id);
-    if (!source || source.release_status !== "published_standardized" || Number(track.is_public) !== 1 || !track.asset_key) continue;
-    const bed = await publicAsset(env, release.release_version, track.asset_key);
-    if (!bed) continue;
+    if (!source || source.release_status !== "published_standardized" || Number(track.is_public) !== 1) continue;
     const sourceAssets = await allAssets(env, release.release_version, null, source.source_id);
-    publicTracks.push({ track, source, bed, sourceAssets });
+    publicTracks.push({ track, source, sourceAssets });
   }
   if (!publicTracks.length) return json({ error: "jbrowse_unavailable", reason: "no public published endpoint track" }, 404);
   const assemblyName = `BTED_${accession.replaceAll(".", "_")}`;
@@ -399,14 +473,18 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
   const tbi = assemblyAssets.find((asset) => asset.asset_kind === "tbi" && Number(asset.is_public) === 1);
   const contig = await env.BTED_DB.prepare("SELECT contig_accession, length_bp FROM contigs WHERE release_version = ? AND assembly_accession = ? ORDER BY contig_accession LIMIT 1").bind(release.release_version, accession).first();
   const firstEndpoint = await env.BTED_DB.prepare("SELECT reference_name, biological_coordinate_1based FROM endpoints WHERE release_version = ? AND reference_assembly = ? AND source_id = ? ORDER BY biological_coordinate_1based, end_id LIMIT 1").bind(release.release_version, accession, publicTracks[0].source.source_id).first();
-  const contigName = threeLayerPilot ? "NC_000964.3" : (firstEndpoint?.reference_name || contig?.contig_accession);
+  const contigName = firstEndpoint?.reference_name || contig?.contig_accession;
   const center = Number(firstEndpoint?.biological_coordinate_1based || 1);
   const length = Number(contig?.length_bp || center + 1000);
-  const regionStart = threeLayerPilot ? 17999 : Math.max(0, center - 501);
-  const regionEnd = threeLayerPilot ? 28000 : Math.min(length, center + 500);
+  const regionStart = Math.max(0, center - 501);
+  const regionEnd = Math.min(length, center + 500);
   const tracksConfig = [];
-  for (const { track, source, bed, sourceAssets } of publicTracks) {
+  for (const { track, source, sourceAssets } of publicTracks) {
     const rawAccessions = JSON.parse(track.raw_accessions_json || "[]");
+    const endpointGff3Url = hfDataUrl(
+      dataBase,
+      `records/${encodeURIComponent(source.source_id)}/endpoints.gff3`,
+    );
     const metadata = {
       source_id: source.source_id,
       evidence_class: source.evidence_class,
@@ -417,8 +495,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       raw_data_accessions: rawAccessions.map((item) => item.accession).join(", "),
       raw_data_links: rawAccessions.map((item) => item.external_url).filter(Boolean).join(" ; "),
       BTED_record: new URL(`/records/${encodeURIComponent(source.source_id)}.html`, request.url).href,
-      BED_download: assetUrl(request, bed.asset_key),
-      BED_asset_key: bed.asset_key,
+      GFF3_download: endpointGff3Url,
       release_version: release.release_version,
     };
     for (const [strand, label] of [["forward", "+"], ["reverse", "-"]]) {
@@ -440,7 +517,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       type: "FeatureTrack",
       trackId: track.track_id,
       name: `${source.source_id} · ${track.assay} endpoints`,
-      adapter: { type: "BedAdapter", bedLocation: { uri: assetUrl(request, bed.asset_key), locationType: "UriLocation" } },
+      adapter: { type: "Gff3Adapter", gffLocation: { uri: endpointGff3Url, locationType: "UriLocation" } },
       category: ["BTED endpoint tracks", source.source_id],
       assemblyNames: [assemblyName],
       metadata,
@@ -460,35 +537,6 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     });
   }
   configTracks.push(...tracksConfig);
-  // The BATTER-TPE pilot is a static, source-scoped model track. It is kept
-  // outside the endpoint catalogue so a prediction can never be mistaken for
-  // an experimental endpoint. The BED and provenance JSON are shipped with
-  // the site and are served from this same Worker origin.
-  if (threeLayerPilot) {
-    const pilotPath = "/data/pilots/BATTER_S1_003_batter_tpe_regional_pilot.bed";
-    const provenancePath = "/data/pilots/BATTER_S1_003_batter_tpe_regional_pilot.provenance.json";
-    const pilotTrackId = "bsub_batter_tpe_regional_pilot";
-    configTracks.push({
-      type: "FeatureTrack",
-      trackId: pilotTrackId,
-      name: "BATTER_S1_003 · BATTER-TPE prediction (compatibility pilot)",
-      adapter: { type: "BedAdapter", bedLocation: { uri: new URL(pilotPath, request.url).href, locationType: "UriLocation" } },
-      category: ["BTED model predictions", "BATTER_S1_003"],
-      assemblyNames: [assemblyName],
-      metadata: {
-        source_id: "BATTER_S1_003",
-        evidence_class: "model_prediction",
-        experimental: false,
-        prediction_scope: "regional pilot; NC_000964.3:18000-28000",
-        model: "BATTER-TPE pretrained model · compatibility pilot",
-        repository: "https://github.com/xu-research-lab/BATTER",
-        commit: "9133d2d36b60c238a1e36760a296eff9f001fb72",
-        provenance: new URL(provenancePath, request.url).href,
-        warning: "Computational prediction; not an experimental endpoint and not an exact single-base call.",
-      },
-      displays: [{ type: "LinearBasicDisplay", displayId: `${pilotTrackId}_display`, showLabels: false, height: 42 }],
-    });
-  }
   const sessionTracks = configTracks.map((track, index) => ({
     id: `bted_track_${index + 1}`,
     type: track.type,
@@ -504,7 +552,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", trackId: `${assemblyName}_refseq`, adapter: { type: "IndexedFastaAdapter", fastaLocation: { uri: assetUrl(request, fasta.asset_key), locationType: "UriLocation" }, faiLocation: { uri: assetUrl(request, fai.asset_key), locationType: "UriLocation" } } } }],
     tracks: configTracks,
     defaultSession: { name: `${accession} BTED catalogue`, views: [{ id: "bted_linear_genome_view", type: "LinearGenomeView", offsetPx: 0, bpPerPx: 10.001, displayedRegions: [{ refName: contigName, start: regionStart, end: regionEnd, reversed: false, assemblyName }], tracks: sessionTracks }] },
-    metadata: { release_version: release.release_version, assembly_accession: accession, source_ids: publicTracks.map(({ source }) => source.source_id), browser_asset_origin: release.asset_origin_status, three_layer_pilot: threeLayerPilot },
+    metadata: { release_version: release.release_version, assembly_accession: accession, source_ids: publicTracks.map(({ source }) => source.source_id), browser_asset_origin: release.asset_origin_status },
   });
 }
 
@@ -516,6 +564,12 @@ async function proxyAsset(request, env, release, assetKey) {
   if (range && Number(asset.supports_range) !== 1) return json({ error: "range_not_supported" }, 416, { "content-range": `bytes */${asset.byte_size}` });
   const requestUrl = new URL(request.url);
   const logicalPath = asset.logical_path.split("/").map(encodeURIComponent).join("/");
+  let dataBase;
+  try {
+    dataBase = await fixedDataReleaseBase(env, request);
+  } catch (error) {
+    return dataReleaseErrorResponse(error);
+  }
   const localBase = String(env.LOCAL_ASSET_BASE || "").trim();
   let origin;
   if (isLoopbackHost(requestUrl.hostname) && localBase) {
@@ -538,9 +592,7 @@ async function proxyAsset(request, env, release, assetKey) {
     const prefix = localUrl.pathname.replace(/\/$/, "");
     origin = new URL(`${localUrl.origin}${prefix}/${logicalPath}`);
   } else {
-    const base = String(env.HF_RESOLVE_BASE || "").replace(/\/$/, "");
-    if (!base) return json({ error: "origin_not_configured" }, 500);
-    origin = new URL(`${base}/${logicalPath}`);
+    origin = new URL(hfDataUrl(dataBase, logicalPath));
     if (origin.protocol !== "https:" || origin.hostname !== String(env.ALLOWED_ORIGIN_HOST || "")) {
       return json({ error: "origin_not_allowed" }, 403);
     }
@@ -599,7 +651,15 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (!["GET", "HEAD"].includes(request.method)) return json({ error: "method_not_allowed" }, 405, { allow: "GET, HEAD" });
+    if (url.pathname.startsWith("/downloads/v0.2.0/")) return retiredReleaseResponse("v0.2.0");
     if (!url.pathname.startsWith("/api/")) return staticAsset(request, env);
+    const requestedRelease = url.searchParams.get("release_version");
+    if (requestedRelease === "v0.2.0") {
+      return retiredReleaseResponse(requestedRelease);
+    }
+    if (requestedRelease && requestedRelease !== CURRENT_RELEASE_VERSION) {
+      return json({ error: "release_not_found", release_version: requestedRelease }, 404);
+    }
     const selected = await withRelease(env, url);
     if (url.pathname === "/api/health") return selected ? json({ status: "ok", deployment: "cloudflare-worker-d1-preview", release: releasePayload(selected.release) }) : json({ status: "error", error: "release_not_loaded" }, 503);
     if (!selected) return json({ error: "release_not_found" }, 404);
@@ -608,7 +668,6 @@ export default {
     if (url.pathname === "/api/sources") return sourcesList(request, env, selected.release, url);
     if (url.pathname === "/api/assemblies") return assembliesList(env, selected.release, url);
     if (url.pathname === "/api/endpoints") return endpointsList(env, selected.release, url);
-    if (url.pathname === "/api/augmentation") return augmentation(env, selected.release, url);
     const assetPrefix = url.pathname.startsWith("/api/assets/") ? "/api/assets/" : url.pathname.startsWith("/api/remote-data/") ? "/api/remote-data/" : null;
     if (assetPrefix) {
       const assetKey = decodePath(url.pathname.slice(assetPrefix.length));
@@ -620,12 +679,14 @@ export default {
       if (!accession) return json({ error: "invalid_assembly_accession" }, 400);
       if (url.pathname.endsWith("/jbrowse-config")) return jbrowseConfig(request, env, selected.release, accession, url.searchParams.get("source_id"));
       const payload = await assemblyPayload(request, env, selected.release, accession);
+      if (payload instanceof Response) return payload;
       return payload ? json(payload) : json({ error: "assembly_not_found", accession }, 404);
     }
     const sourceMatch = url.pathname.match(/^\/api\/sources\/([^/]+)$/);
     if (sourceMatch) {
       const sourceId = decodePath(sourceMatch[1]);
       const payload = sourceId ? await sourcePayload(request, env, selected.release, sourceId) : null;
+      if (payload instanceof Response) return payload;
       return payload ? json(payload) : json({ error: "source_not_found", source_id: sourceId }, 404);
     }
     const endpointMatch = url.pathname.match(/^\/api\/endpoints\/([^/]+)$/);

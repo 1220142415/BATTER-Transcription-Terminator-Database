@@ -407,6 +407,17 @@ def build_inventory(
     source_manifests_path: Path = DEFAULT_SOURCE_MANIFESTS,
     asset_policy_path: Path = DEFAULT_ASSET_POLICY,
 ) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    if not release_root.is_dir() and release_root.resolve() == DEFAULT_RELEASE.resolve():
+        from scripts.v03_legacy_inputs import legacy_inputs
+
+        with legacy_inputs(REPO_ROOT) as (temporary_repo, archived_release, _inventory):
+            return build_inventory(
+                bundle=bundle,
+                release_root=archived_release,
+                registry_path=temporary_repo / "data/registry/batter_s1_source_registry.tsv",
+                source_manifests_path=temporary_repo / "data/registry/manifests",
+                asset_policy_path=temporary_repo / "data/registry/batter_s1_asset_redistribution.v0.3.tsv",
+            )
     bundle = bundle.resolve()
     release_root = release_root.resolve()
     source_rows = _source_rows(registry_path)
@@ -448,7 +459,7 @@ def build_inventory(
         "source_ids": sorted({row["source_id"] for row in canonical_rows}),
         "raw_bigwig_source_ids": sorted(RAW_BIGWIG_SOURCES),
         "asset_redistribution_policy": {
-            "path": asset_policy_path.resolve().relative_to(REPO_ROOT.resolve()).as_posix(),
+            "path": asset_policy_path.resolve().relative_to(REPO_ROOT.resolve()).as_posix() if asset_policy_path.resolve().is_relative_to(REPO_ROOT.resolve()) else asset_policy_path.resolve().as_posix(),
             "sha256": sha256(asset_policy_path),
         },
         "deduplicated_shared_references": dedup,
@@ -466,20 +477,16 @@ def build_inventory(
     return rows, provenance
 
 
-def write_inventory(rows: list[dict[str, str]], provenance: dict[str, Any], tsv_path: Path, json_path: Path) -> None:
-    tsv_path.parent.mkdir(parents=True, exist_ok=True)
-    with tsv_path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=TSV_COLUMNS, delimiter="\t", lineterminator="\n")
-        writer.writeheader()
-        writer.writerows(rows)
+def write_inventory(rows: list[dict[str, str]], provenance: dict[str, Any], tsv_path: Path | None, json_path: Path) -> None:
     output = dict(provenance)
-    try:
-        output["tsv_path"] = tsv_path.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
-    except ValueError:
-        output["tsv_path"] = tsv_path.name
-    output["tsv_sha256"] = sha256(tsv_path)
-    output["tsv_byte_size"] = tsv_path.stat().st_size
+    if tsv_path is not None:
+        tsv_path.parent.mkdir(parents=True, exist_ok=True)
+        with tsv_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=TSV_COLUMNS, delimiter="\t", lineterminator="\n")
+            writer.writeheader()
+            writer.writerows(rows)
     output["row_count"] = len(rows)
+    output["rows"] = rows
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(
         json.dumps(output, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -494,7 +501,7 @@ def main() -> int:
     parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
     parser.add_argument("--source-manifests", type=Path, default=DEFAULT_SOURCE_MANIFESTS)
     parser.add_argument("--asset-policy", type=Path, default=DEFAULT_ASSET_POLICY)
-    parser.add_argument("--output-tsv", type=Path, default=DEFAULT_TSV)
+    parser.add_argument("--output-tsv", type=Path, default=None, help="optional compatibility TSV output")
     parser.add_argument("--output-json", type=Path, default=DEFAULT_JSON)
     args = parser.parse_args()
     rows, provenance = build_inventory(
@@ -505,7 +512,7 @@ def main() -> int:
         asset_policy_path=args.asset_policy,
     )
     write_inventory(rows, provenance, args.output_tsv, args.output_json)
-    print(f"PASS {len(rows)} assets -> {args.output_tsv}")
+    print(f"PASS {len(rows)} assets -> {args.output_json}")
     return 0
 
 

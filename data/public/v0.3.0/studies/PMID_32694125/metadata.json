@@ -1,0 +1,188 @@
+{
+  "schema_version": "1.0",
+  "release_version": "v0.3.0",
+  "pmid": "32694125",
+  "study_status": "published",
+  "audit_only": false,
+  "source_count": 1,
+  "record_count": 2091,
+  "related_table_counts": {
+    "gene_associations": 0,
+    "condition_observations": 0
+  },
+  "sources": [
+    {
+      "source_id": "BATTER_S1_009",
+      "registry_manifest": {
+        "schema_version": "1.0",
+        "source_id": "BATTER_S1_009",
+        "published_year": "2020",
+        "species": "Zymomonas mobilis subsp. mobilis ZM4",
+        "phylum": "Proteobacteria",
+        "reference_genome": "GCF_003054575.1",
+        "pmid": "32694125",
+        "paper_title": "Genome-Scale Transcription-Translation Mapping of Zymomonas mobilis",
+        "doi": "10.1128/mSystems.00250-20",
+        "pmc": "PMC7566282",
+        "raw_data_accessions": "GSE139939",
+        "assay_family": "Term-seq / SMRT-Cappable-seq",
+        "used_for_batter_augmentation": "TRUE",
+        "accessibility_status": "accessible",
+        "coordinate_status": "verified_with_count_conflict",
+        "processing_status": "curated",
+        "blocker_or_note": "Data Set S3 imported as 2,091 processing-filtered Term-seq TTSs across chromosome and four plasmids. Pure TransTermHP predictions remain excluded; article reports 617 predicted matches whereas TTS_list marks 616.",
+        "dataset_id": "zm4-termseq-vera-2020",
+        "pubmed_url": "https://pubmed.ncbi.nlm.nih.gov/32694125/",
+        "doi_url": "https://doi.org/10.1128/mSystems.00250-20",
+        "pmc_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7566282/",
+        "raw_data_url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE139939",
+        "has_jbrowse": true,
+        "status_label": "已整理",
+        "evidence_policy": "experimental_only",
+        "prediction_included": false,
+        "repository_release": {
+          "release_version": "v0.1-local-snapshot",
+          "migration_date": "2026-08-10",
+          "release_status": "published_standardized",
+          "record_count": 2091,
+          "evidence_class": "author_called_endpoint",
+          "decision_note": "Author-published Term-seq TTS after processing-site filtering; pure TransTermHP predictions are excluded.",
+          "jbrowse_published_in_repository": false,
+          "source_processed_table_sha256": "770fba004a8f0fff8dc22afe0966d03a0ea2ca90bb31826f8df60152ce456148",
+          "published_file_checksums": [
+            {
+              "filename": "endpoints.tsv",
+              "sha256": "4e7bac10bb9ae77c8961a9c7d0e8822d0a96ea4b6607388d62910243fd3ccfae"
+            },
+            {
+              "filename": "endpoints.bed",
+              "sha256": "744e353231be5e657212ec6f701a737a6d7d6254f2ba6ac20088f2d8ca2224db"
+            }
+          ],
+          "public_asset_name": "endpoints.tsv",
+          "source_processed_table_name": "processing_filtered_termseq_tts.tsv"
+        },
+        "legacy_manifest_sha256": "77e34ba44f2d8a7def40f36510042095e1d7aaf703abba87f7a7c2b4daa185b4"
+      },
+      "release_facts": {
+        "known_limitations": "Data Set S3 imported as 2,091 processing-filtered Term-seq TTSs across chromosome and four plasmids. Pure TransTermHP predictions remain excluded; article reports 617 predicted matches whereas TTS_list marks 616.",
+        "has_jbrowse": true
+      },
+      "registry_row": {
+        "source_id": "BATTER_S1_009",
+        "published_year": "2020",
+        "species": "Zymomonas mobilis subsp. mobilis ZM4",
+        "phylum": "Proteobacteria",
+        "reference_genome": "GCF_003054575.1",
+        "pmid": "32694125",
+        "paper_title": "Genome-Scale Transcription-Translation Mapping of Zymomonas mobilis",
+        "doi": "10.1128/mSystems.00250-20",
+        "pmc": "PMC7566282",
+        "raw_data_accessions": "GSE139939",
+        "assay_family": "Term-seq / SMRT-Cappable-seq",
+        "used_for_batter_augmentation": "TRUE",
+        "accessibility_status": "accessible",
+        "coordinate_status": "verified_with_count_conflict",
+        "processing_status": "curated",
+        "blocker_or_note": "Data Set S3 imported as 2,091 processing-filtered Term-seq TTSs across chromosome and four plasmids. Pure TransTermHP predictions remain excluded; article reports 617 predicted matches whereas TTS_list marks 616."
+      },
+      "publication_status": {
+        "source_id": "BATTER_S1_009",
+        "release_status": "published_standardized",
+        "record_count": "2091",
+        "evidence_class": "author_called_endpoint",
+        "has_jbrowse": "true",
+        "source_annotations_status": "published",
+        "redistribution_status": "verified_redistributable",
+        "record_root": "data/public/v0.2.0/records/BATTER_S1_009"
+      },
+      "license_status": {
+        "source_id": "BATTER_S1_009",
+        "pmid": "32694125",
+        "article_license": "CC BY",
+        "redistribution_status": "verified_redistributable",
+        "license_source": "https://europepmc.org/article/MED/32694125",
+        "note": "Europe PMC license metadata checked on 2026-08-10; this status governs the v0.2.0 source-specific table. Original repository terms still apply."
+      },
+      "asset_redistribution": [],
+      "table_defaults": {
+        "endpoints": {
+          "sample_id": "GSE139939_MULTI_CONDITION_TERMSEQ",
+          "assay": "Term-seq + TSS-seq processing-site exclusion",
+          "evidence_class": "author_called_endpoint",
+          "reference_assembly": "GCF_003054575.1",
+          "pmid": "32694125",
+          "doi": "10.1128/mSystems.00250-20",
+          "source_table_or_file": "Data Set S3: TTS_list",
+          "coordinate_interpretation": "author legend states 1-based; BED start=position-1",
+          "qc_status": "migrated_coordinate_and_bed_checked",
+          "note": "Author-published Term-seq TTS after processing-site filtering; pure TransTermHP predictions are excluded."
+        }
+      },
+      "annotation_defaults": {
+        "fields": {
+          "species": "Zymomonas mobilis subsp. mobilis ZM4",
+          "source_table": "Data Set S3: TTS_list",
+          "processing_filter": "candidate 3-prime ends with adjacent downstream 5-prime-monophosphoryl sites and tRNA-overlapping sites removed"
+        },
+        "overrides": {
+          "evidence_class": "author_called_termseq_tts_processing_filtered"
+        }
+      },
+      "annotation_field_map": {
+        "source_record_id": {
+          "from": "endpoint",
+          "field": "author_endpoint_id"
+        },
+        "source_end_id": {
+          "from": "attribute",
+          "attribute": "ann_source_end_id"
+        },
+        "author_tts_id": {
+          "from": "endpoint",
+          "field": "author_endpoint_id"
+        },
+        "published_sequence_label": {
+          "from": "endpoint",
+          "field": "replicon_label"
+        },
+        "condition_A": {
+          "from": "attribute",
+          "attribute": "ann_condition_A"
+        },
+        "condition_B": {
+          "from": "attribute",
+          "attribute": "ann_condition_B"
+        },
+        "condition_C": {
+          "from": "attribute",
+          "attribute": "ann_condition_C"
+        },
+        "condition_D": {
+          "from": "attribute",
+          "attribute": "ann_condition_D"
+        },
+        "condition_E": {
+          "from": "attribute",
+          "attribute": "ann_condition_E"
+        },
+        "condition_F": {
+          "from": "attribute",
+          "attribute": "ann_condition_F"
+        },
+        "conditions_detected": {
+          "from": "endpoint",
+          "field": "signal_or_score"
+        },
+        "matched_predicted_terminator": {
+          "from": "attribute",
+          "attribute": "ann_matched_predicted_terminator"
+        },
+        "location_class": {
+          "from": "attribute",
+          "attribute": "ann_location_class"
+        }
+      }
+    }
+  ]
+}

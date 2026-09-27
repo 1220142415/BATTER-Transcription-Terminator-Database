@@ -1,0 +1,155 @@
+{
+  "schema_version": "1.0",
+  "release_version": "v0.3.0",
+  "pmid": "34054774",
+  "study_status": "published",
+  "audit_only": false,
+  "source_count": 1,
+  "record_count": 487,
+  "related_table_counts": {
+    "gene_associations": 0,
+    "condition_observations": 0
+  },
+  "sources": [
+    {
+      "source_id": "BATTER_S1_018",
+      "registry_manifest": {
+        "schema_version": "1.0",
+        "source_id": "BATTER_S1_018",
+        "published_year": "2021",
+        "species": "Synechocystis sp. PCC 7338",
+        "phylum": "Cyanobacteria",
+        "reference_genome": "GCF_018282115.1",
+        "pmid": "34054774",
+        "paper_title": "Multi-Omic Analyses of Synechocystis sp. PCC 7338",
+        "doi": "10.3389/fmicb.2021.667450",
+        "pmc": "PMC8155712",
+        "raw_data_accessions": "PRJNA629670",
+        "assay_family": "Term-seq / dRNA-seq",
+        "used_for_batter_augmentation": "TRUE",
+        "accessibility_status": "accessible",
+        "coordinate_status": "verified",
+        "processing_status": "curated",
+        "blocker_or_note": "Supplementary Data S2 imported: 487 TEPs across CP054306.1 chromosome and three plasmids.",
+        "dataset_id": "pcc7338-termseq-2021",
+        "pubmed_url": "https://pubmed.ncbi.nlm.nih.gov/34054774/",
+        "doi_url": "https://doi.org/10.3389/fmicb.2021.667450",
+        "pmc_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC8155712/",
+        "raw_data_url": "https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA629670",
+        "has_jbrowse": true,
+        "status_label": "已整理",
+        "evidence_policy": "experimental_only",
+        "prediction_included": false,
+        "repository_release": {
+          "release_version": "v0.1-local-snapshot",
+          "migration_date": "2026-08-10",
+          "release_status": "published_standardized",
+          "record_count": 487,
+          "evidence_class": "author_called_endpoint",
+          "decision_note": "Author-called Term-seq TEP; all four published replicons are preserved.",
+          "jbrowse_published_in_repository": false,
+          "source_processed_table_sha256": "29561b1152ef0756684e62bda8da818718eda78f81f491c82c0a3ae31b3e233e",
+          "published_file_checksums": [
+            {
+              "filename": "endpoints.tsv",
+              "sha256": "f58ccec9ed747b6b470fb560ce4a42c0466006c30f1fa0bc4459f22166da1b47"
+            },
+            {
+              "filename": "endpoints.bed",
+              "sha256": "867bd1cff21752c41114037f410243799fb241ad1dbdf7d9ac4d7cb661194663"
+            }
+          ],
+          "public_asset_name": "endpoints.tsv",
+          "source_processed_table_name": "published_termseq_teps.tsv"
+        },
+        "legacy_manifest_sha256": "56643b8024b68e792ea00574aadebd73dcd94f2eab8fcd5b549a04ca64c41226"
+      },
+      "release_facts": {
+        "known_limitations": "Supplementary Data S2 imported: 487 TEPs across CP054306.1 chromosome and three plasmids.",
+        "has_jbrowse": true
+      },
+      "registry_row": {
+        "source_id": "BATTER_S1_018",
+        "published_year": "2021",
+        "species": "Synechocystis sp. PCC 7338",
+        "phylum": "Cyanobacteria",
+        "reference_genome": "GCF_018282115.1",
+        "pmid": "34054774",
+        "paper_title": "Multi-Omic Analyses of Synechocystis sp. PCC 7338",
+        "doi": "10.3389/fmicb.2021.667450",
+        "pmc": "PMC8155712",
+        "raw_data_accessions": "PRJNA629670",
+        "assay_family": "Term-seq / dRNA-seq",
+        "used_for_batter_augmentation": "TRUE",
+        "accessibility_status": "accessible",
+        "coordinate_status": "verified",
+        "processing_status": "curated",
+        "blocker_or_note": "Supplementary Data S2 imported: 487 TEPs across CP054306.1 chromosome and three plasmids."
+      },
+      "publication_status": {
+        "source_id": "BATTER_S1_018",
+        "release_status": "published_standardized",
+        "record_count": "487",
+        "evidence_class": "author_called_endpoint",
+        "has_jbrowse": "true",
+        "source_annotations_status": "published",
+        "redistribution_status": "verified_redistributable",
+        "record_root": "data/public/v0.2.0/records/BATTER_S1_018"
+      },
+      "license_status": {
+        "source_id": "BATTER_S1_018",
+        "pmid": "34054774",
+        "article_license": "CC BY",
+        "redistribution_status": "verified_redistributable",
+        "license_source": "https://europepmc.org/article/MED/34054774",
+        "note": "Europe PMC license metadata checked on 2026-08-10; this status governs the v0.2.0 source-specific table. Original repository terms still apply."
+      },
+      "asset_redistribution": [],
+      "table_defaults": {
+        "endpoints": {
+          "sample_id": "BATTER_S1_018_PUBLISHED_TEP",
+          "assay": "Term-seq",
+          "evidence_class": "author_called_endpoint",
+          "reference_assembly": "GCF_018282115.1",
+          "pmid": "34054774",
+          "doi": "10.3389/fmicb.2021.667450",
+          "source_table_or_file": "Supplementary Data S2",
+          "coordinate_interpretation": "author Position treated as 1-based; BED start=Position-1",
+          "qc_status": "migrated_coordinate_and_bed_checked",
+          "note": "Author-called Term-seq TEP; all four published replicons are preserved."
+        }
+      },
+      "annotation_defaults": {
+        "fields": {
+          "species": "Synechocystis sp. PCC 7338",
+          "source_table": "Supplementary Data S2"
+        },
+        "overrides": {
+          "evidence_class": "author_called_termseq_tep"
+        }
+      },
+      "annotation_field_map": {
+        "source_record_id": {
+          "from": "endpoint",
+          "field": "author_endpoint_id"
+        },
+        "source_end_id": {
+          "from": "attribute",
+          "attribute": "ann_source_end_id"
+        },
+        "author_tep_id": {
+          "from": "endpoint",
+          "field": "author_endpoint_id"
+        },
+        "category": {
+          "from": "endpoint",
+          "field": "author_category"
+        },
+        "associated_gene": {
+          "from": "endpoint",
+          "field": "associated_gene_or_locus"
+        }
+      }
+    }
+  ]
+}

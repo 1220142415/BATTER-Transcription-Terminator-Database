@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import json
+import atexit
 import tempfile
 import unittest
 from collections import Counter
 from pathlib import Path
 
-from backend.importer.materialize import materialize_release
-from backend.importer.postgres import verify_bundle
+from bted_pipeline.materialize import materialize_release
+from bted_pipeline.bundle import verify_bundle
+from scripts.v03_legacy_inputs import legacy_inputs
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RELEASE_ROOT = REPO_ROOT / "data/public/v0.2.0"
-INVENTORY = REPO_ROOT / "data/registry/jbrowse_assets.v0.2.0.tsv"
+_legacy_context = legacy_inputs(REPO_ROOT)
+LEGACY_REPO, RELEASE_ROOT, INVENTORY = _legacy_context.__enter__()
+atexit.register(lambda: _legacy_context.__exit__(None, None, None))
 
 
 class TestJBrowseInventoryMaterialization(unittest.TestCase):
@@ -24,7 +27,7 @@ class TestJBrowseInventoryMaterialization(unittest.TestCase):
         cls.output = Path(cls.temp.name) / "bundle"
         cls.result = materialize_release(
             RELEASE_ROOT,
-            repo_root=REPO_ROOT,
+            repo_root=LEGACY_REPO,
             output_dir=cls.output,
             asset_origin_base="https://example.test/assets",
             generated_at_utc="2026-08-21T00:00:00Z",

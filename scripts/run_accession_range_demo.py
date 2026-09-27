@@ -310,8 +310,8 @@ class DemoHandler(SimpleHTTPRequestHandler):
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--site-dir", type=Path, default=Path(".pages-preview"))
-    parser.add_argument("--asset-dir", type=Path, default=Path("dist/BTED-v0.2.0-jbrowse/assets"))
+    parser.add_argument("--site-dir", type=Path, default=Path("dist/pages-site"))
+    parser.add_argument("--asset-dir", type=Path, default=Path("dist/pages-site/jbrowse/assets"))
     parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8016)

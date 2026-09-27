@@ -13,13 +13,17 @@ class WorkerAssetProxyTests(unittest.TestCase):
         self,
         *,
         request_url: str = "http://localhost:8787",
+        request_path: str | None = None,
         local_asset_base: str | None = None,
         fetch_mode: str = "success",
+        data_release_manifest_mode: str = "valid",
     ) -> dict[str, object]:
         worker_path = json.dumps(str(WORKER))
         request_url_js = json.dumps(request_url)
+        request_path_js = json.dumps(request_path)
         local_asset_base_js = json.dumps(local_asset_base)
         fetch_mode_js = json.dumps(fetch_mode)
+        data_release_manifest_mode_js = json.dumps(data_release_manifest_mode)
         script = f"""
 import {{ readFileSync }} from "node:fs";
 
@@ -29,17 +33,17 @@ const moduleUrl = "data:text/javascript;base64," + Buffer.from(source).toString(
 const {{ worker }} = await import(moduleUrl);
 
 const release = {{
-  release_version: "v0.2.0",
+  release_version: "v0.3.0",
   status: "preview",
-  canonical_manifest_path: "release_manifest.json",
+  canonical_manifest_path: "data/public/v0.3.0/release.json",
   canonical_manifest_sha256: "a".repeat(64),
   asset_origin_status: "verified",
   materializer_version: "test",
   is_current: 1,
 }};
 const asset = {{
-  asset_key: "v0.2.0--assembly-GCF_000009045.1--fai",
-  release_version: "v0.2.0",
+  asset_key: "v0.3.0--assembly-GCF_000009045.1--fai",
+  release_version: "v0.3.0",
   assembly_accession: "GCF_000009045.1",
   source_id: null,
   asset_kind: "fai",
@@ -52,16 +56,63 @@ const asset = {{
   redistribution_status: "verified_redistributable",
   is_public: 1,
 }};
+const browserAssembly = {{
+  accession: "GCF_000009045.1",
+  display_name: "Bacillus subtilis subsp. subtilis str. 168",
+  organism_name: "Bacillus subtilis",
+}};
+const browserTracks = [{{
+  track_id: "track-BATTER_S1_003",
+  release_version: "v0.3.0",
+  source_id: "BATTER_S1_003",
+  assembly_accession: "GCF_000009045.1",
+  assay: "Term-seq",
+  record_count: 1070,
+  raw_accessions_json: "[]",
+  paper_title: "Test paper",
+  pmid: "12345678",
+  doi: "10.1000/test",
+  is_public: 1,
+  asset_key: null,
+}}];
+const browserSource = {{
+  source_id: "BATTER_S1_003",
+  release_version: "v0.3.0",
+  release_status: "published_standardized",
+  evidence_class: "author_called_endpoint",
+  record_count: 1070,
+  has_jbrowse: 1,
+}};
+const browserAssets = [
+  {{ ...asset, asset_key: "v0.3.0--assembly-GCF_000009045.1--fasta", asset_kind: "fasta", logical_path: "assemblies/GCF_000009045.1/reference/reference.fna" }},
+  {{ ...asset, asset_key: "v0.3.0--assembly-GCF_000009045.1--fai", asset_kind: "fai", logical_path: "assemblies/GCF_000009045.1/reference/reference.fna.fai" }},
+];
 const db = {{
   prepare(sql) {{
-    if (sql.includes("FROM release_versions")) return {{ bind() {{ return {{ first: async () => release }}; }} }};
-    if (sql.includes("FROM assets")) return {{ bind() {{ return {{ first: async () => asset }}; }} }};
+    if (sql.includes("FROM release_versions")) return {{ bind(version) {{ return {{ first: async () => version === release.release_version ? release : null }}; }} }};
+    if (sql.startsWith("SELECT * FROM assemblies WHERE")) return {{ bind() {{ return {{ first: async () => browserAssembly }}; }} }};
+    if (sql.startsWith("SELECT * FROM tracks WHERE")) return {{ bind() {{ return {{ all: async () => ({{ results: browserTracks }}) }}; }} }};
+    if (sql.startsWith("SELECT * FROM sources WHERE")) return {{ bind() {{ return {{ first: async () => browserSource }}; }} }};
+    if (sql.startsWith("SELECT contig_accession, length_bp")) return {{ bind() {{ return {{ first: async () => ({{ contig_accession: "NC_000964.3", length_bp: 4215606 }}) }}; }} }};
+    if (sql.startsWith("SELECT reference_name, biological_coordinate_1based")) return {{ bind() {{ return {{ first: async () => ({{ reference_name: "NC_000964.3", biological_coordinate_1based: 19000 }}) }}; }} }};
+    if (sql.includes("FROM assets")) return {{ bind(...params) {{ return {{ first: async () => params[0] === asset.asset_key && params[1] === asset.release_version ? asset : null, all: async () => ({{ results: params[1] === browserAssembly.accession ? browserAssets : [] }}) }}; }} }};
+    if (sql.includes("SELECT release_status")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ release_status: "published_standardized", total: 21 }}, {{ release_status: "audit_only", total: 1 }}] }}) }}; }} }};
+    if (sql.includes("SELECT evidence_class")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ evidence_class: "author_reported", total: 28399 }}] }}) }}; }} }};
+    if (sql.includes("FROM endpoints WHERE")) return {{ bind() {{ return {{ first: async () => ({{ total: 28399 }}) }}; }} }};
+    if (sql.includes("FROM assemblies WHERE")) return {{ bind() {{ return {{ first: async () => ({{ total: 20 }}) }}; }} }};
+    if (sql.includes("FROM sources WHERE")) return {{ bind() {{ return {{ first: async () => ({{ total: 19 }}) }}; }} }};
     throw new Error(`Unexpected query: ${{sql}}`);
   }},
 }};
 
 let fetchedUrl = null;
 const fetchMode = {fetch_mode_js};
+const dataReleaseManifestMode = {data_release_manifest_mode_js};
+const dataReleaseManifest = {{
+  releaseVersion: "v0.3.0",
+  baseUrl: "https://huggingface.co/datasets/liurulong/terminator/resolve/0123456789abcdef0123456789abcdef01234567/v0.3.0",
+  revision: "0123456789abcdef0123456789abcdef01234567",
+}};
 globalThis.fetch = async (url) => {{
   fetchedUrl = String(url);
   if (fetchMode === "throw") throw new Error("Network connection lost");
@@ -70,12 +121,19 @@ globalThis.fetch = async (url) => {{
 }};
 const env = {{
   BTED_DB: db,
-  HF_RESOLVE_BASE: "https://huggingface.co/datasets/x/resolve/y",
   ALLOWED_ORIGIN_HOST: "huggingface.co",
+  ASSETS: {{
+    async fetch(request) {{
+      if (new URL(request.url).pathname !== "/assets/data-release.json") return new Response("missing", {{ status: 404 }});
+      if (dataReleaseManifestMode === "missing") return new Response("missing", {{ status: 404 }});
+      if (dataReleaseManifestMode === "malformed") return new Response(JSON.stringify({{ ...dataReleaseManifest, baseUrl: "https://huggingface.co/datasets/liurulong/terminator/resolve/main/v0.3.0" }}), {{ status: 200 }});
+      return new Response(JSON.stringify(dataReleaseManifest), {{ status: 200, headers: {{ "content-type": "application/json" }} }});
+    }}
+  }},
 }};
 if ({local_asset_base_js} !== null) env.LOCAL_ASSET_BASE = {local_asset_base_js};
 const response = await worker.fetch(
-  new Request({request_url_js} + "/api/assets/" + asset.asset_key),
+  new Request({request_url_js} + ({request_path_js} ?? ("/api/assets/" + asset.asset_key))),
   env,
 );
 let body;
@@ -113,8 +171,19 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(payload["status"], 200)
         self.assertEqual(
             payload["fetchedUrl"],
-            "https://huggingface.co/datasets/x/resolve/y/assemblies/GCF_000009045.1/reference/reference.fna.fai",
+            "https://huggingface.co/datasets/liurulong/terminator/resolve/0123456789abcdef0123456789abcdef01234567/v0.3.0/assemblies/GCF_000009045.1/reference/reference.fna.fai",
         )
+
+    def test_missing_or_unpinned_release_manifest_fails_clearly(self):
+        missing = self.run_worker(data_release_manifest_mode="missing")
+        self.assertEqual(missing["status"], 503)
+        self.assertEqual(missing["body"], {"error": "data_release_manifest_missing"})
+        self.assertIsNone(missing["fetchedUrl"])
+
+        malformed = self.run_worker(data_release_manifest_mode="malformed")
+        self.assertEqual(malformed["status"], 503)
+        self.assertEqual(malformed["body"], {"error": "data_release_manifest_invalid"})
+        self.assertIsNone(malformed["fetchedUrl"])
 
     def test_loopback_request_rejects_non_loopback_local_asset_base(self):
         payload = self.run_worker(local_asset_base="http://assets.example.test")
@@ -129,10 +198,78 @@ process.stdout.write(JSON.stringify({{
             payload["body"],
             {
                 "error": "asset_origin_unavailable",
-                "asset_key": "v0.2.0--assembly-GCF_000009045.1--fai",
+                "asset_key": "v0.3.0--assembly-GCF_000009045.1--fai",
             },
         )
         self.assertEqual(payload["cacheControl"], "no-store")
+
+    def test_current_api_health_and_retired_v1_route(self):
+        health = self.run_worker(request_path="/api/health")
+        self.assertEqual(health["status"], 200)
+        self.assertEqual(health["body"]["status"], "ok")
+        self.assertEqual(health["body"]["release"]["release_version"], "v0.3.0")
+        self.assertIsNone(health["fetchedUrl"])
+
+        retired = self.run_worker(request_path="/api/v1/health")
+        self.assertEqual(retired["status"], 404)
+
+    def test_v02_query_and_asset_route_are_retired(self):
+        retired = self.run_worker(request_path="/api/health?release_version=v0.2.0")
+        self.assertEqual(retired["status"], 410)
+        self.assertEqual(retired["body"], {
+            "error": "release_version_retired",
+            "release_version": "v0.2.0",
+            "current_release_version": "v0.3.0",
+            "archive_path": "data/archive/BTED-v0.2.0.tar.gz",
+        })
+        self.assertIsNone(retired["fetchedUrl"])
+
+        old_download = self.run_worker(
+            request_path="/downloads/v0.2.0/records/BATTER_S1_003/endpoints.bed",
+        )
+        self.assertEqual(old_download["status"], 410)
+        self.assertEqual(old_download["body"]["error"], "release_version_retired")
+        self.assertEqual(old_download["body"]["archive_path"], "data/archive/BTED-v0.2.0.tar.gz")
+        self.assertIsNone(old_download["fetchedUrl"])
+
+        old_asset = self.run_worker(request_path="/api/assets/v0.2.0--assembly-GCF_000009045.1--fai")
+        self.assertEqual(old_asset["status"], 404)
+        self.assertEqual(old_asset["body"]["error"], "unknown_or_private_asset")
+        self.assertIsNone(old_asset["fetchedUrl"])
+
+    def test_jbrowse_config_uses_v03_gff3_download_without_d1_asset_key(self):
+        payload = self.run_worker(
+            request_url="https://preview.example.test",
+            request_path="/api/assemblies/GCF_000009045.1/jbrowse-config",
+        )
+        self.assertEqual(payload["status"], 200)
+        config = payload["body"]
+        self.assertEqual(config["metadata"]["release_version"], "v0.3.0")
+        endpoint_track = next(track for track in config["tracks"] if track["trackId"] == "track-BATTER_S1_003")
+        expected_gff3 = "https://huggingface.co/datasets/liurulong/terminator/resolve/0123456789abcdef0123456789abcdef01234567/v0.3.0/records/BATTER_S1_003/endpoints.gff3"
+        self.assertEqual(endpoint_track["adapter"]["type"], "Gff3Adapter")
+        self.assertEqual(endpoint_track["adapter"]["gffLocation"]["uri"], expected_gff3)
+        self.assertEqual(endpoint_track["metadata"]["GFF3_download"], expected_gff3)
+        self.assertNotIn("BED_download", endpoint_track["metadata"])
+        self.assertIsNone(payload["fetchedUrl"])
+
+    def test_stats_keeps_release_and_source_status_counts(self):
+        payload = self.run_worker(request_path="/api/stats")
+        self.assertEqual(payload["status"], 200)
+        self.assertEqual(payload["body"]["release"]["release_version"], "v0.3.0")
+        self.assertEqual(payload["body"]["sources"], {
+            "total": 22,
+            "published_standardized": 21,
+            "audit_only": 1,
+        })
+        self.assertEqual(payload["body"]["endpoints"]["total"], 28399)
+        self.assertEqual(payload["body"]["assemblies"]["total"], 20)
+        self.assertNotIn("augmentation", payload["body"])
+
+    def test_augmentation_api_route_is_removed(self):
+        response = self.run_worker(request_path="/api/augmentation")
+        self.assertEqual(response["status"], 404)
+        self.assertEqual(response["body"]["error"], "not_found")
 
 
 if __name__ == "__main__":

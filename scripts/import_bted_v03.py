@@ -1,32 +1,22 @@
 #!/usr/bin/env python3
-"""Validate, materialize, and optionally write a BTED release.
-
-``validate``, ``materialize`` and ``verify-bundle`` are read-only with respect
-to the release and database.  The ``load-postgres`` and ``promote-postgres``
-commands are separate, explicit operations: they require a confirmation flag
-and a database URL environment variable, and never alter canonical release
-files.
+"""Validate a BTED release and build or verify its offline bundle.
 
 Examples::
 
-    python3 scripts/import_bted_v03.py validate \
-        --release-root data/public/v0.2.0
-    python3 scripts/import_bted_v03.py validate \
-        --release-root data/public/v0.2.0 --plan-json /tmp/bted-plan.json
+    python3 scripts/import_bted_v03.py validate
     python3 scripts/import_bted_v03.py materialize \
-        --release-root data/public/v0.2.0 \
+        --release-root data/public/v0.3.0 \
         --output-dir /tmp/bted-v03-staging \
         --asset-origin-base https://example.test/assets \
         --generated-at-utc 2026-08-21T00:00:00Z
     python3 scripts/import_bted_v03.py verify-bundle \
         --bundle-dir /tmp/bted-v03-staging
-    python3 scripts/import_bted_v03.py load-postgres \
-        --bundle-dir /tmp/bted-v03-staging --confirm-write
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -36,16 +26,211 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from backend.importer.canonical import validate_release  # noqa: E402
-from backend.importer.materialize import MaterializationError, materialize_release  # noqa: E402
-from backend.importer.postgres import (  # noqa: E402
-    PostgresWriterError,
-    connect_psycopg_from_env,
-    load_bundle,
-    promote_bundle,
+from bted_pipeline import (  # noqa: E402
+    BundleVerificationError,
+    MaterializationError,
+    materialize_release,
+    validate_release,
     verify_bundle,
     verify_summary,
 )
+from bted_pipeline.materialize import TABLE_ORDER, _atomic_write_bundle  # noqa: E402
+from scripts.v03_legacy_inputs import legacy_inputs, workspace_scratch  # noqa: E402
+from scripts.v03_tables import iter_endpoints  # noqa: E402
+
+
+V03_RELEASE = "data/public/v0.3.0"
+
+
+def _is_v03_release(path: str | Path) -> bool:
+    return (Path(path) / "release.json").is_file()
+
+
+def _v03_repo_root(path: str | Path, repo_root: str | None) -> Path:
+    return Path(repo_root).resolve() if repo_root else Path(path).resolve().parents[2]
+
+
+def _check_v03(repo_root: Path) -> dict[str, object]:
+    from scripts.validate_bted_v0_3 import validate_release as validate_v03
+
+    summary = validate_v03(repo_root)
+    if summary.get("release_version") != "v0.3.0":
+        raise ValueError("expected v0.3.0 release")
+    return summary
+
+
+def _study_metadata_index(repo_root: Path) -> dict[str, Path]:
+    """Locate the metadata document that owns each source dataset."""
+
+    study_root = repo_root / V03_RELEASE / "studies"
+    result: dict[str, Path] = {}
+    for path in sorted(study_root.glob("PMID_*/metadata.json")):
+        document = json.loads(path.read_text(encoding="utf-8"))
+        for source in document.get("sources", []):
+            source_id = str(source["source_id"])
+            if source_id in result:
+                raise ValueError(f"Source is listed in two study metadata files: {source_id}")
+            result[source_id] = path
+    if not result:
+        raise ValueError(f"No study metadata found under {study_root}")
+    return result
+
+
+def _canonical_data_file_refs(repo_root: Path) -> dict[str, object]:
+    """Record the actual study files and shared tables used by the bundle."""
+
+    release_dir = repo_root / V03_RELEASE
+
+    def file_ref(path: Path) -> dict[str, str]:
+        if not path.is_file():
+            raise ValueError(f"Missing v0.3.0 input: {path}")
+        return {
+            "path": path.relative_to(repo_root).as_posix(),
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+
+    studies = []
+    for metadata in sorted((release_dir / "studies").glob("PMID_*/metadata.json")):
+        study_files: dict[str, object] = {
+            "pmid": metadata.parent.name.removeprefix("PMID_"),
+            "endpoints": file_ref(metadata.parent / "endpoints.gff3.gz"),
+            "metadata": file_ref(metadata),
+            "metadata_tsv": file_ref(metadata.parent / "metadata.tsv"),
+        }
+        for table in ("gene_associations", "condition_observations"):
+            table_path = metadata.parent / f"{table}.tsv.gz"
+            if table_path.is_file():
+                study_files[table] = file_ref(table_path)
+        studies.append(study_files)
+    if not studies:
+        raise ValueError("v0.3.0 has no study files")
+    if sum("gene_associations" in study for study in studies) != 1 or sum("condition_observations" in study for study in studies) != 1:
+        raise ValueError("v0.3.0 related tables must each belong to exactly one study")
+    return {"studies": studies}
+
+
+def _promote_bundle(legacy_bundle: Path, output: Path, repo_root: Path) -> dict[str, object]:
+    """Promote equivalent rows while retaining only current browser assets."""
+
+    old_manifest = json.loads((legacy_bundle / "manifest.json").read_text(encoding="utf-8"))
+    tables: dict[str, list[dict[str, object]]] = {}
+
+    def replace_version(value: object) -> object:
+        if value == "v0.2.0":
+            return "v0.3.0"
+        if isinstance(value, dict):
+            return {key: replace_version(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [replace_version(item) for item in value]
+        return value
+
+    for name in TABLE_ORDER:
+        path = legacy_bundle / f"{name}.jsonl"
+        tables[name] = [replace_version(json.loads(line)) for line in path.read_text(encoding="utf-8").splitlines()]
+    # Read D1 endpoint values from the current GFF3 release. The archived bundle
+    # supplies relational keys, while this comparison guards every original field.
+    current_endpoints = {
+        (row["source_id"], row["end_id"]): row
+        for row in iter_endpoints(repo_root / V03_RELEASE)
+    }
+    if len(current_endpoints) != len(tables["endpoints"]):
+        raise ValueError("GFF3 endpoint count differs from the archived bundle")
+    for row in tables["endpoints"]:
+        key = (str(row["source_id_ref"]), str(row["end_id"]))
+        current = current_endpoints.pop(key, None)
+        if current is None:
+            raise ValueError(f"GFF3 endpoint missing from archived bundle: {key}")
+        for field, value in current.items():
+            if str(row[field]) != value:
+                raise ValueError(f"GFF3 endpoint field differs from archived bundle: {key}.{field}")
+            row[field] = int(value) if field in {
+                "biological_coordinate_1based", "bed_start_0based", "bed_end_0based"
+            } else value
+    if current_endpoints:
+        raise ValueError("GFF3 contains endpoints absent from the archived bundle")
+    release_path = repo_root / V03_RELEASE / "release.json"
+    release_sha = hashlib.sha256(release_path.read_bytes()).hexdigest()
+    study_metadata = _study_metadata_index(repo_root)
+    archive_path = repo_root / "data/archive/BTED-v0.2.0.tar.gz"
+    archive_sha = hashlib.sha256(archive_path.read_bytes()).hexdigest()
+    for row in tables["release_versions"]:
+        row["canonical_manifest_path"] = f"{V03_RELEASE}/release.json"
+        row["canonical_manifest_sha256"] = release_sha
+    for row in tables["import_runs"]:
+        row["input_manifest_path"] = f"{V03_RELEASE}/release.json"
+        row["input_manifest_sha256"] = release_sha
+    source_rows = {str(row["source_id"]): row for row in tables["sources"]}
+    old_manifest_sha_by_source = {
+        source_id: str(row["manifest_sha256"])
+        for source_id, row in source_rows.items()
+    }
+    for source_id, row in source_rows.items():
+        metadata_path = study_metadata[source_id]
+        row["manifest_path"] = metadata_path.relative_to(repo_root).as_posix() + f"#source={source_id}"
+        row["manifest_sha256"] = hashlib.sha256(metadata_path.read_bytes()).hexdigest()
+        row["record_root"] = f"downloads/v0.3.0/records/{source_id}/"
+
+    # Drop v0.2 per-source metadata, checksum, and BED objects. Keep only the
+    # browser reference and raw-signal objects; the latter remain immutable
+    # source assets with their original IDs and paths.
+    browser_asset_kinds = {"fasta", "fai", "gff3", "tbi", "bigwig"}
+    retained_browser_assets: list[dict[str, object]] = []
+    historical_asset_id_map: list[dict[str, str]] = []
+    for row in tables["assets"]:
+        if str(row.get("asset_kind")) not in browser_asset_kinds:
+            continue
+        original_asset_id = str(row["asset_id"])
+        if original_asset_id.startswith("v0.2.0--"):
+            row["asset_id"] = "v0.3.0--" + original_asset_id[len("v0.2.0--"):]
+            historical_asset_id_map.append(
+                {"asset_id": str(row["asset_id"]), "historical_asset_id": original_asset_id}
+            )
+        retained_browser_assets.append(row)
+    tables["assets"] = sorted(retained_browser_assets, key=lambda row: str(row["asset_id"]))
+
+    manifest = replace_version(old_manifest)
+    manifest["canonical_manifest"] = {"path": f"{V03_RELEASE}/release.json", "sha256": release_sha}
+    manifest["derived_from"] = {
+        "release_version": "v0.2.0",
+        "archive_path": "data/archive/BTED-v0.2.0.tar.gz",
+        "archive_sha256": archive_sha,
+        "relationship": "row-and-field equivalent source, validated before materialization",
+    }
+    inventory = manifest.get("jbrowse_asset_inventory")
+    if isinstance(inventory, dict):
+        inventory_path = repo_root / "data/registry/jbrowse_assets.v0.2.0.json"
+        inventory["path"] = "data/registry/jbrowse_assets.v0.2.0.json"
+        inventory["sha256"] = hashlib.sha256(inventory_path.read_bytes()).hexdigest()
+    contigs = manifest.get("contig_registry")
+    if isinstance(contigs, dict):
+        contig_path = repo_root / "data/registry/reference_contigs.v0.2.0.json"
+        contigs["path"] = "data/registry/reference_contigs.v0.2.0.json"
+        contigs["sha256"] = hashlib.sha256(contig_path.read_bytes()).hexdigest()
+    field_provenance = manifest.get("annotation_field_provenance")
+    if isinstance(field_provenance, list):
+        for item in field_provenance:
+            if not isinstance(item, dict):
+                continue
+            source_id = str(item.get("source_id", ""))
+            metadata_path = study_metadata[source_id]
+            item["fields_json_path"] = metadata_path.relative_to(repo_root).as_posix() + f"#source={source_id}/fields"
+            item["fields_json_sha256"] = hashlib.sha256(metadata_path.read_bytes()).hexdigest()
+            item["source_annotations_path"] = (
+                f"data/archive/BTED-v0.2.0.tar.gz::"
+                f"data/public/v0.2.0/records/{source_id}/source_annotations.tsv"
+                if item.get("source_annotations_path") else None
+            )
+    manifest["canonical_data_files"] = _canonical_data_file_refs(repo_root)
+    manifest["historical_asset_id_map"] = {
+        "audit_policy": "v0.2.0 remote audit identities are historical and are not reused as v0.3.0 verification",
+        "rows": historical_asset_id_map,
+    }
+    manifest["legacy_source_manifest_sha256"] = {
+        "path_template": "data/archive/BTED-v0.2.0.tar.gz::data/public/v0.2.0/records/{source_id}/manifest.json",
+        "sha256_by_source": old_manifest_sha_by_source,
+    }
+    manifest.pop("tables", None)
+    return _atomic_write_bundle(output.resolve(), tables, manifest)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -54,8 +239,8 @@ def build_parser() -> argparse.ArgumentParser:
     validate = subparsers.add_parser("validate", help="校验 canonical release；不写数据库")
     validate.add_argument(
         "--release-root",
-        default="data/public/v0.2.0",
-        help="release root containing release_manifest.json (default: data/public/v0.2.0)",
+        default=V03_RELEASE,
+        help="release root (default: data/public/v0.3.0)",
     )
     validate.add_argument(
         "--repo-root",
@@ -72,7 +257,7 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help=(
             "reference contig provenance TSV; defaults to "
-            "data/registry/reference_contigs.v0.2.0.tsv under --repo-root"
+            "reference contig registry; optional for legacy release inputs"
         ),
     )
     materialize = subparsers.add_parser(
@@ -81,8 +266,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     materialize.add_argument(
         "--release-root",
-        default="data/public/v0.2.0",
-        help="release root containing release_manifest.json (default: data/public/v0.2.0)",
+        default=V03_RELEASE,
+        help="release root (default: data/public/v0.3.0)",
     )
     materialize.add_argument(
         "--repo-root",
@@ -113,8 +298,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--jbrowse-asset-inventory",
         default=None,
         help=(
-            "tracked browser asset TSV to merge into assets.jsonl; omitted by default "
-            "to preserve the canonical 127-asset bundle"
+            "tracked browser asset TSV/JSON to merge; defaults to the repository inventory"
         ),
     )
     materialize.add_argument(
@@ -134,24 +318,66 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="B1 materialization bundle directory",
     )
-    for command, confirm_flag, help_text in (
-        ("load-postgres", "--confirm-write", "将已验证 bundle 写入 PostgreSQL 单事务"),
-        ("promote-postgres", "--confirm-promote", "在资产远程验证后发布一个已提交 release"),
-    ):
-        writer = subparsers.add_parser(command, help=help_text)
-        writer.add_argument("--bundle-dir", required=True, help="B1 materialization bundle directory")
-        writer.add_argument(confirm_flag, action="store_true", help="显式确认不可逆的数据库操作")
-        writer.add_argument(
-            "--database-url-env",
-            default="BTED_DATABASE_URL",
-            help="数据库 URL 所在环境变量名（默认 BTED_DATABASE_URL）",
-        )
-        writer.add_argument("--batch-size", type=int, default=1000, help="批量 endpoint/annotation 行数")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command in {"validate", "materialize"} and _is_v03_release(args.release_root):
+        repo_root = _v03_repo_root(args.release_root, args.repo_root)
+        try:
+            summary = _check_v03(repo_root)
+            with legacy_inputs(repo_root) as (temporary_repo, legacy_release, inventory):
+                report = validate_release(
+                    legacy_release,
+                    repo_root=temporary_repo,
+                    contig_registry=temporary_repo / "data/registry/reference_contigs.v0.2.0.tsv",
+                )
+                if not report.ok:
+                    raise ValueError("archived source validation failed: " + "; ".join(
+                        issue.message for issue in report.issues[:5]
+                    ))
+                if args.command == "validate":
+                    result = {"ok": True, "summary": summary, "legacy_bridge": "validated"}
+                    if args.plan_json:
+                        target = Path(args.plan_json).expanduser()
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                    json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
+                    sys.stdout.write("\n")
+                    return 0
+                with workspace_scratch(repo_root, "bted-v03-materialize-") as directory:
+                    temporary_bundle = directory / "bundle"
+                    old_result = materialize_release(
+                        legacy_release,
+                        repo_root=temporary_repo,
+                        contig_registry=temporary_repo / "data/registry/reference_contigs.v0.2.0.tsv",
+                        output_dir=temporary_bundle,
+                        asset_origin_base=args.asset_origin_base,
+                        generated_at_utc=args.generated_at_utc,
+                        jbrowse_asset_inventory=inventory,
+                        jbrowse_bundle_root=(
+                            str(Path(args.jbrowse_bundle_root).resolve())
+                            if args.jbrowse_bundle_root else None
+                        ),
+                    )
+                    promoted = _promote_bundle(temporary_bundle, Path(args.output_dir), repo_root)
+                    verification = verify_bundle(args.output_dir)
+                    json.dump(
+                        {"ok": True, "output_dir": str(Path(args.output_dir).resolve()),
+                         "release_version": verification.release_version,
+                         "table_counts": verification.table_counts,
+                         "legacy_materialized_asset_count": old_result.table_counts["assets"],
+                         "retained_browser_asset_count": verification.table_counts["assets"],
+                         "manifest": promoted},
+                        sys.stdout, ensure_ascii=False, indent=2,
+                    )
+                    sys.stdout.write("\n")
+                    return 0
+        except (ValueError, OSError, MaterializationError, BundleVerificationError) as exc:
+            json.dump({"ok": False, "error": str(exc)}, sys.stderr, ensure_ascii=False)
+            sys.stderr.write("\n")
+            return 1
     if args.command == "validate":
         report = validate_release(
             args.release_root,
@@ -199,50 +425,7 @@ def main(argv: list[str] | None = None) -> int:
             json.dump(verify_summary(verification), sys.stdout, ensure_ascii=False, indent=2, sort_keys=True)
             sys.stdout.write("\n")
             return 0
-        except PostgresWriterError as exc:
-            json.dump({"ok": False, "error": str(exc)}, sys.stderr, ensure_ascii=False)
-            sys.stderr.write("\n")
-            return 1
-    if args.command in {"load-postgres", "promote-postgres"}:
-        confirm_name = "confirm_write" if args.command == "load-postgres" else "confirm_promote"
-        if not getattr(args, confirm_name):
-            json.dump(
-                {"ok": False, "error": f"{args.command} requires --{confirm_name.replace('_', '-') }"},
-                sys.stderr,
-                ensure_ascii=False,
-            )
-            sys.stderr.write("\n")
-            return 2
-        try:
-            # Verify before importing psycopg or reading the database URL.  A
-            # malformed bundle therefore cannot even begin an external DB
-            # operation.
-            verification = verify_bundle(args.bundle_dir)
-            if args.command == "promote-postgres" and verification.manifest["asset_origin"]["asset_origin_status"] != "verified":
-                raise PostgresWriterError(
-                    "promotion requires asset_origin_status=verified after remote asset/Range audit"
-                )
-            connection = connect_psycopg_from_env(args.database_url_env)
-            try:
-                if args.command == "load-postgres":
-                    result = load_bundle(args.bundle_dir, connection, batch_size=args.batch_size)
-                    payload = {
-                        "ok": True,
-                        "release_version": result.release_version,
-                        "run_id": result.run_id,
-                        "status": result.status,
-                        "counts": result.counts,
-                    }
-                else:
-                    payload = {"ok": True, **promote_bundle(args.bundle_dir, connection)}
-            finally:
-                close = getattr(connection, "close", None)
-                if callable(close):
-                    close()
-            json.dump(payload, sys.stdout, ensure_ascii=False, indent=2, sort_keys=True)
-            sys.stdout.write("\n")
-            return 0
-        except PostgresWriterError as exc:
+        except BundleVerificationError as exc:
             json.dump({"ok": False, "error": str(exc)}, sys.stderr, ensure_ascii=False)
             sys.stderr.write("\n")
             return 1

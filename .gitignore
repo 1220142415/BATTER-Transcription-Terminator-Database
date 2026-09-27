@@ -37,6 +37,7 @@ temp/
 .venv/
 node_modules/
 .next/
+# dist/ also holds generated Pages and Worker staging sites.
 dist/
 .pages-preview/
 .playwright-cli/
@@ -44,5 +45,5 @@ dist/
 .dev.vars*
 
 # 已退出当前版本的早期整目录副本和 read-starts 原始计数
-# 正式文献记录见 docs/literature/，原始数据只保留公共 accession。
+# 论文与来源判断见 docs/SOURCES.md，原始数据只保留公共 accession。
 docs/legacy/original-directories/

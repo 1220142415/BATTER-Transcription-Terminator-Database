@@ -18,7 +18,7 @@ import json
 import os
 import shutil
 import sys
-import tempfile
+import uuid
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -26,11 +26,12 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from backend.importer.postgres import verify_bundle  # noqa: E402
+from bted_pipeline.bundle import verify_bundle  # noqa: E402
 
 
-DEFAULT_INVENTORY = REPO_ROOT / "data/registry/jbrowse_assets.v0.2.0.tsv"
+DEFAULT_INVENTORY = REPO_ROOT / "data/registry/jbrowse_assets.v0.2.0.json"
 GENERATOR_VERSION = "bted-apply-remote-asset-audit-0.1.0"
+BROWSER_ASSET_KINDS = {"fasta", "fai", "gff3", "tbi", "bigwig"}
 
 
 class RemoteAuditApplicationError(ValueError):
@@ -69,23 +70,28 @@ def _load_assets(path: Path) -> list[dict[str, Any]]:
     return rows
 
 
-def _required_browser_assets(inventory_path: Path) -> dict[str, dict[str, str]]:
+def _required_browser_assets(inventory_path: Path, release_version: str) -> dict[str, dict[str, str]]:
     try:
-        with inventory_path.open(encoding="utf-8", newline="") as handle:
-            rows = list(csv.DictReader(handle, delimiter="\t"))
-    except (OSError, csv.Error) as error:
+        if inventory_path.suffix == ".json":
+            rows = _load_json(inventory_path)["rows"]
+        else:
+            with inventory_path.open(encoding="utf-8", newline="") as handle:
+                rows = list(csv.DictReader(handle, delimiter="\t"))
+    except (OSError, csv.Error, KeyError, TypeError) as error:
         raise RemoteAuditApplicationError(f"cannot read browser inventory: {inventory_path}") from error
-    selected = {
-        row["asset_id"]: row
-        for row in rows
+    selected_rows = [
+        row for row in rows
         if row.get("is_public") == "true"
         and row.get("redistribution_status") == "verified_redistributable"
-    }
-    if len(selected) != sum(
-        row.get("is_public") == "true"
-        and row.get("redistribution_status") == "verified_redistributable"
-        for row in rows
-    ):
+        and row.get("asset_kind") in BROWSER_ASSET_KINDS
+    ]
+    selected = {}
+    for row in selected_rows:
+        asset_id = str(row["asset_id"])
+        if release_version == "v0.3.0" and asset_id.startswith("v0.2.0--"):
+            asset_id = "v0.3.0--" + asset_id[len("v0.2.0--"):]
+        selected[asset_id] = row
+    if len(selected) != len(selected_rows):
         raise RemoteAuditApplicationError("browser inventory contains duplicate public asset_id")
     return selected
 
@@ -97,8 +103,11 @@ def _apply_report(
     browser_inventory: Mapping[str, Mapping[str, str]],
 ) -> list[dict[str, Any]]:
     release_version = str(manifest.get("release_version", ""))
-    if audit.get("release_version") != release_version:
+    audit_version = audit.get("release_version")
+    if audit_version != release_version:
         raise RemoteAuditApplicationError("remote audit release_version mismatch")
+    if audit.get("origin_base") != manifest.get("asset_origin", {}).get("base"):
+        raise RemoteAuditApplicationError("remote audit origin_base mismatch")
     audit_objects = audit.get("objects")
     if not isinstance(audit_objects, list):
         raise RemoteAuditApplicationError("remote audit must contain an objects list")
@@ -175,7 +184,8 @@ def _write_verified_bundle(
         if not output_dir.is_dir() or any(output_dir.iterdir()):
             raise RemoteAuditApplicationError(f"output directory must be empty: {output_dir}")
     output_dir.parent.mkdir(parents=True, exist_ok=True)
-    temp_dir = Path(tempfile.mkdtemp(prefix=f".{output_dir.name}.tmp-", dir=output_dir.parent))
+    temp_dir = output_dir.parent / f".{output_dir.name}.tmp-{uuid.uuid4().hex}"
+    temp_dir.mkdir()
     try:
         for path in source_dir.iterdir():
             if path.name not in {"manifest.json", "SHA256SUMS.txt", "assets.jsonl"}:
@@ -225,7 +235,7 @@ def apply_remote_asset_audit(
     inventory_meta = manifest.get("jbrowse_asset_inventory")
     if not isinstance(inventory_meta, Mapping) or inventory_meta.get("sha256") != sha256(inventory_path):
         raise RemoteAuditApplicationError("tracked browser inventory does not match bundle provenance")
-    browser_inventory = _required_browser_assets(inventory_path)
+    browser_inventory = _required_browser_assets(inventory_path, str(manifest.get("release_version", "")))
     audit = _load_json(audit_path)
     assets = _load_assets(bundle_dir / manifest["tables"]["assets"]["file"])
     required_public_count = sum(
@@ -243,6 +253,8 @@ def apply_remote_asset_audit(
     output_manifest["remote_asset_audit"] = {
         "path": audit_path.name,
         "sha256": sha256(audit_path),
+        "audited_release_version": audit.get("release_version"),
+        "evidence_scope": "immutable object identities checked at audit time",
         "required_public_asset_count": required_public_count,
         "required_public_browser_asset_count": len(browser_inventory),
         "passed_count": required_public_count,

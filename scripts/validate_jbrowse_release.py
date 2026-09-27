@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import argparse
 import json
 import struct
 import sys
@@ -20,6 +21,7 @@ EXPECTED_ASSEMBLIES = {
     "GCF_005519465.1": ["BATTER_S1_015", "BATTER_S1_017"],
 }
 COMPACT_LALANNE_TRACK_TYPES = ["FeatureTrack", "MultiQuantitativeTrack", "MultiQuantitativeTrack", "FeatureTrack"]
+LEGACY_COMPACT_LALANNE_TRACK_TYPES = ["FeatureTrack", "MultiQuantitativeTrack", "FeatureTrack"]
 
 
 def digest(path: Path) -> str:
@@ -68,7 +70,18 @@ def gff3_features(path: Path) -> list[dict[str, Any]]:
 
 
 def main() -> int:
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else "dist/BTED-v0.2.0-jbrowse").resolve()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("package", nargs="?", default="dist/BTED-v0.2.0-jbrowse")
+    parser.add_argument(
+        "--legacy-compact-baseline",
+        action="store_true",
+        help=(
+            "accept the checksum-verified historical 3-track compact layout for S1_001/003/004/005; "
+            "the staging step replaces its endpoint features with v0.3.0 GFF3 tracks"
+        ),
+    )
+    args = parser.parse_args()
+    root = Path(args.package).resolve()
     problems: list[str] = []
     if not root.is_dir():
         print(f"FAIL missing package directory: {root}")
@@ -110,94 +123,101 @@ def main() -> int:
         else:
             default_track_ids = [track.get("configuration") for track in views[0].get("tracks", [])]
             if source_id in LALANNE:
-                if len(default_track_ids) != 4 or default_track_ids != track_ids[:4]:
-                    problems.append(f"{source_id}: compact default view must open genes, log-signal, raw-signal and combined endpoints")
-                if [track.get("type") for track in config.get("tracks", [])[:4]] != COMPACT_LALANNE_TRACK_TYPES:
-                    problems.append(f"{source_id}: compact track order/types are invalid; expected FeatureTrack, MultiQuantitativeTrack, MultiQuantitativeTrack, FeatureTrack")
-
-                # Track[1] = log signal
-                log_signal = config["tracks"][1]
-                if "Signal · log display" not in log_signal.get("name", ""):
-                    problems.append(f"{source_id}: log signal title is wrong")
-                log_subadapters = log_signal.get("adapter", {}).get("subadapters", [])
-                if [adapter.get("source") for adapter in log_subadapters] != ["+", "-"]:
-                    problems.append(f"{source_id}: log signal lacks explicit + / - source order")
-                log_signal_uris = [uri for uri in uris(log_signal) if uri.endswith(".bw")]
-                if len(log_signal_uris) != 2 or any("signed-log10-ui-v4" not in uri for uri in log_signal_uris):
-                    problems.append(f"{source_id}: log signal does not use the two display-only BigWigs")
-                for uri in log_signal_uris:
-                    path = root / uri
-                    if not path.is_file() or path.stat().st_size < 64:
-                        problems.append(f"{source_id}: missing or empty log signal {uri}")
-                        continue
-                    with path.open("rb") as handle:
-                        header = handle.read(64)
-                    if len(header) != 64:
-                        problems.append(f"{source_id}: truncated log BigWig header: {uri}")
-                        continue
-                    magic, version, _zoom_levels, *_offsets, uncompress_buf_size, _reserved = struct.unpack(
-                        "<IHHQQQHHQQIQ", header
-                    )
-                    if magic != 0x888FFC26 or version != 4 or uncompress_buf_size != 0:
-                        problems.append(f"{source_id}: log BigWig is not the expected uncompressed v4 file: {uri}")
-
-                # Track[2] = raw signal
-                raw_signal = config["tracks"][2]
-                if "Signal · linear (raw)" not in raw_signal.get("name", ""):
-                    problems.append(f"{source_id}: raw signal title is wrong")
-                raw_signal_uris = [uri for uri in uris(raw_signal) if uri.endswith(".bw")]
-                if len(raw_signal_uris) != 2 or any("signed-log10-ui-v4" in uri for uri in raw_signal_uris):
-                    problems.append(f"{source_id}: raw signal must use plain .bw without signed-log10-ui-v4 suffix")
-                for uri in raw_signal_uris:
-                    path = root / uri
-                    if not path.is_file() or path.stat().st_size < 64:
-                        problems.append(f"{source_id}: missing or empty raw signal {uri}")
-                        continue
-                    with path.open("rb") as handle:
-                        header = handle.read(64)
-                    if len(header) != 64:
-                        problems.append(f"{source_id}: truncated raw BigWig header: {uri}")
-                        continue
-
-                # Track[3] = combined endpoints
-                compact_endpoints = config["tracks"][3]
-                if "blue → + strand" not in compact_endpoints.get("name", "") or "orange ← − strand" not in compact_endpoints.get("name", ""):
-                    problems.append(f"{source_id}: candidate title lacks an explicit strand legend")
-                gff_uris = [uri for uri in uris(compact_endpoints) if uri.endswith(".gff3")]
-                if len(gff_uris) != 1 or compact_endpoints.get("adapter", {}).get("type") != "Gff3Adapter":
-                    problems.append(f"{source_id}: compact endpoint track must reference one rich GFF3")
+                if args.legacy_compact_baseline:
+                    baseline_types = [track.get("type") for track in config.get("tracks", [])[:3]]
+                    if len(track_ids) < 3 or baseline_types != LEGACY_COMPACT_LALANNE_TRACK_TYPES:
+                        problems.append(f"{source_id}: historical compact baseline must begin with genes, strand signal and combined endpoints")
+                    if default_track_ids != track_ids[:3]:
+                        problems.append(f"{source_id}: historical compact baseline default view must open its first three tracks")
                 else:
-                    gff_path = root / gff_uris[0]
-                    features = gff3_features(gff_path)
-                    strands = {feature["strand"] for feature in features}
-                    if strands != {"+", "-"}:
-                        problems.append(f"{source_id}: combined endpoint GFF3 strands are {sorted(strands)}")
-                    required_attributes = {
-                        "ID", "source_id", "sample_id", "biological_coordinate_1based",
-                        "strand_symbol", "read_support_raw", "evidence_class", "warning",
-                    }
-                    for feature in features:
-                        attributes = feature["attributes"]
-                        if not required_attributes.issubset(attributes):
-                            problems.append(f"{source_id}: endpoint popup fields are incomplete")
-                            break
-                        if (
-                            feature["start"] != feature["end"]
-                            or int(attributes["biological_coordinate_1based"]) != feature["start"]
-                            or attributes["strand_symbol"] != feature["strand"]
-                            or attributes["evidence_class"] != "called_endpoint"
-                        ):
-                            problems.append(f"{source_id}: endpoint popup identity disagrees with GFF3 columns")
-                            break
-                    region = views[0].get("displayedRegions", [{}])[0]
-                    visible_strands = {
-                        feature["strand"]
-                        for feature in features
-                        if feature["ref_name"] == region.get("refName")
-                        and int(region.get("start", 0)) < feature["start"] <= int(region.get("end", 0))
-                    }
-                    if visible_strands != {"+", "-"}:
-                        problems.append(f"{source_id}: default locus does not show both endpoint strands")
+                    if len(default_track_ids) != 4 or default_track_ids != track_ids[:4]:
+                        problems.append(f"{source_id}: compact default view must open genes, log-signal, raw-signal and combined endpoints")
+                    if [track.get("type") for track in config.get("tracks", [])[:4]] != COMPACT_LALANNE_TRACK_TYPES:
+                        problems.append(f"{source_id}: compact track order/types are invalid; expected FeatureTrack, MultiQuantitativeTrack, MultiQuantitativeTrack, FeatureTrack")
+
+                if not args.legacy_compact_baseline:
+                    # Track[1] = log signal
+                    log_signal = config["tracks"][1]
+                    if "Signal · log display" not in log_signal.get("name", ""):
+                        problems.append(f"{source_id}: log signal title is wrong")
+                    log_subadapters = log_signal.get("adapter", {}).get("subadapters", [])
+                    if [adapter.get("source") for adapter in log_subadapters] != ["+", "-"]:
+                        problems.append(f"{source_id}: log signal lacks explicit + / - source order")
+                    log_signal_uris = [uri for uri in uris(log_signal) if uri.endswith(".bw")]
+                    if len(log_signal_uris) != 2 or any("signed-log10-ui-v4" not in uri for uri in log_signal_uris):
+                        problems.append(f"{source_id}: log signal does not use the two display-only BigWigs")
+                    for uri in log_signal_uris:
+                        path = root / uri
+                        if not path.is_file() or path.stat().st_size < 64:
+                            problems.append(f"{source_id}: missing or empty log signal {uri}")
+                            continue
+                        with path.open("rb") as handle:
+                            header = handle.read(64)
+                        if len(header) != 64:
+                            problems.append(f"{source_id}: truncated log BigWig header: {uri}")
+                            continue
+                        magic, version, _zoom_levels, *_offsets, uncompress_buf_size, _reserved = struct.unpack(
+                            "<IHHQQQHHQQIQ", header
+                        )
+                        if magic != 0x888FFC26 or version != 4 or uncompress_buf_size != 0:
+                            problems.append(f"{source_id}: log BigWig is not the expected uncompressed v4 file: {uri}")
+
+                    # Track[2] = raw signal
+                    raw_signal = config["tracks"][2]
+                    if "Signal · linear (raw)" not in raw_signal.get("name", ""):
+                        problems.append(f"{source_id}: raw signal title is wrong")
+                    raw_signal_uris = [uri for uri in uris(raw_signal) if uri.endswith(".bw")]
+                    if len(raw_signal_uris) != 2 or any("signed-log10-ui-v4" in uri for uri in raw_signal_uris):
+                        problems.append(f"{source_id}: raw signal must use plain .bw without signed-log10-ui-v4 suffix")
+                    for uri in raw_signal_uris:
+                        path = root / uri
+                        if not path.is_file() or path.stat().st_size < 64:
+                            problems.append(f"{source_id}: missing or empty raw signal {uri}")
+                            continue
+                        with path.open("rb") as handle:
+                            header = handle.read(64)
+                        if len(header) != 64:
+                            problems.append(f"{source_id}: truncated raw BigWig header: {uri}")
+
+                    # Track[3] = combined endpoints
+                    compact_endpoints = config["tracks"][3]
+                    if "blue → + strand" not in compact_endpoints.get("name", "") or "orange ← − strand" not in compact_endpoints.get("name", ""):
+                        problems.append(f"{source_id}: candidate title lacks an explicit strand legend")
+                    gff_uris = [uri for uri in uris(compact_endpoints) if uri.endswith(".gff3")]
+                    if len(gff_uris) != 1 or compact_endpoints.get("adapter", {}).get("type") != "Gff3Adapter":
+                        problems.append(f"{source_id}: compact endpoint track must reference one rich GFF3")
+                    else:
+                        gff_path = root / gff_uris[0]
+                        features = gff3_features(gff_path)
+                        strands = {feature["strand"] for feature in features}
+                        if strands != {"+", "-"}:
+                            problems.append(f"{source_id}: combined endpoint GFF3 strands are {sorted(strands)}")
+                        required_attributes = {
+                            "ID", "source_id", "sample_id", "biological_coordinate_1based",
+                            "strand_symbol", "read_support_raw", "evidence_class", "warning",
+                        }
+                        for feature in features:
+                            attributes = feature["attributes"]
+                            if not required_attributes.issubset(attributes):
+                                problems.append(f"{source_id}: endpoint popup fields are incomplete")
+                                break
+                            if (
+                                feature["start"] != feature["end"]
+                                or int(attributes["biological_coordinate_1based"]) != feature["start"]
+                                or attributes["strand_symbol"] != feature["strand"]
+                                or attributes["evidence_class"] != "called_endpoint"
+                            ):
+                                problems.append(f"{source_id}: endpoint popup identity disagrees with GFF3 columns")
+                                break
+                        region = views[0].get("displayedRegions", [{}])[0]
+                        visible_strands = {
+                            feature["strand"]
+                            for feature in features
+                            if feature["ref_name"] == region.get("refName")
+                            and int(region.get("start", 0)) < feature["start"] <= int(region.get("end", 0))
+                        }
+                        if visible_strands != {"+", "-"}:
+                            problems.append(f"{source_id}: default locus does not show both endpoint strands")
             elif default_track_ids != track_ids:
                 problems.append(f"{source_id}: default view does not open every configured track")
         configured_uris = sorted(set(uris(config)))
@@ -276,7 +296,7 @@ def main() -> int:
             path = root / name
             if not path.is_file() or digest(path) != expected:
                 problems.append(f"checksum mismatch or missing file: {name}")
-        actual = {str(path.relative_to(root)) for path in root.rglob("*") if path.is_file() and path.name != checksum_path.name}
+        actual = {path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file() and path.name != checksum_path.name}
         if seen != actual:
             problems.append("checksum inventory does not match package files")
 

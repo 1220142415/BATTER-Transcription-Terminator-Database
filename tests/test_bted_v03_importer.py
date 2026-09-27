@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import atexit
 import hashlib
 import json
 import shutil
@@ -12,20 +13,24 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from backend.importer.canonical import V02_ENDPOINT_COLUMNS, validate_release
-from backend.importer.materialize import MaterializationError, materialize_release
+from bted_pipeline.canonical import V02_ENDPOINT_COLUMNS, validate_release
+from bted_pipeline.materialize import MaterializationError, materialize_release
+from bted_pipeline.bundle import BundleVerificationError, verify_bundle
 from scripts.build_reference_contig_registry import (
     REFERENCE_CONTIG_COLUMNS,
     RegistryBuildError,
     build_reference_contig_registry,
 )
+from scripts.v03_legacy_inputs import legacy_inputs
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-RELEASE_ROOT = REPO_ROOT / "data/public/v0.2.0"
-REGISTRY = REPO_ROOT / "data/registry/batter_s1_source_registry.tsv"
-REGISTRY_MANIFESTS = REPO_ROOT / "data/registry/manifests"
-REFERENCE_CONTIG_REGISTRY = REPO_ROOT / "data/registry/reference_contigs.v0.2.0.tsv"
+_legacy_context = legacy_inputs(REPO_ROOT)
+LEGACY_REPO, RELEASE_ROOT, _INVENTORY = _legacy_context.__enter__()
+atexit.register(lambda: _legacy_context.__exit__(None, None, None))
+REGISTRY = LEGACY_REPO / "data/registry/batter_s1_source_registry.tsv"
+REGISTRY_MANIFESTS = LEGACY_REPO / "data/registry/manifests"
+REFERENCE_CONTIG_REGISTRY = LEGACY_REPO / "data/registry/reference_contigs.v0.2.0.tsv"
 JBROWSE_BUNDLE = REPO_ROOT.parent / "bted-v0.2/dist/BTED-v0.2.0-jbrowse"
 
 
@@ -390,7 +395,7 @@ class TestBtedV03Importer(unittest.TestCase):
         cls.materialization_output = cls.materialization_root / "bundle"
         cls.materialization_result = materialize_release(
             RELEASE_ROOT,
-            repo_root=REPO_ROOT,
+            repo_root=LEGACY_REPO,
             output_dir=cls.materialization_output,
             asset_origin_base="https://example.test/assets",
             generated_at_utc="2026-08-21T00:00:00Z",
@@ -428,6 +433,21 @@ class TestBtedV03Importer(unittest.TestCase):
         self.assertEqual(s2_endpoints, [])
         self.assertEqual(s2_annotations, [])
         self.assertFalse(s2["has_jbrowse"])
+
+    def test_bundle_verifier_rejects_extra_or_changed_files(self) -> None:
+        verification = verify_bundle(self.materialization_output)
+        self.assertEqual(verification.table_counts["sources"], 22)
+        with tempfile.TemporaryDirectory() as directory:
+            bundle = Path(directory) / "bundle"
+            shutil.copytree(self.materialization_output, bundle)
+            (bundle / "unexpected.txt").write_text("extra", encoding="utf-8")
+            with self.assertRaises(BundleVerificationError):
+                verify_bundle(bundle)
+            (bundle / "unexpected.txt").unlink()
+            with (bundle / "sources.jsonl").open("ab") as handle:
+                handle.write(b"{}\n")
+            with self.assertRaises(BundleVerificationError):
+                verify_bundle(bundle)
 
     def test_materialization_preserves_24_columns_and_natural_key_closure(self) -> None:
         endpoints = self._read_bundle_rows("endpoints")
@@ -532,7 +552,7 @@ class TestBtedV03Importer(unittest.TestCase):
         output = self.materialization_root / "bundle-second"
         result = materialize_release(
             RELEASE_ROOT,
-            repo_root=REPO_ROOT,
+            repo_root=LEGACY_REPO,
             output_dir=output,
             asset_origin_base="https://example.test/assets",
             generated_at_utc="2026-08-21T00:00:00Z",
@@ -546,7 +566,7 @@ class TestBtedV03Importer(unittest.TestCase):
         with self.assertRaises(MaterializationError):
             materialize_release(
                 RELEASE_ROOT,
-                repo_root=REPO_ROOT,
+                repo_root=LEGACY_REPO,
                 output_dir=self.materialization_root / "invalid-origin",
                 asset_origin_base="http://example.test/assets",
                 generated_at_utc="2026-08-21T00:00:00Z",
@@ -557,7 +577,7 @@ class TestBtedV03Importer(unittest.TestCase):
         with self.assertRaises(MaterializationError):
             materialize_release(
                 RELEASE_ROOT,
-                repo_root=REPO_ROOT,
+                repo_root=LEGACY_REPO,
                 output_dir=nonempty,
                 asset_origin_base="https://example.test/assets",
                 generated_at_utc="2026-08-21T00:00:00Z",
@@ -569,7 +589,7 @@ class TestBtedV03Importer(unittest.TestCase):
         with self.assertRaises(MaterializationError):
             materialize_release(
                 RELEASE_ROOT,
-                repo_root=REPO_ROOT,
+                repo_root=LEGACY_REPO,
                 contig_registry=self.materialization_root / "missing-contigs.tsv",
                 output_dir=output,
                 asset_origin_base="https://example.test/assets",

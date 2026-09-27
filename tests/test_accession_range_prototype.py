@@ -92,33 +92,18 @@ class TestAccessionRangePrototype(unittest.TestCase):
             with self.assertRaises(ValueError, msg=invalid):
                 parse_byte_range(invalid, 1_000)
 
-    def test_site_exposes_a_user_facing_bilingual_search(self) -> None:
+    def test_legacy_accession_url_redirects_to_genome_search(self) -> None:
         page = (REPO_ROOT / "site/accession-range-demo.html").read_text(encoding="utf-8")
-        assembly = (REPO_ROOT / "site/assemblies/GCF_000739105.1.html").read_text(encoding="utf-8")
         genomes = (REPO_ROOT / "site/sources.html").read_text(encoding="utf-8")
-        script = (REPO_ROOT / "site/assets/accession-range-demo.js").read_text(encoding="utf-8")
-        self.assertIn("Find transcript 3′-end datasets", page)
-        self.assertIn("查找转录本 3′ 端数据集", page)
-        self.assertIn('data-language-choice="en"', page)
-        self.assertIn('data-language-choice="zh"', page)
-        self.assertIn("Publications and experimental data", page)
-        self.assertIn("论文与实验数据", page)
-        self.assertIn("Raw-data accession", script)
-        self.assertIn("原始数据登录号", script)
-        self.assertNotIn("Who generated the data, and how?", page)
-        self.assertNotIn("数据由谁产生，如何测量？", page)
-        self.assertNotIn("Lead institution", script)
-        self.assertNotIn("主要研究单位", script)
-        self.assertNotIn("What does one record mean?", page)
-        self.assertNotIn("Suitable uses", page)
-        self.assertNotIn("D1-compatible registry", page)
-        self.assertNotIn("Test 128-byte Range", page)
-        self.assertIn("accession-range-demo.js", page)
-        self.assertIn("Find this genome by accession", assembly)
-        self.assertIn("Quick search", genomes)
-        self.assertNotIn("Architecture prototype", assembly)
+        script = (REPO_ROOT / "site/assets/site.js").read_text(encoding="utf-8")
+        self.assertIn('sources.html', page)
+        self.assertIn('params.get("accession")', page)
+        self.assertIn('searchParams.set("search", value)', page)
+        self.assertIn('params.get("search") || params.get("accession")', script)
+        self.assertNotIn("data-accession-demo", page)
+        self.assertNotIn("accession-range-demo.js", page)
+        self.assertNotIn("Quick search", genomes)
         self.assertNotIn("API pilot", genomes)
-        self.assertNotIn("functionally validated terminator", page.lower())
 
 
 if __name__ == "__main__":

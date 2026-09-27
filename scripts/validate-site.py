@@ -3,7 +3,7 @@
 
 对站点产物目录（默认 site/）执行以下检查，任一检查失败即以退出码 1 结束：
 
-1. 文件类型与体积：无 FASTQ、xlsx、zip 等原始/大型数据文件；单文件不超过 1 MiB。
+1. 文件类型与体积：拒绝原始测序文件、工作簿和压缩包；站点下载只允许指定格式并限制大小。
 2. 绝对路径：无根相对链接（href="/..."）、无 file:// 与本地文件系统路径。
 3. 凭据扫描：无 API key、密码、令牌等占位或真实凭据格式。
 4. 证据标签：无未经批准的证据标签（如 "experimentally validated" / "实验验证"）。
@@ -18,16 +18,18 @@ from __future__ import annotations
 import os
 import re
 import sys
+import zipfile
+import json
 from html.parser import HTMLParser
 from pathlib import Path
 
 MAX_FILE_BYTES = 1024 * 1024  # 1 MiB；站点页面与样式均为 KB 级
 MAX_JBROWSE_FILE_BYTES = 64 * 1024 * 1024
-MAX_DOWNLOAD_FILE_BYTES = 4 * 1024 * 1024
+MAX_DOWNLOAD_FILE_BYTES = 16 * 1024 * 1024
 
-# 原始测序数据、出版商工作簿、压缩包、坐标/比对文件一律不得进入站点产物
+# 原始数据、表格下载、BED 和未经允许的压缩包不得进入站点产物。
 FORBIDDEN_EXTENSIONS = {
-    ".fastq", ".fq", ".gz", ".sra",
+    ".fastq", ".fq", ".gz", ".sra", ".csv", ".tsv",
     ".xlsx", ".xls", ".ods",
     ".zip", ".tar", ".tgz", ".bz2", ".xz", ".7z", ".rar",
     ".bam", ".sam", ".cram",
@@ -41,11 +43,14 @@ FORBIDDEN_EXTENSIONS = {
 # expected under ``jbrowse/`` after the versioned asset is unpacked.
 ALLOWED_JBROWSE_SUFFIXES = {
     ".html", ".css", ".js", ".json", ".txt", ".ico",
-    ".fna", ".fai", ".bed", ".bw", ".gff3", ".gff3.gz", ".tbi", ".ix", ".ixx",
+    ".fna", ".fai", ".bw", ".gff3", ".gff3.gz", ".tbi", ".ix", ".ixx",
 }
-ALLOWED_DOWNLOAD_SUFFIXES = {".tsv", ".bed", ".json", ".txt"}
-
-TEXT_EXTENSIONS = {".html", ".htm", ".css", ".js", ".json", ".xml", ".txt", ".md", ".svg"}
+ALLOWED_DOWNLOAD_SUFFIXES = {".gff3", ".json", ".txt", ".zip"}
+ALLOWED_VERSIONED_COMPRESSED_DOWNLOADS = {
+    "downloads/v0.3.0/studies/PMID_31594819/gene_associations.tsv.gz",
+    "downloads/v0.3.0/studies/PMID_37402717/condition_observations.tsv.gz",
+}
+TEXT_EXTENSIONS = {".html", ".htm", ".css", ".js", ".json", ".xml", ".txt", ".md", ".svg", ".tsv"}
 
 # 绝对路径 / 根相对链接 / 本地文件系统路径
 ABSOLUTE_PATH_PATTERNS = [
@@ -65,6 +70,7 @@ ABSOLUTE_PATH_PATTERNS = [
 # Cloudflare preview site intentionally uses its same-origin catalogue API for JBrowse config.
 LOCALHOST_API_PATTERNS = [
     (re.compile(r"127\.0\.0\.1|localhost", re.IGNORECASE), "localhost / 127.0.0.1 引用"),
+    (re.compile(r"/api/augmentation\b|bted-augmentation\.html", re.IGNORECASE), "已移除的增强页面或 API"),
 ]
 
 # 凭据 / 密钥 / 口令占位
@@ -99,6 +105,12 @@ FORBIDDEN_LABEL_PATTERNS = [
 ]
 
 REQUIRED_FILES = ["index.html", "sources.html", "catalog.html", "methodology.html", "about.html", "css/style.css"]
+HF_RELEASE_BASE_PATTERN = re.compile(
+    r"^https://huggingface\.co/datasets/liurulong/terminator/resolve/([0-9a-f]{40})/v0\.3\.0$"
+)
+HF_RESOLVE_URL_PATTERN = re.compile(
+    r"https://huggingface\.co/datasets/[^\s\"'<>]+/resolve/[^\s\"'<>]+"
+)
 
 
 class LinkCollector(HTMLParser):
@@ -116,6 +128,16 @@ class LinkCollector(HTMLParser):
 
 def line_of(text: str, pos: int) -> int:
     return text.count("\n", 0, pos) + 1
+
+
+def is_allowed_download_file(rel: str, suffix: str, compound_suffix: str) -> bool:
+    """Allow standard metadata downloads and the staged v0.3.0 table files."""
+    return (
+        rel in ALLOWED_VERSIONED_COMPRESSED_DOWNLOADS
+        or bool(re.fullmatch(r"downloads/v0\.3\.0/studies/PMID_[0-9]+/endpoints\.gff3\.gz", rel))
+        or bool(re.fullmatch(r"downloads/v0\.3\.0/studies/PMID_[0-9]+/metadata\.tsv", rel))
+        or suffix in ALLOWED_DOWNLOAD_SUFFIXES
+    )
 
 
 def scan_text(path: Path, rel: str, problems: list[str]) -> None:
@@ -140,6 +162,68 @@ def scan_localhost_api(path: Path, rel: str, problems: list[str]) -> None:
     for regex, desc in LOCALHOST_API_PATTERNS:
         for m in regex.finditer(text):
             problems.append(f"{rel}:{line_of(text, m.start())} {desc}: {m.group(0)[:80]}")
+
+
+def config_uris(value: object) -> list[str]:
+    found: list[str] = []
+    if isinstance(value, dict):
+        if isinstance(value.get("uri"), str):
+            found.append(str(value["uri"]))
+        for child in value.values():
+            found.extend(config_uris(child))
+    elif isinstance(value, list):
+        for child in value:
+            found.extend(config_uris(child))
+    return found
+
+
+def validate_fixed_hf_release(site_dir: Path, problems: list[str]) -> None:
+    """Check staged data links use one immutable v0.3.0 Hugging Face revision."""
+    manifest_path = site_dir / "assets/data-release.json"
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        problems.append("缺少或无法读取 assets/data-release.json")
+        return
+    base = manifest.get("baseUrl") if isinstance(manifest, dict) else None
+    release_version = manifest.get("releaseVersion") if isinstance(manifest, dict) else None
+    revision = manifest.get("revision") if isinstance(manifest, dict) else None
+    match = HF_RELEASE_BASE_PATTERN.fullmatch(base or "") if isinstance(base, str) else None
+    if not match or release_version != "v0.3.0" or revision != match.group(1):
+        problems.append("assets/data-release.json 必须指向固定的 liurulong/terminator v0.3.0 commit")
+        return
+
+    expected_prefix = f"{base}/"
+    for path in site_dir.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in TEXT_EXTENSIONS:
+            continue
+        rel = path.relative_to(site_dir).as_posix()
+        if is_pinned_jbrowse_vendor_asset(rel):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for match_url in HF_RESOLVE_URL_PATTERN.finditer(text):
+            value = match_url.group(0).rstrip("),.;")
+            if value != base and not value.startswith(expected_prefix):
+                problems.append(f"{rel} 使用了未固定或其他 Hugging Face revision: {value[:120]}")
+
+    jbrowse_root = site_dir / "jbrowse"
+    for config_path in [*jbrowse_root.glob("*.config.json"), *jbrowse_root.glob("assemblies/*.config.json")]:
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            problems.append(f"{config_path.relative_to(site_dir).as_posix()} 不是有效 JSON")
+            continue
+        for uri in config_uris(config):
+            if not uri.startswith(expected_prefix):
+                problems.append(
+                    f"{config_path.relative_to(site_dir).as_posix()} 的 JBrowse 数据 URI 未固定到 HF revision: {uri}"
+                )
+
+    if (site_dir / "downloads").exists():
+        problems.append("站点不应重复打包数据下载目录；请只生成 HF manifest 和外部下载链接")
 
 
 def is_pinned_jbrowse_vendor_asset(rel: str) -> bool:
@@ -193,6 +277,30 @@ def check_links(path: Path, site_root: Path, rel: str, problems: list[str]) -> N
             problems.append(f"{rel}:{lineno} 内部链接无法解析: {target}")
 
 
+def check_assembly_zip(path: Path) -> list[str]:
+    """Require assembly ZIPs to contain only GFF3 and their metadata JSON."""
+    try:
+        with zipfile.ZipFile(path) as archive:
+            members = [name for name in archive.namelist() if not name.endswith("/")]
+    except (OSError, zipfile.BadZipFile) as exc:
+        return [f"{path.name} 不是有效的组装 ZIP: {exc}"]
+
+    return check_assembly_zip_members(members, path.name)
+
+
+def check_assembly_zip_members(members: list[str], archive_name: str = "assembly.zip") -> list[str]:
+    """Validate the archive member names without touching the filesystem."""
+    allowed = {"metadata.json", "endpoints.gff3"}
+    if "metadata.json" not in members:
+        return [f"{archive_name} 缺少 metadata.json"]
+    unexpected = sorted(set(members) - allowed)
+    if unexpected:
+        return [f"{archive_name} 含有 GFF3 和元数据以外的文件: {unexpected}"]
+    if len(members) != len(set(members)):
+        return [f"{archive_name} 含有重复文件名"]
+    return []
+
+
 def main() -> int:
     site_dir = Path(sys.argv[1] if len(sys.argv) > 1 else "site").resolve()
     if not site_dir.is_dir():
@@ -209,6 +317,11 @@ def main() -> int:
         if not (site_dir / name).is_file():
             problems.append(f"缺少必需文件: {name}")
 
+    # The raw checked-in ``site/`` source has no bundled JBrowse shell. A
+    # Pages/Worker artifact does and must carry the same fixed HF revision.
+    if (site_dir / "jbrowse").is_dir():
+        validate_fixed_hf_release(site_dir, problems)
+
     for root, _dirs, files in os.walk(site_dir):
         for fname in files:
             fpath = Path(root) / fname
@@ -221,20 +334,28 @@ def main() -> int:
             suffixes = [s.lower() for s in fpath.suffixes]
             in_jbrowse = rel == "jbrowse" or rel.startswith("jbrowse/")
             in_downloads = rel == "downloads" or rel.startswith("downloads/")
-            in_pilots = rel == "data/pilots" or rel.startswith("data/pilots/")
-            in_augmentation = rel.startswith("data/augmentation/")
             compound_suffix = "".join(suffixes[-2:]) if len(suffixes) >= 2 else (suffixes[-1] if suffixes else "")
             jbrowse_allowed = in_jbrowse and (
                 fpath.suffix.lower() in ALLOWED_JBROWSE_SUFFIXES
                 or compound_suffix in ALLOWED_JBROWSE_SUFFIXES
             )
-            download_allowed = in_downloads and fpath.suffix.lower() in ALLOWED_DOWNLOAD_SUFFIXES
-            pilot_allowed = in_pilots and fpath.suffix.lower() == ".bed"
-            if any(s in FORBIDDEN_EXTENSIONS for s in suffixes) and not (jbrowse_allowed or download_allowed or pilot_allowed):
+            download_allowed = in_downloads and is_allowed_download_file(
+                rel, fpath.suffix.lower(), compound_suffix
+            )
+            if any(s in FORBIDDEN_EXTENSIONS for s in suffixes) and not (
+                jbrowse_allowed or download_allowed
+            ):
                 problems.append(f"{rel} 禁止的文件类型（原始数据/工作簿/压缩包/坐标文件）")
-            size_limit = MAX_JBROWSE_FILE_BYTES if in_jbrowse else (MAX_DOWNLOAD_FILE_BYTES if in_downloads else (32 * 1024 * 1024 if in_augmentation else MAX_FILE_BYTES))
+            size_limit = MAX_JBROWSE_FILE_BYTES if in_jbrowse else (MAX_DOWNLOAD_FILE_BYTES if in_downloads else MAX_FILE_BYTES)
             if size > size_limit:
                 problems.append(f"{rel} 文件过大（{size} 字节 > {size_limit} 字节上限）")
+
+            lower_name = fname.lower()
+            if lower_name == "bted-augmentation.html" or rel.startswith("data/augmentation/"):
+                problems.append(f"{rel} 属于已移除的增强页面或增强数据目录")
+
+            if in_downloads and fpath.suffix.lower() == ".zip":
+                problems.extend(check_assembly_zip(fpath))
 
             # 2-4. 文本内容扫描
             if fpath.suffix.lower() in TEXT_EXTENSIONS and not is_pinned_jbrowse_vendor_asset(rel):
@@ -252,7 +373,7 @@ def main() -> int:
     print("BTED 站点产物验证")
     print(f"站点目录: {site_dir}")
     print(f"文件总数: {file_count}，总体积: {total_bytes} 字节")
-    print("检查项: 必需文件 / 文件类型与体积 / 绝对路径 / 凭据 / 证据标签 / 内部链接")
+    print("检查项: 必需文件 / GFF3 下载与 ZIP 内容 / 文件类型与体积 / 绝对路径 / 凭据 / 证据标签 / 内部链接")
     print("=" * 60)
 
     for w in warnings:

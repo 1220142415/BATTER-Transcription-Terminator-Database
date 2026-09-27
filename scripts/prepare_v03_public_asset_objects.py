@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """Prepare the public objects declared by a materialized BTED bundle.
 
-The materialized ``assets.jsonl`` is the complete release object list.  The
-tracked browser inventory is used to cross-check browser identities and to
-resolve local JBrowse files; canonical ``records/`` paths resolve from the
-release root.  This command never uploads anything and never overwrites a
-non-empty output directory.
+The materialized ``assets.jsonl`` lists the current browser objects. The
+tracked inventory supplies their original file locations and checksums.
+Versioned BED and table downloads are assembled with the site. This command
+never uploads anything and never overwrites a non-empty output directory.
 """
 
 from __future__ import annotations
@@ -20,12 +19,13 @@ from typing import Any
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_INVENTORY = REPO_ROOT / "data/registry/jbrowse_assets.v0.2.0.tsv"
-DEFAULT_RELEASE = REPO_ROOT / "data/public/v0.2.0"
-DEFAULT_BUNDLE = REPO_ROOT.parent / "bted-v0.2/dist/BTED-v0.2.0-jbrowse"
+DEFAULT_INVENTORY = REPO_ROOT / "data/registry/jbrowse_assets.v0.2.0.json"
+DEFAULT_RELEASE = REPO_ROOT / "data/public/v0.3.0"
+DEFAULT_BUNDLE = REPO_ROOT / "dist/pages-site/jbrowse"
 MANIFEST_NAME = "ASSET_OBJECTS.json"
 CHECKSUM_NAME = "SHA256SUMS.txt"
-GENERATOR_VERSION = "bted-public-asset-objects-0.2.0"
+GENERATOR_VERSION = "bted-public-asset-objects-0.3.0"
+BROWSER_ASSET_KINDS = {"fasta", "fai", "gff3", "tbi", "bigwig"}
 
 
 class AssetPreparationError(ValueError):
@@ -57,9 +57,12 @@ def _validate_output_dir(output_dir: Path) -> None:
 
 def _load_inventory(inventory_path: Path) -> tuple[list[dict[str, str]], dict[str, dict[str, str]]]:
     try:
-        with inventory_path.open(encoding="utf-8", newline="") as handle:
-            rows = list(csv.DictReader(handle, delimiter="\t"))
-    except (OSError, csv.Error) as error:
+        if inventory_path.suffix == ".json":
+            rows = json.loads(inventory_path.read_text(encoding="utf-8"))["rows"]
+        else:
+            with inventory_path.open(encoding="utf-8", newline="") as handle:
+                rows = list(csv.DictReader(handle, delimiter="\t"))
+    except (OSError, csv.Error, json.JSONDecodeError, KeyError, TypeError) as error:
         raise AssetPreparationError(f"cannot read browser inventory: {inventory_path}") from error
     by_object_path: dict[str, dict[str, str]] = {}
     for row in rows:
@@ -125,7 +128,11 @@ def _validate_inventory_identity(asset: dict[str, Any], inventory_row: dict[str,
     if inventory_row is None:
         return
     asset_id = str(asset.get("asset_id"))
-    if asset_id != inventory_row.get("asset_id"):
+    inventory_id = str(inventory_row.get("asset_id", ""))
+    release_version = str(asset.get("release_version", ""))
+    if release_version == "v0.3.0" and inventory_id.startswith("v0.2.0--"):
+        inventory_id = "v0.3.0--" + inventory_id[len("v0.2.0--"):]
+    if asset_id != inventory_id:
         raise AssetPreparationError(f"{asset_id}: materialized/inventory asset_id mismatch")
     if int(asset.get("byte_size", -1)) != int(inventory_row.get("byte_size", -2)):
         raise AssetPreparationError(f"{asset_id}: materialized/inventory byte_size mismatch")
@@ -133,7 +140,7 @@ def _validate_inventory_identity(asset: dict[str, Any], inventory_row: dict[str,
         raise AssetPreparationError(f"{asset_id}: materialized/inventory sha256 mismatch")
 
 
-def prepare_public_asset_objects(
+def _prepare_public_asset_objects_from_legacy_layout(
     *,
     materialized_bundle: Path,
     inventory_path: Path = DEFAULT_INVENTORY,
@@ -141,6 +148,7 @@ def prepare_public_asset_objects(
     release_root: Path = DEFAULT_RELEASE,
     output_dir: Path,
     manifest_only: bool = False,
+    inventory_provenance: Path | None = None,
 ) -> dict[str, Any]:
     """Validate selected materialized assets and write an upload-ready layout."""
 
@@ -211,10 +219,15 @@ def prepare_public_asset_objects(
         sources.append((source_path, _safe_relative(object_path, field="object_path")))
 
     browser_inventory_public = {
-        row["asset_id"]
+        (
+            "v0.3.0--" + row["asset_id"][len("v0.2.0--"):]
+            if release_versions[0] == "v0.3.0" and row["asset_id"].startswith("v0.2.0--")
+            else row["asset_id"]
+        )
         for row in inventory_rows
         if row.get("is_public") == "true"
         and row.get("redistribution_status") == "verified_redistributable"
+        and row.get("asset_kind") in BROWSER_ASSET_KINDS
     }
     selected_browser = {
         str(asset.get("asset_id"))
@@ -237,8 +250,8 @@ def prepare_public_asset_objects(
             "asset_row_count": len(assets),
         },
         "inventory": {
-            "path": "data/registry/jbrowse_assets.v0.2.0.tsv",
-            "sha256": sha256(inventory_path),
+            "path": "data/registry/jbrowse_assets.v0.2.0.json" if inventory_provenance else "data/registry/jbrowse_assets.v0.2.0.tsv",
+            "sha256": sha256(inventory_provenance or inventory_path),
             "row_count": len(inventory_rows),
             "public_browser_count": len(browser_inventory_public),
         },
@@ -274,6 +287,40 @@ def prepare_public_asset_objects(
         encoding="utf-8",
     )
     return manifest
+
+
+def prepare_public_asset_objects(
+    *,
+    materialized_bundle: Path,
+    inventory_path: Path = DEFAULT_INVENTORY,
+    bundle: Path = DEFAULT_BUNDLE,
+    release_root: Path = DEFAULT_RELEASE,
+    output_dir: Path,
+    manifest_only: bool = False,
+) -> dict[str, Any]:
+    """Resolve archived v0.2 asset bytes while using the v0.3 catalogue."""
+
+    if release_root.resolve() == DEFAULT_RELEASE.resolve():
+        from scripts.v03_legacy_inputs import legacy_inputs
+
+        with legacy_inputs(REPO_ROOT) as (_temporary_repo, archived_release, inventory_tsv):
+            return _prepare_public_asset_objects_from_legacy_layout(
+                materialized_bundle=materialized_bundle,
+                inventory_path=inventory_tsv,
+                inventory_provenance=inventory_path,
+                bundle=bundle,
+                release_root=archived_release,
+                output_dir=output_dir,
+                manifest_only=manifest_only,
+            )
+    return _prepare_public_asset_objects_from_legacy_layout(
+        materialized_bundle=materialized_bundle,
+        inventory_path=inventory_path,
+        bundle=bundle,
+        release_root=release_root,
+        output_dir=output_dir,
+        manifest_only=manifest_only,
+    )
 
 
 def main() -> int:

@@ -1,0 +1,183 @@
+{
+  "schema_version": "1.0",
+  "release_version": "v0.3.0",
+  "pmid": "31594819",
+  "study_status": "published",
+  "audit_only": false,
+  "source_count": 1,
+  "record_count": 1965,
+  "related_table_counts": {
+    "gene_associations": 805,
+    "condition_observations": 0
+  },
+  "sources": [
+    {
+      "source_id": "BATTER_S1_008",
+      "registry_manifest": {
+        "schema_version": "1.0",
+        "source_id": "BATTER_S1_008",
+        "published_year": "2019",
+        "species": "Pseudomonas aeruginosa PAO1",
+        "phylum": "Proteobacteria",
+        "reference_genome": "GCF_000006765.1",
+        "pmid": "31594819",
+        "paper_title": "A rhlI 5' UTR-Derived sRNA Regulates RhlR-Dependent Quorum Sensing",
+        "doi": "10.1128/mBio.02253-19",
+        "pmc": "PMC6786874",
+        "raw_data_accessions": "PRJEB31965",
+        "assay_family": "RNA-seq / Term-seq-related",
+        "used_for_batter_augmentation": "TRUE",
+        "accessibility_status": "accessible",
+        "coordinate_status": "verified_with_count_conflict",
+        "processing_status": "curated",
+        "blocker_or_note": "Table S1B imported as 1,965 reproducible Term-seq 3-prime sites; Table S1A retained separately as 805 gene-associated TTS rows although the article text reports 804.",
+        "dataset_id": "pao1-termseq-thomason-2019",
+        "pubmed_url": "https://pubmed.ncbi.nlm.nih.gov/31594819/",
+        "doi_url": "https://doi.org/10.1128/mBio.02253-19",
+        "pmc_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6786874/",
+        "raw_data_url": "https://www.ebi.ac.uk/ena/browser/view/PRJEB31965",
+        "has_jbrowse": true,
+        "status_label": "已整理",
+        "evidence_policy": "experimental_only",
+        "prediction_included": false,
+        "repository_release": {
+          "release_version": "v0.1-local-snapshot",
+          "migration_date": "2026-08-10",
+          "release_status": "published_standardized",
+          "record_count": 1965,
+          "evidence_class": "author_called_endpoint",
+          "decision_note": "Author-reported reproducible Term-seq 3′ sites (Table S1B); the separate gene-associated table is documented but not duplicated here.",
+          "jbrowse_published_in_repository": false,
+          "source_processed_table_sha256": "edbca9ac5921de53a7d422ea2ed1141dec6d5c2c656ee57b32614e78887a4fe2",
+          "published_file_checksums": [
+            {
+              "filename": "endpoints.tsv",
+              "sha256": "fba79f3e3636a76a2c7817e8b16dcf49167ad16e1e935c03121cc933119ceac4"
+            },
+            {
+              "filename": "endpoints.bed",
+              "sha256": "df7e40cc709f511d9d41504520d099a71a744d2bd23118f251c0ec9fcb8f5f5a"
+            }
+          ],
+          "public_asset_name": "endpoints.tsv",
+          "source_processed_table_name": "reproducible_termseq_3prime_sites.tsv"
+        },
+        "legacy_manifest_sha256": "ef23bb7e927080920f73101ad7c68ffc48f512711fa7724e70957971f5e21472"
+      },
+      "release_facts": {
+        "known_limitations": "Table S1B imported as 1,965 reproducible Term-seq 3-prime sites; Table S1A retained separately as 805 gene-associated TTS rows although the article text reports 804.",
+        "has_jbrowse": true
+      },
+      "registry_row": {
+        "source_id": "BATTER_S1_008",
+        "published_year": "2019",
+        "species": "Pseudomonas aeruginosa PAO1",
+        "phylum": "Proteobacteria",
+        "reference_genome": "GCF_000006765.1",
+        "pmid": "31594819",
+        "paper_title": "A rhlI 5' UTR-Derived sRNA Regulates RhlR-Dependent Quorum Sensing",
+        "doi": "10.1128/mBio.02253-19",
+        "pmc": "PMC6786874",
+        "raw_data_accessions": "PRJEB31965",
+        "assay_family": "RNA-seq / Term-seq-related",
+        "used_for_batter_augmentation": "TRUE",
+        "accessibility_status": "accessible",
+        "coordinate_status": "verified_with_count_conflict",
+        "processing_status": "curated",
+        "blocker_or_note": "Table S1B imported as 1,965 reproducible Term-seq 3-prime sites; Table S1A retained separately as 805 gene-associated TTS rows although the article text reports 804."
+      },
+      "publication_status": {
+        "source_id": "BATTER_S1_008",
+        "release_status": "published_standardized",
+        "record_count": "1965",
+        "evidence_class": "author_called_endpoint",
+        "has_jbrowse": "true",
+        "source_annotations_status": "published",
+        "redistribution_status": "verified_redistributable",
+        "record_root": "data/public/v0.2.0/records/BATTER_S1_008"
+      },
+      "license_status": {
+        "source_id": "BATTER_S1_008",
+        "pmid": "31594819",
+        "article_license": "CC BY",
+        "redistribution_status": "verified_redistributable",
+        "license_source": "https://europepmc.org/article/MED/31594819",
+        "note": "Europe PMC license metadata checked on 2026-08-10; this status governs the v0.2.0 source-specific table. Original repository terms still apply."
+      },
+      "asset_redistribution": [],
+      "table_defaults": {
+        "endpoints": {
+          "sample_id": "PRJEB31965_REPRODUCIBLE_SITE",
+          "assay": "Term-seq",
+          "evidence_class": "author_called_endpoint",
+          "reference_assembly": "GCF_000006765.1",
+          "pmid": "31594819",
+          "doi": "10.1128/mBio.02253-19",
+          "source_table_or_file": "Table S1B",
+          "coordinate_interpretation": "dominant Term-seq position treated as 1-based; BED start=position-1",
+          "qc_status": "migrated_coordinate_and_bed_checked",
+          "note": "Author-reported reproducible Term-seq 3′ sites (Table S1B); the separate gene-associated table is documented but not duplicated here."
+        },
+        "gene_associations": {
+          "species": "Pseudomonas aeruginosa PAO1",
+          "evidence_class": "author_gene_associated_termseq_tts",
+          "pmid": "31594819",
+          "doi": "10.1128/mBio.02253-19",
+          "source_table": "Table S1A",
+          "count_discrepancy_warning": "workbook contains 805 non-NA rows whereas article text reports 804 associated TTSs; no row silently removed"
+        }
+      },
+      "annotation_defaults": {
+        "fields": {
+          "species": "Pseudomonas aeruginosa PAO1",
+          "source_table": "Table S1B"
+        },
+        "overrides": {
+          "evidence_class": "author_called_reproducible_termseq_3prime_site"
+        }
+      },
+      "annotation_field_map": {
+        "source_record_id": {
+          "from": "endpoint",
+          "field": "author_endpoint_id"
+        },
+        "source_end_id": {
+          "from": "endpoint",
+          "field": "author_endpoint_id"
+        },
+        "base_mean": {
+          "from": "endpoint",
+          "field": "signal_or_score"
+        },
+        "log2_fold_change": {
+          "from": "attribute",
+          "attribute": "ann_log2_fold_change"
+        },
+        "fold_change": {
+          "from": "attribute",
+          "attribute": "ann_fold_change"
+        },
+        "pvalue": {
+          "from": "attribute",
+          "attribute": "ann_pvalue"
+        },
+        "padj": {
+          "from": "attribute",
+          "attribute": "ann_padj"
+        },
+        "cluster_start_1based": {
+          "from": "attribute",
+          "attribute": "ann_cluster_start_1based"
+        },
+        "cluster_end_1based": {
+          "from": "attribute",
+          "attribute": "ann_cluster_end_1based"
+        },
+        "notes": {
+          "from": "attribute",
+          "attribute": "ann_notes"
+        }
+      }
+    }
+  ]
+}

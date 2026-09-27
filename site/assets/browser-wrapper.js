@@ -5,15 +5,14 @@
   if (!root) return;
 
   const query = new URLSearchParams(window.location.search);
-  const configValue = query.get("config");
   const sourceValue = query.get("source_id");
   const frame = root.querySelector("[data-browser-frame]");
+  const assemblySelect = root.querySelector("[data-browser-assembly-select]");
   const select = root.querySelector("[data-browser-source]");
   const status = root.querySelector("[data-browser-status]");
   const sourceNote = root.querySelector("[data-browser-source-note]");
   let catalogue = null;
   let assembly = null;
-  let baseConfig = null;
   let selectedSource = sourceValue || "";
 
   function text(selector, value) {
@@ -42,18 +41,6 @@
     if (/^PRJEB\d+$/.test(accession)) return `https://www.ebi.ac.uk/ena/browser/view/${encodeURIComponent(accession)}`;
     if (/^E-MTAB-\d+$/.test(accession)) return `https://www.ebi.ac.uk/biostudies/arrayexpress/studies/${encodeURIComponent(accession)}`;
     return fallback || "";
-  }
-
-  function resolveConfigUrl(value) {
-    const config = new URL(value, window.location.href);
-    // Worker Static Assets and the API share an origin in the deployed site. The
-    // generated catalogue may still contain the preview hostname, so resolve only
-    // BTED's known dynamic-config route against the page origin. External configs
-    // remain untouched.
-    if (/^\/api\/assemblies\/[^/]+\/jbrowse-config$/.test(config.pathname)) {
-      return new URL(`${config.pathname}${config.search}`, window.location.origin);
-    }
-    return config;
   }
 
   function renderRawLinks(track) {
@@ -116,17 +103,17 @@
   }
 
   function configFor(sourceId) {
-    const config = new URL(baseConfig.href);
-    if (sourceId) config.searchParams.set("source_id", sourceId);
-    else config.searchParams.delete("source_id");
-    return config;
+    const track = sourceId && assembly.tracks.find((item) => item.source_id === sourceId);
+    const path = track?.jbrowse_static_config_url || assembly.jbrowse_static_config_url;
+    if (!path) throw new Error(`JBrowse config is not available for ${assembly.assembly.accession}`);
+    return new URL(path, window.location.href);
   }
 
   function iframeUrl(config) {
     const params = new URLSearchParams();
     params.set("config", config.href);
-    // Preserve JBrowse deep-link state while keeping wrapper-only parameters out.
-    ["loc", "session", "tracks", "highlight", "assembly"].forEach((name) => {
+    // Keep JBrowse deep-link state separate from the wrapper's accession parameter.
+    ["loc", "session", "tracks", "highlight"].forEach((name) => {
       const value = query.get(name);
       if (value) params.set(name, value);
     });
@@ -135,7 +122,8 @@
 
   function updatePageUrl(sourceId) {
     const url = new URL(window.location.href);
-    url.searchParams.set("config", configFor(sourceId).href);
+    url.searchParams.set("assembly", assembly.assembly.accession);
+    url.searchParams.delete("config");
     if (sourceId) url.searchParams.set("source_id", sourceId);
     else url.searchParams.delete("source_id");
     window.history.replaceState({}, "", url);
@@ -145,29 +133,32 @@
     if (!track) return;
     selectedSource = track.source_id;
     select.value = selectedSource;
-    text("[data-browser-study]", `${track.source_id} · ${track.publication_year} · ${track.assay}`);
+    const recordCount = Number(track.record_count || 0).toLocaleString("en-US");
+    const statusLabel = track.track_status_label_en || "Endpoint records";
+    text("[data-browser-study]", `${track.source_id} · ${track.publication_year} · ${track.assay} · ${recordCount} records · ${statusLabel}`);
     showLink("[data-browser-paper]", "Publication", track.publication_url);
     showLink("[data-browser-pubmed]", `PubMed ${track.pmid || ""}`.trim(), track.publication_url);
     showLink("[data-browser-doi]", track.doi ? `DOI ${track.doi}` : "DOI", track.doi_url);
-    showLink("[data-browser-bed]", "Download BED", track.bed_url);
+    showLink("[data-browser-gff3]", "Download GFF3", track.gff3_url);
     showLink("[data-browser-record]", "Dataset details", track.record_url);
     renderStudyLinks([]);
     renderRawLinks(track);
     sourceNote.textContent = assembly.tracks.length > 1
-      ? "Select a source to focus its track; sources sharing an assembly remain independent."
-      : "This assembly has one published source track.";
+      ? "Select a source to focus its track. Studies on the same assembly remain separate."
+      : "This assembly has one source track.";
   }
 
   function renderAllTracks() {
     selectedSource = "";
     select.value = "";
-    text("[data-browser-study]", `${assembly.tracks.length} independent source tracks`);
+    const tracks = assembly.tracks.filter((track) => track.track_status !== "metadata_only");
+    const totalRecords = tracks.reduce((sum, track) => sum + Number(track.record_count || 0), 0);
+    text("[data-browser-study]", `${tracks.length} source tracks · ${totalRecords.toLocaleString("en-US")} endpoint records`);
     showLink("[data-browser-paper]", "Publication", "");
     showLink("[data-browser-pubmed]", "PubMed", "");
     showLink("[data-browser-doi]", "DOI", "");
-    showLink("[data-browser-bed]", "Download BED", "");
+    showLink("[data-browser-gff3]", "Download GFF3", "");
     showLink("[data-browser-record]", "Dataset details", "");
-    const tracks = assembly.tracks.filter((track) => track.track_status !== "metadata_only");
     renderStudyLinks(tracks);
     const raw = tracks.map((track) => ({
       raw_data_accession: track.raw_data_accession,
@@ -176,7 +167,7 @@
     const container = root.querySelector("[data-browser-raw]");
     container.replaceChildren();
     renderRawLinks(raw);
-    sourceNote.textContent = "Sources sharing an assembly remain independent tracks and are not merged into a consensus.";
+    sourceNote.textContent = "Studies on the same assembly remain separate source tracks.";
   }
 
   function loadFrame(sourceId) {
@@ -190,6 +181,8 @@
     const data = catalogue.assemblies[assembly.accession];
     if (!data) throw new Error(`Assembly ${assembly.accession} is not in the catalogue`);
     assembly = data;
+    assemblySelect.value = assembly.assembly.accession;
+    assemblySelect.disabled = false;
     text("[data-browser-organism]", `${assembly.assembly.scientific_name}${assembly.assembly.strain ? ` · ${assembly.assembly.strain}` : ""}`);
     text("[data-browser-assembly]", assembly.assembly.accession);
     text("[data-browser-reference]", assembly.assembly.reference_name ? ` · ${assembly.assembly.reference_name}` : "");
@@ -201,33 +194,76 @@
     all.value = "";
     all.textContent = "All source tracks";
     select.append(all);
-    assembly.tracks.filter((track) => track.track_status !== "metadata_only").forEach((track) => {
+    const available = assembly.tracks.filter((track) => track.track_status !== "metadata_only");
+    select.disabled = available.length < 1;
+    available.forEach((track) => {
       const option = document.createElement("option");
       option.value = track.source_id;
-      option.textContent = `${track.source_id} · ${track.publication_year}`;
+      const statusLabel = track.track_status_label_en || "Endpoint records";
+      option.textContent = `${track.source_id} · ${track.publication_year} · ${Number(track.record_count || 0).toLocaleString("en-US")} records · ${statusLabel}`;
       select.append(option);
     });
-    const available = assembly.tracks.filter((track) => track.track_status !== "metadata_only");
     const initial = available.find((track) => track.source_id === selectedSource);
     if (initial) renderTrack(initial);
     else if (available.length > 1) renderAllTracks();
     else if (available[0]) renderTrack(available[0]);
-    loadFrame(selectedSource);
+    if (assembly.jbrowse_static_config_url) loadFrame(selectedSource);
+    else status.textContent = "JBrowse configuration is not available for this assembly.";
+  }
+
+  function populateAssemblyChoices() {
+    assemblySelect.replaceChildren();
+    const prompt = document.createElement("option");
+    prompt.value = "";
+    prompt.textContent = "Choose a reference assembly";
+    assemblySelect.append(prompt);
+    Object.entries(catalogue.assemblies)
+      .filter(([, item]) => Boolean(item.jbrowse_static_config_url))
+      .sort(([left], [right]) => left.localeCompare(right))
+      .forEach(([accession, item]) => {
+        const option = document.createElement("option");
+        option.value = accession;
+        option.textContent = `${accession} · ${item.assembly.scientific_name}`;
+        assemblySelect.append(option);
+      });
+    assemblySelect.disabled = false;
+  }
+
+  function updateCoverage() {
+    const sources = new Map();
+    Object.values(catalogue.assemblies).forEach((entry) => {
+      entry.tracks.forEach((track) => sources.set(track.source_id, track));
+    });
+    const totalRecords = Object.values(catalogue.assemblies).reduce((sum, entry) => sum + Number(entry.record_count || 0), 0);
+    const coverage = document.querySelector("[data-browser-coverage]");
+    if (coverage) coverage.textContent = `${Object.keys(catalogue.assemblies).length} assemblies · ${sources.size} source datasets · ${totalRecords.toLocaleString("en-US")} endpoint records`;
   }
 
   async function start() {
-    if (!configValue) throw new Error("Missing config parameter");
-    baseConfig = resolveConfigUrl(configValue);
-    if (!selectedSource) selectedSource = baseConfig.searchParams.get("source_id") || "";
-    const match = baseConfig.pathname.match(/\/assemblies\/([^/]+)\/jbrowse-config$/);
-    const accession = match ? decodeURIComponent(match[1]) : null;
-    if (!accession) throw new Error("Could not identify assembly from config");
     const response = await fetch("data/assemblies.json", { headers: { Accept: "application/json" } });
     if (!response.ok) throw new Error(`Catalogue request failed: ${response.status}`);
     catalogue = await response.json();
+    populateAssemblyChoices();
+    updateCoverage();
+
+    const accession = query.get("assembly");
+    if (!accession) {
+      status.textContent = "Choose a reference assembly to see its source tracks.";
+      return;
+    }
+    const item = catalogue.assemblies[accession];
+    if (!item) throw new Error(`Assembly ${accession} is not in the catalogue`);
     assembly = { accession };
     renderAssembly();
+
   }
+
+  assemblySelect.addEventListener("change", () => {
+    if (!assemblySelect.value) return;
+    const url = new URL("browser.html", window.location.href);
+    url.searchParams.set("assembly", assemblySelect.value);
+    window.location.assign(url.href);
+  });
 
   select.addEventListener("change", () => {
     const track = assembly.tracks.find((item) => item.source_id === select.value);

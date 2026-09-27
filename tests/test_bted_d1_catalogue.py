@@ -173,11 +173,45 @@ class BtedD1CatalogueGeneratorTests(unittest.TestCase):
             self.assertIn("INSERT INTO release_versions", (output / "00_release.sql").read_text())
             self.assertIn("'preview'", (output / "00_release.sql").read_text())
             self.assertTrue((output / "08_endpoints_0000.sql").exists())
+            endpoint_sql = (output / "08_endpoints_0000.sql").read_text(encoding="utf-8")
+            self.assertIn("gff_start_1based, gff_end_1based", endpoint_sql)
+            self.assertNotIn("bed_start_0based", endpoint_sql)
             schema = (output / "schema.sql").read_text(encoding="utf-8")
             self.assertIn("CREATE TABLE IF NOT EXISTS endpoints", schema)
             self.assertNotIn("CREATE TABLE IF NOT EXISTS genes", schema)
             self.assertNotIn("CREATE TABLE IF NOT EXISTS source_annotations", schema)
             self.assertIn('"preview_status": "preview"', result.stdout)
+
+    def test_static_source_tracks_keep_license_gate_without_bed_assets(self):
+        for redistribution_status, expected_public in (
+            ("verified_redistributable", 1),
+            ("external_link_only", 0),
+        ):
+            with self.subTest(redistribution_status=redistribution_status), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                bundle = root / "bundle"
+                output = root / "output"
+                bundle.mkdir()
+                self.make_bundle(bundle)
+
+                sources_path = bundle / "sources.jsonl"
+                sources = [json.loads(line) for line in sources_path.read_text(encoding="utf-8").splitlines()]
+                sources[0]["redistribution_status"] = redistribution_status
+                write_jsonl(sources_path, sources)
+
+                assets_path = bundle / "assets.jsonl"
+                assets = [json.loads(line) for line in assets_path.read_text(encoding="utf-8").splitlines()]
+                write_jsonl(assets_path, [asset for asset in assets if asset["asset_kind"] != "bed"])
+
+                subprocess.run(
+                    [sys.executable, str(GENERATOR), "--bundle-dir", str(bundle), "--output-dir", str(output)],
+                    cwd=REPO_ROOT,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                track_sql = (output / "07_tracks.sql").read_text(encoding="utf-8")
+                self.assertRegex(track_sql, rf", NULL, {expected_public}, 1,")
 
 
 if __name__ == "__main__":

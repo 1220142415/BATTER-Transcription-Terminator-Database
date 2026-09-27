@@ -13,18 +13,11 @@ import zlib
 from pathlib import Path
 from typing import Any
 
-from backend.importer.materialize import (
+from bted_pipeline.materialize import (
     JBROWSE_INVENTORY_COLUMNS,
     _build_gff_gene_tables,
     materialize_release,
 )
-from backend.importer.postgres import (
-    _load_assets,
-    _load_genes,
-    _preflight,
-)
-
-from tests.test_bted_v03_postgres import _tiny_preflight_verification
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -36,14 +29,6 @@ DEFAULT_BUNDLE = (
 BUNDLE_ROOT = Path(
     os.environ.get("BTED_V02_JBROWSE_BUNDLE", str(DEFAULT_BUNDLE))
 )
-
-
-class RecordingCursor:
-    def __init__(self) -> None:
-        self.calls: list[tuple[str, int]] = []
-
-    def executemany(self, sql: str, params: list[tuple[Any, ...]]) -> None:
-        self.calls.append((sql, len(params)))
 
 
 def _sha256(path: Path) -> str:
@@ -137,50 +122,6 @@ def _write_synthetic_gene_inventory(root: Path) -> tuple[Path, Path, str]:
     return inventory_path, bundle_root, assembly
 
 
-def _gene_rows(rows: dict[str, list[dict[str, Any]]]) -> None:
-    rows["assets"].append(
-        {
-            "asset_id": "v0.2.0--assembly-GCF_000000001.1--gff3",
-            "release_version": "v0.2.0",
-            "asset_kind": "gff3",
-            "logical_path": "assemblies/GCF_000000001.1/reference/genes.gff3.gz",
-            "origin_url": "https://example.test/assets/assemblies/GCF_000000001.1/reference/genes.gff3.gz",
-            "origin_host": "example.test",
-            "byte_size": 10,
-            "sha256": "b" * 64,
-            "mime_type": "application/gzip",
-            "supports_range": False,
-            "redistribution_status": "external_link_only",
-            "is_public": False,
-            "assembly_id_ref": "GCF_000000001.1",
-        }
-    )
-    rows["genes"].append(
-        {
-            "release_version": "v0.2.0",
-            "assembly_id_ref": "GCF_000000001.1",
-            "contig_id_ref": {
-                "assembly_accession": "GCF_000000001.1",
-                "contig_accession": "NC_000001.1",
-            },
-            "gene_id": "GCF_000000001.1:gene-test",
-            "locus_tag": "TEST_0001",
-            "gene_name": "test",
-            "feature_type": "gene",
-            "start_1based": 10,
-            "end_1based": 20,
-            "strand": "+",
-            "annotation_asset_id": "v0.2.0--assembly-GCF_000000001.1--gff3",
-            "annotation_sha256": "b" * 64,
-            "attributes_json": {
-                "ID": "gene-test",
-                "Name": "test",
-                "locus_tag": "TEST_0001",
-            },
-        }
-    )
-
-
 class TestBtedV03Genes(unittest.TestCase):
     def test_synthetic_gff_fixture_decodes_and_extends_contigs(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -237,34 +178,6 @@ class TestBtedV03Genes(unittest.TestCase):
                 extra["provenance_json"]["source"],
                 "jbrowse_reference_fai",
             )
-
-    def test_fake_preflight_accepts_gene_and_writer_loads_assets_first(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            verification = _tiny_preflight_verification(
-                Path(directory) / "bundle",
-                mutate=_gene_rows,
-            )
-            state = _preflight(verification)
-            self.assertEqual(len(state.genes), 1)
-            cursor = RecordingCursor()
-            _load_assets(
-                cursor,
-                verification,
-                {"S": 11},
-                {"GCF_000000001.1": 22},
-                batch_size=10,
-            )
-            _load_genes(
-                cursor,
-                verification,
-                {"GCF_000000001.1": 22},
-                {("GCF_000000001.1", "NC_000001.1"): 33},
-                batch_size=10,
-            )
-            self.assertEqual(len(cursor.calls), 2)
-            self.assertIn("INSERT INTO assets", cursor.calls[0][0])
-            self.assertIn("INSERT INTO genes", cursor.calls[1][0])
-            self.assertEqual(cursor.calls[1][1], 1)
 
     @unittest.skipUnless(
         BUNDLE_ROOT.is_dir() and INVENTORY.is_file(),
