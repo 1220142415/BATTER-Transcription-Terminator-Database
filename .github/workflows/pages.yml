@@ -35,6 +35,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - name: Build BTED JBrowse plugin
+        run: |
+          npm ci --prefix jbrowse-plugin
+          npm --prefix jbrowse-plugin run check
+          npm --prefix jbrowse-plugin run build
       - name: Validate v0.4.0 release and repository layout
         run: |
           python3 scripts/validate_bted_v0_4.py

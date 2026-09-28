@@ -15,6 +15,14 @@ python -m unittest discover -s tests -p 'test*.py' -q
 
 新基因组的 NCBI 参考包放在 `data/registry/browser_refs/`。下面的命令会核对原包、参考序列和长度，并准备 FASTA、FAI 与基因注释。Cascino 论文的 `CP000100.1` 与浏览器使用的 `NC_007604.1` 已核对为相同序列。
 
+JBrowse 轨道说明和链向颜色由仓库内的 BTED 插件提供。插件按锁定的依赖构建，生成文件只进入组装后的 Pages/Worker 包：
+
+```bash
+npm ci --prefix jbrowse-plugin
+npm --prefix jbrowse-plugin run check
+npm --prefix jbrowse-plugin run build
+```
+
 ```bash
 python scripts/prepare_v04_reference.py --output-root dist/v04-browser-objects
 python scripts/build_v0_4_site.py --release-root data/public/v0.4.0 \

@@ -175,7 +175,9 @@ def config_uris(value: object) -> list[str]:
     if isinstance(value, dict):
         if isinstance(value.get("uri"), str):
             found.append(str(value["uri"]))
-        for child in value.values():
+        for key, child in value.items():
+            if key == "plugins":
+                continue
             found.extend(config_uris(child))
     elif isinstance(value, list):
         for child in value:
@@ -272,7 +274,13 @@ def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: 
                 problems.append(f"{rel} 引用未列入清单的 Hugging Face 文件: {url[:120]}")
 
     jbrowse_root = site_dir / "jbrowse"
-    for config_path in [*jbrowse_root.glob("*.config.json"), *jbrowse_root.glob("assemblies/*.config.json")]:
+    config_paths = [*jbrowse_root.glob("assemblies/*.config.json")]
+    if not config_paths:
+        problems.append("v0.4.0 站点缺少基因组 JBrowse 配置")
+    plugin_file = jbrowse_root / "plugins/bted-track-plugin.js"
+    if not plugin_file.is_file():
+        problems.append("v0.4.0 站点缺少 BTED JBrowse 插件")
+    for config_path in config_paths:
         try:
             config = json.loads(config_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
@@ -282,6 +290,34 @@ def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: 
             normalized = uri.removeprefix("../../")
             if uri not in allowed_urls and normalized not in allowed_urls:
                 problems.append(f"{config_path.relative_to(site_dir).as_posix()} 的数据 URI 未列入清单: {uri}")
+        configured_plugins = config.get("plugins", [])
+        if len(configured_plugins) != 1:
+            problems.append(f"{config_path.relative_to(site_dir).as_posix()} 缺少唯一 BTED 插件配置")
+        for plugin in configured_plugins:
+            uri = plugin.get("esmUrl") if isinstance(plugin, dict) else None
+            if not isinstance(plugin, dict) or plugin.get("name") != "BTEDTrackPlugin" or uri != "plugins/bted-track-plugin.js":
+                problems.append(f"{config_path.relative_to(site_dir).as_posix()} 的 BTED 插件配置无效")
+            elif not (jbrowse_root / uri).is_file():
+                problems.append(f"{config_path.relative_to(site_dir).as_posix()} 缺少 BTED 插件文件")
+        for track in config.get("tracks", []):
+            if not isinstance(track, dict):
+                problems.append(f"{config_path.relative_to(site_dir).as_posix()} 包含无效轨道")
+                continue
+            about = track.get("metadata", {}).get("btedAbout", {})
+            kind = about.get("kind") if isinstance(about, dict) else None
+            if kind not in {"endpoint", "signal", "reference"}:
+                problems.append(f"{config_path.relative_to(site_dir).as_posix()} 轨道 About 缺少 BTED 证据类型")
+            if kind == "endpoint":
+                display = (track.get("displays") or [{}])[0]
+                renderer = display.get("renderer", {}) if isinstance(display, dict) else {}
+                if renderer.get("color1") != "jexl:btedStrandColor(feature)":
+                    problems.append(f"{config_path.relative_to(site_dir).as_posix()} 端点轨道未按链着色")
+            if kind == "signal":
+                display = (track.get("displays") or [{}])[0]
+                color = display.get("renderers", {}).get("XYPlotRenderer", {}).get("color") if isinstance(display, dict) else None
+                expected_color = "#0f766e" if about.get("strand") == "+" else "#be123c" if about.get("strand") == "-" else "#64748b"
+                if color != expected_color:
+                    problems.append(f"{config_path.relative_to(site_dir).as_posix()} 信号轨道链向颜色错误")
     return allowed_local
 
 

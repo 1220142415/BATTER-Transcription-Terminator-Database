@@ -11,6 +11,17 @@ const DATA_RELEASE_MANIFEST_PATH = "/assets/data-release.json";
 const HF_DATA_ASSET_PATTERN = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/(v0\.3\.0|v0\.4\.0)\/(.+)$/;
 const LOCAL_DATA_ASSET_PATTERN = /^downloads\/(v0\.3\.0|v0\.4\.0)\/(.+)$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
+const PLUS_STRAND_COLOR = "#0f766e";
+const MINUS_STRAND_COLOR = "#be123c";
+
+function trackCitation(track) {
+  try {
+    const metadata = JSON.parse(track.metadata_json || "{}");
+    return { citation: metadata.citation || {}, license: metadata.article_license || "", limitations: metadata.known_limitations || "" };
+  } catch {
+    return { citation: {}, license: "", limitations: "" };
+  }
+}
 
 const RESPONSE_HEADERS = [
   "accept-ranges",
@@ -559,6 +570,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
   const endpointTracks = new Map();
   for (const { track, source, sourceAssets, endpointGff3 } of publicTracks) {
     const rawAccessions = JSON.parse(track.raw_accessions_json || "[]");
+    const { citation, license, limitations } = trackCitation(track);
     let endpointGff3Url = null;
     try {
       if (endpointGff3) {
@@ -582,7 +594,28 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       BTED_record: new URL(`/genomes/${encodeURIComponent(accession)}.html?source_id=${encodeURIComponent(source.source_id)}`, request.url).href,
       GFF3_download: endpointGff3Url,
       release_version: release.release_version,
+      btedAbout: {
+        kind: "endpoint", source_id: source.source_id, assembly: accession,
+        title: citation.paper_title || track.paper_title, authors: citation.authors || "",
+        journal: citation.journal || track.journal || "", year: citation.published_year || track.publication_year || "",
+        pmid: track.pmid || "", pubmed_url: citation.pubmed_url || (track.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${track.pmid}/` : ""),
+        doi_url: track.doi ? `https://doi.org/${track.doi}` : "",
+        assay: track.assay || source.assay_family || "", record_count: source.record_count,
+        evidence: source.evidence_class === "author_called_endpoint"
+          ? "Paper-reported transcript 3′ end; not proof of terminator function."
+          : "Literature-curated 3′ end; BTED did not re-call this position from reads.",
+        license: license === "not_open_access_author_manuscript" ? "Article not openly licensed" : license,
+        limitations,
+        raw_data_accessions: rawAccessions.map((item) => item.accession).join(", "),
+        raw_data_url: rawAccessions.map((item) => item.external_url).find(Boolean) || "",
+        gff3_url: source.record_root ? dataAssetUrl(dataManifest, source.record_root, request) : "",
+        explanation: "Records from different studies remain separate even at the same coordinate.",
+      },
     };
+    if (endpointGff3) {
+      const grouped = endpointTracks.get(endpointGff3.logical_path);
+      grouped[grouped.length - 1].about = metadata.btedAbout;
+    }
     for (const [strand, label] of [["forward", "+"], ["reverse", "-"]]) {
       const signal = sourceAssets.find((asset) => asset.asset_kind === "bigwig" && asset.logical_path.endsWith(`signal.${strand}.bw`) && Number(asset.is_public) === 1);
       if (!signal) continue;
@@ -594,8 +627,22 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
         adapter: { type: "BigWigAdapter", bigWigLocation: { uri: assetUrl(request, signal.asset_key), locationType: "UriLocation" } },
         category: ["BTED experimental signal", source.source_id],
         assemblyNames: [assemblyName],
-        metadata: { ...metadata, signal_values: "Raw repository values; not normalized by BTED", strand: label },
-        displays: [{ type: "LinearWiggleDisplay", displayId: `${signalId}_display` }],
+        metadata: {
+          ...metadata, signal_values: "Raw repository values; not normalized by BTED", strand: label,
+          btedAbout: {
+            ...metadata.btedAbout, kind: "signal", strand: label,
+            license: "NCBI GEO data-use policy", record_count: "",
+            explanation: "Measured BigWig signal; not individual reads or an endpoint call.",
+          },
+        },
+        displays: [{
+          type: "LinearWiggleDisplay", displayId: `${signalId}_display`, defaultRendering: "xyplot",
+          renderers: {
+            XYPlotRenderer: { color: strand === "forward" ? PLUS_STRAND_COLOR : MINUS_STRAND_COLOR },
+            LinePlotRenderer: { color: strand === "forward" ? PLUS_STRAND_COLOR : MINUS_STRAND_COLOR },
+            DensityRenderer: { color: strand === "forward" ? PLUS_STRAND_COLOR : MINUS_STRAND_COLOR },
+          },
+        }],
       });
     }
   }
@@ -620,6 +667,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       GFF3_download: dataAssetUrl(dataManifest, first.source.record_root, request),
       release_version: release.release_version,
       logical_path: logicalPath,
+      btedAbout: { ...first.about, record_count: studyTracks.reduce((sum, { source: item }) => sum + Number(item.record_count || 0), 0), gff3_url: dataAssetUrl(dataManifest, first.source.record_root, request) },
     };
     tracksConfig.push({
       type: "FeatureTrack",
@@ -629,7 +677,10 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       category: ["BTED endpoint tracks", ...sourceIds],
       assemblyNames: [assemblyName],
       metadata,
-      displays: [{ type: "LinearBasicDisplay", displayId: `${endpointTrackId}_display`, showLabels: false, height: 38 }],
+      displays: [{
+        type: "LinearBasicDisplay", displayId: `${endpointTrackId}_display`, showLabels: false, height: 44,
+        renderer: { type: "SvgFeatureRenderer", color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)", height: 14 },
+      }],
     });
   }
   const configTracks = [];
@@ -641,7 +692,17 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       adapter: { type: "Gff3TabixAdapter", gffGzLocation: { uri: assetUrl(request, gff.asset_key), locationType: "UriLocation" }, index: { location: { uri: assetUrl(request, tbi.asset_key), locationType: "UriLocation" }, indexType: "TBI" } },
       category: ["Reference annotation"],
       assemblyNames: [assemblyName],
-      metadata: { release_version: release.release_version, gff3_sha256: gff.sha256, tbi_sha256: tbi.sha256 },
+      metadata: {
+        release_version: release.release_version, gff3_sha256: gff.sha256, tbi_sha256: tbi.sha256,
+        btedAbout: {
+          kind: "reference", assembly: accession,
+          reference: `${assembly.display_name || assembly.organism_name} · ${accession}`,
+          reference_name: contigName,
+          annotation_version: `GFF3 SHA-256 ${gff.sha256.slice(0, 16)}`,
+          reference_url: `https://www.ncbi.nlm.nih.gov/datasets/genome/${encodeURIComponent(accession)}/`,
+          explanation: "NCBI-derived gene annotation for the displayed reference assembly.",
+        },
+      },
     });
   } else if (browserGff) {
     configTracks.push({
@@ -651,7 +712,17 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       adapter: { type: "Gff3Adapter", gffLocation: { uri: assetUrl(request, browserGff.asset_key), locationType: "UriLocation" } },
       category: ["Reference annotation"],
       assemblyNames: [assemblyName],
-      metadata: { release_version: release.release_version, gff3_sha256: browserGff.sha256 },
+      metadata: {
+        release_version: release.release_version, gff3_sha256: browserGff.sha256,
+        btedAbout: {
+          kind: "reference", assembly: accession,
+          reference: `${assembly.display_name || assembly.organism_name} · ${accession}`,
+          reference_name: contigName,
+          annotation_version: `GFF3 SHA-256 ${browserGff.sha256.slice(0, 16)}`,
+          reference_url: `https://www.ncbi.nlm.nih.gov/datasets/genome/${encodeURIComponent(accession)}/`,
+          explanation: "NCBI-derived gene annotation for the displayed reference assembly.",
+        },
+      },
     });
   }
   configTracks.push(...tracksConfig);
@@ -667,6 +738,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     }],
   }));
   return json({
+    plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL("/jbrowse/plugins/bted-track-plugin.js", request.url).href }],
     assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", trackId: `${assemblyName}_refseq`, adapter: { type: "IndexedFastaAdapter", fastaLocation: { uri: assetUrl(request, fasta.asset_key), locationType: "UriLocation" }, faiLocation: { uri: assetUrl(request, fai.asset_key), locationType: "UriLocation" } } } }],
     tracks: configTracks,
     defaultSession: { name: `${accession} BTED catalogue`, views: [{ id: "bted_linear_genome_view", type: "LinearGenomeView", offsetPx: 0, bpPerPx: 10.001, displayedRegions: [{ refName: contigName, start: regionStart, end: regionEnd, reversed: false, assemblyName }], tracks: sessionTracks }] },

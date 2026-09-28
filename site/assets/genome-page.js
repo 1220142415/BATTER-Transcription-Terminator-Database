@@ -3,11 +3,10 @@
 
   const root = document.querySelector("[data-genome-page]");
   const frame = document.querySelector("[data-browser-frame]");
-  const select = document.querySelector("[data-source-select]");
   if (!root || !frame || !frame.dataset.config) return;
 
   const assembly = root.dataset.assembly;
-  const params = new URLSearchParams(window.location.search);
+  let params = new URLSearchParams(window.location.search);
   const browserUrl = new URL("../jbrowse/index.html", document.baseURI);
 
   function selectedSource() {
@@ -32,30 +31,11 @@
     frame.src = `${browserUrl.href}?${frameParams.toString()}`;
   }
 
-  const source = selectedSource();
-  if (select && source) {
-    const option = Array.from(select.options).find((item) => item.value === source);
-    if (option) select.value = source;
-  }
-  showSource(source);
+  showSource(selectedSource());
   loadBrowser();
 
-  if (select) select.addEventListener("change", () => {
-    const sourceId = select.value;
-    if (sourceId) params.set("source_id", sourceId);
-    else params.delete("source_id");
-    const url = new URL(window.location.href);
-    url.search = params.toString();
-    window.history.replaceState({}, "", url);
-    showSource(sourceId);
-    loadBrowser();
-  });
-
   window.addEventListener("popstate", () => {
-    params.delete("source_id");
-    const current = new URLSearchParams(window.location.search);
-    current.forEach((value, key) => params.set(key, value));
-    if (select) select.value = selectedSource();
+    params = new URLSearchParams(window.location.search);
     showSource(selectedSource());
     loadBrowser();
   });

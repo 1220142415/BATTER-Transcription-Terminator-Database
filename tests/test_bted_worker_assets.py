@@ -72,6 +72,7 @@ const browserTracks = [{{
   paper_title: "Test paper",
   pmid: "12345678",
   doi: "10.1000/test",
+  metadata_json: JSON.stringify({{citation: {{authors: "A Researcher; B Researcher", journal: "Test Journal", paper_title: "Test paper", published_year: 2026, pubmed_url: "https://pubmed.ncbi.nlm.nih.gov/12345678/"}}, article_license: "CC BY 4.0", known_limitations: "One condition"}}),
   is_public: 1,
   asset_key: "v0.4.0--study-GCF_000009045.1-PMID_12345678",
 }}];
@@ -176,6 +177,7 @@ process.stdout.write(JSON.stringify({{
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
         )
         return json.loads(result.stdout)
 
@@ -270,12 +272,17 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(payload["status"], 200)
         config = payload["body"]
         self.assertEqual(config["metadata"]["release_version"], "v0.4.0")
+        self.assertEqual(config["plugins"][0]["name"], "BTEDTrackPlugin")
+        self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js")
         endpoint_track = next(track for track in config["tracks"] if track["trackId"].startswith("source_"))
         expected_gff3 = "https://huggingface.co/datasets/liurulong/terminator/resolve/abcdefabcdefabcdefabcdefabcdefabcdefabcd/v0.4.0/genomes/GCF_000009045.1/studies/PMID_12345678/endpoints.gff3.gz"
         self.assertEqual(endpoint_track["adapter"]["type"], "Gff3Adapter")
         self.assertEqual(endpoint_track["adapter"]["gffLocation"]["uri"], expected_gff3)
         self.assertEqual(endpoint_track["metadata"]["GFF3_download"], expected_gff3)
         self.assertEqual(endpoint_track["metadata"]["source_ids"], ["BATTER_S1_003"])
+        self.assertEqual(endpoint_track["metadata"]["btedAbout"]["authors"], "A Researcher; B Researcher")
+        self.assertEqual(endpoint_track["metadata"]["btedAbout"]["license"], "CC BY 4.0")
+        self.assertEqual(endpoint_track["displays"][0]["renderer"]["color1"], "jexl:btedStrandColor(feature)")
         self.assertNotIn("BED_download", endpoint_track["metadata"])
         self.assertIsNone(payload["fetchedUrl"])
         reference_track = next(track for track in config["tracks"] if track["trackId"].endswith("_genes"))

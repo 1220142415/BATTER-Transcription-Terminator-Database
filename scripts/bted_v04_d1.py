@@ -627,6 +627,7 @@ def _make_bundle_tables(
     asset_rows: list[dict[str, Any]],
     contig_registry: dict[tuple[str, str], dict[str, Any]],
     origin_status: str,
+    citations: dict[str, dict[str, str]],
 ) -> dict[str, list[dict[str, Any]]]:
     endpoints, samples_by_source = _endpoint_rows(release_root, sources, source_provenance, contig_registry)
     release_sha = _sha256(release_root / "release.json")
@@ -686,26 +687,29 @@ def _make_bundle_tables(
         internal = source_provenance[row["source_id"]]
         paper = _source_manifest_fields(internal)
         pmid = row["pmid"]
-        year_value = paper.get("published_year", row.get("published_year", ""))
-        try:
-            year = int(str(year_value)) if str(year_value or "").strip() else None
-        except ValueError:
-            year = None
+        citation = citations.get(pmid)
+        if citation is None:
+            raise V04ImportError(f"verified PubMed citation is missing for PMID {pmid}")
+        raw_doi = str(paper.get("doi") or row.get("doi") or "")
+        if raw_doi and raw_doi.casefold() != citation["doi"].casefold():
+            raise V04ImportError(f"verified PubMed DOI differs for PMID {pmid}")
         title = row["title"]
         candidate = {
             "pmid": pmid,
             "doi": paper.get("doi") or row.get("doi") or None,
             "pmc": paper.get("pmc") or row.get("pmc") or None,
-            "published_year": year,
-            "journal": paper.get("journal") or None,
+            "published_year": int(citation["year"]),
+            "journal": citation["journal"],
             "paper_title": title,
             "citation_json": {
                 "pmid": pmid,
-                "doi": paper.get("doi") or row.get("doi") or "",
+                "doi": citation["doi"],
                 "pmc": paper.get("pmc") or row.get("pmc") or "",
-                "published_year": year,
-                "journal": paper.get("journal") or "",
-                "paper_title": title,
+                "published_year": int(citation["year"]),
+                "journal": citation["journal"],
+                "paper_title": citation["title"],
+                "authors": citation["authors"],
+                "pubmed_url": citation["pubmed_url"],
             },
         }
         previous = publication_by_pmid.get(pmid)
@@ -789,6 +793,7 @@ def _make_bundle_tables(
             "species": row["species"],
             "phylum": manifest.get("phylum") or None,
             "assay_family": row["assay"],
+            "article_license": row["article_license"],
             "release_status": release_status,
             "evidence_class": evidence_class or "NA",
             "redistribution_status": redistribution,
@@ -896,9 +901,17 @@ def materialize_v04_d1(
         repo,
         Path(contig_registry_path).expanduser().resolve() if contig_registry_path else None,
     )
+    citation_path = repo / "data/registry/study_citations.v0.4.0.tsv"
+    citation_columns, citation_rows = _read_tsv(citation_path)
+    required_citation_columns = {"pmid", "title", "authors", "journal", "year", "doi", "pubmed_url"}
+    if not required_citation_columns.issubset(citation_columns):
+        raise V04ImportError("verified study citation table has missing columns")
+    citations = {row["pmid"]: row for row in citation_rows}
+    if len(citations) != 14 or len(citation_rows) != 14:
+        raise V04ImportError("expected 14 distinct verified PubMed citations")
     tables = _make_bundle_tables(
         root, release_doc, release_files, source_rows, source_paths, source_shas,
-        source_provenance, provenance_sha, assets, contigs, origin_status,
+        source_provenance, provenance_sha, assets, contigs, origin_status, citations,
     )
     release_entry = release_doc["counts"]
     expected_endpoint_count = release_entry.get("endpoint_count")
@@ -939,6 +952,7 @@ def materialize_v04_d1(
         "published_source_count": sum(row["release_status"] == "published_standardized" for row in tables["sources"]),
         "audit_only_source_ids": [row["source_id"] for row in tables["sources"] if row["release_status"] == "audit_only"],
         "v04_source_provenance": {"sha256": provenance_sha, "source_count": len(source_provenance)},
+        "v04_study_citations": {"path": "data/registry/study_citations.v0.4.0.tsv", "sha256": _sha256(citation_path), "study_count": len(citations)},
         "v04_release_payload_count": len(release_files),
         "v04_supplementary_row_counts": supplementary_counts,
         "v04_browser_asset_manifest": {"path": str(Path(asset_manifest_path).name), "asset_count": len(assets)},

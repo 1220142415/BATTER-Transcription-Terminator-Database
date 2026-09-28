@@ -266,10 +266,8 @@ def _publication_link(pmid: str) -> str:
 def _status_badge(row: dict[str, str]) -> str:
     status = row.get("release_status", "")
     if is_published_status(status):
-        label = status.replace("_", " ").capitalize() if status != "published" else "Published"
-        return f'<span class="badge badge-published">{esc(label)}</span>'
-    label = status.replace("_", " ").capitalize() if status else "Not published"
-    return f'<span class="badge badge-review">{esc(label)}</span>'
+        return '<span class="badge badge-published">Available in BTED</span>'
+    return '<span class="badge badge-review">No endpoint file</span>'
 
 
 def _asset_exists(asset_map: dict[str, dict[str, object]], predicate) -> bool:
@@ -283,7 +281,7 @@ def _search_blob(assembly: str, rows: list[dict[str, str]]) -> str:
     return " ".join(values).casefold()
 
 
-def index_content(genomes: list[dict[str, object]]) -> str:
+def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[str, object]]) -> str:
     count = len(genomes)
     total_sources = sum(
         1
@@ -297,7 +295,9 @@ def index_content(genomes: list[dict[str, object]]) -> str:
         for row in genome["metadata_rows"]
         if is_published_status(row.get("release_status"))
     )
-    cards: list[str] = []
+    table_rows: list[str] = []
+    studies: dict[str, str] = {}
+    assays: set[str] = set()
     for genome in genomes:
         assembly = str(genome["assembly"])
         rows = genome["metadata_rows"]
@@ -305,17 +305,75 @@ def index_content(genomes: list[dict[str, object]]) -> str:
         species = next((row.get("species", "") for row in rows if row.get("species")), "")
         study_count = len({row["pmid"] for row in published})
         endpoint_count = sum(int(row["record_count_number"]) for row in published)
-        cards.append(f'''<article class="genome-card" data-genome-card data-search="{esc(_search_blob(assembly, rows))}">
-  <div><p class="eyebrow">Reference genome</p><h2><a href="genomes/{quote(assembly)}.html">{esc(species or assembly)}</a></h2><p class="assembly-id">{esc(assembly)}</p></div>
-  <dl class="genome-card-facts"><div><dt>Studies</dt><dd>{study_count}</dd></div><div><dt>Endpoint records</dt><dd>{endpoint_count:,}</dd></div></dl>
-  <a class="card-open" href="genomes/{quote(assembly)}.html" aria-label="Open {esc(species or assembly)} genome page">Open genome</a>
-</article>''')
+        source_tags = []
+        signal_count = 0
+        for row in rows:
+            sid = row["source_id"]
+            studies.setdefault(row["pmid"], row.get("title", ""))
+            if is_published_status(row.get("release_status")):
+                assays.add(row.get("assay", ""))
+            has_signal = _asset_exists(
+                asset_map,
+                lambda logical, _asset, source_id=sid: logical.startswith(f"tracks/{source_id}/")
+                and logical.lower().endswith((".bw", ".bigwig")),
+            )
+            signal_count += int(has_signal)
+            source_search = " ".join(row.get(key, "") for key in
+                                     ("title", "pmid", "source_id", "assay", "raw_data_accessions")).casefold()
+            source_tags.append(
+                f'<span hidden data-source-filter data-search="{esc(source_search)}" '
+                f'data-study="{esc(row["pmid"])}" data-assay="{esc(row.get("assay", ""))}" '
+                f'data-evidence="{esc(row.get("evidence_class") or "audit_only")}" '
+                f'data-signal="{"yes" if has_signal else "no"}"></span>'
+            )
+        methods = sorted({row.get("assay", "") for row in published if row.get("assay")})
+        method_text = methods[0] if len(methods) == 1 else f"{methods[0]} +{len(methods) - 1}" if methods else "—"
+        signal_text = f"{signal_count} source{'s' if signal_count != 1 else ''}" if signal_count else "No signal"
+        genome_search = f"{assembly} {species}".casefold()
+        href = f"genomes/{quote(assembly)}.html"
+        table_rows.append(f'''<tr data-genome-row data-genome-search="{esc(genome_search)}"
+  data-sort-accession="{esc(assembly.casefold())}" data-sort-organism="{esc(species.casefold())}"
+  data-sort-studies="{study_count}" data-sort-endpoints="{endpoint_count}" data-sort-signal="{signal_count}">
+  <td data-label="Organism"><a class="genome-table-name" href="{href}">{esc(species or assembly)}</a></td>
+  <td data-label="Assembly"><code>{esc(assembly)}</code></td>
+  <td data-label="Studies">{study_count}</td>
+  <td data-label="Methods">{esc(method_text)}</td>
+  <td data-label="Endpoints" class="number">{endpoint_count:,}</td>
+  <td data-label="Signal"><span class="signal-availability {'available' if signal_count else 'unavailable'}">{signal_text}</span></td>
+  <td data-label="Open"><a class="row-action" href="{href}">Open genome</a>{''.join(source_tags)}</td>
+</tr>''')
+    study_options = "".join(
+        f'<option value="{esc(pmid)}">PMID {esc(pmid)} · {esc(title[:58])}</option>'
+        for pmid, title in sorted(studies.items())
+    )
+    assay_options = "".join(f'<option value="{esc(assay)}">{esc(assay)}</option>' for assay in sorted(assays))
     content = f'''<main>
 <section class="hero hero-compact"><div class="page-shell hero-inner"><p class="eyebrow">BTED v0.4.0</p><h1>Find bacterial transcript 3′ ends by genome.</h1><p>Search a reference assembly to read study evidence, open endpoint and signal tracks, and download GFF3 or TSV files from one page.</p>
   <form class="genome-search" role="search" data-genome-search-form><label for="genome-search-input">Genome, species, study or accession</label><div><input id="genome-search-input" type="search" placeholder="e.g. GCF_000005845.1 or Escherichia coli" autocomplete="off" data-genome-search><button class="button primary" type="submit">Search</button></div></form>
 </div></section>
 <section class="page-shell home-summary" aria-label="Release summary"><div><strong>{count}</strong><span>reference genomes</span></div><div><strong>{total_sources}</strong><span>source records</span></div><div><strong>{total_records:,}</strong><span>published endpoints</span></div></section>
-<section class="page-shell genome-results"><div class="section-heading"><div><p class="eyebrow">Genome directory</p><h2>Browse reference genomes</h2></div><p><span data-visible-count>{count}</span> genomes</p></div><p class="search-empty" data-empty hidden>No genomes match this search.</p><div class="genome-card-grid">{''.join(cards)}</div></section>
+<section class="page-shell genome-results"><div class="section-heading"><div><p class="eyebrow">Genome directory</p><h2>Browse reference genomes</h2></div></div>
+  <div class="genome-filter-bar" aria-label="Filter genomes">
+    <label>Study<select data-filter-study><option value="">All studies</option>{study_options}</select></label>
+    <label>Method<select data-filter-assay><option value="">All methods</option>{assay_options}</select></label>
+    <label>Evidence<select data-filter-evidence><option value="">All evidence</option><option value="author_called_endpoint">Paper-reported 3′ ends</option><option value="curated_record">Literature-curated records</option><option value="audit_only">Review record only</option></select></label>
+    <label>Experimental signal<select data-filter-signal><option value="">Any availability</option><option value="yes">Signal available</option><option value="no">No signal file</option></select></label>
+    <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Assembly</option><option value="organism">Organism</option><option value="studies">Studies</option><option value="endpoints">Endpoints</option><option value="signal">Signal</option></select></label>
+    <button class="mobile-sort-direction" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
+    <button class="text-button" type="button" data-clear-filters>Clear filters</button>
+  </div>
+  <div class="genome-result-count" role="status"><span data-visible-count>{count}</span> of {count} genomes</div>
+  <div class="genome-table-scroll"><table class="genome-directory-table"><thead><tr>
+    <th aria-sort="none"><button type="button" data-sort="organism">Organism</button></th>
+    <th aria-sort="ascending"><button type="button" data-sort="accession">Assembly</button></th>
+    <th aria-sort="none"><button type="button" data-sort="studies">Studies</button></th>
+    <th>Methods</th>
+    <th aria-sort="none"><button type="button" data-sort="endpoints">Endpoints</button></th>
+    <th aria-sort="none"><button type="button" data-sort="signal">Signal</button></th>
+    <th>Open</th>
+  </tr></thead><tbody data-genome-results>{''.join(table_rows)}</tbody></table></div>
+  <p class="search-empty" data-empty hidden>No genomes match these filters. Clear filters to see all genomes.</p>
+</section>
 </main>'''
     return content
 
@@ -350,7 +408,6 @@ def genome_content(
     }
 
     source_cards: list[str] = []
-    source_options = ['<option value="">All endpoint tracks</option>']
     for pmid, study_rows in studies:
         title = next((row.get("title", "") for row in study_rows if row.get("title")), f"Study PMID {pmid}")
         study_path = next((row.get("study_gff3", "").strip() for row in study_rows if row.get("study_gff3", "").strip()), "")
@@ -369,13 +426,13 @@ def genome_content(
                 signal_text = '<span class="signal-missing">No signal track</span>'
             raw_links = raw_data_links(row.get("raw_data_accessions", ""))
             limitation = row.get("known_limitations", "").strip()
-            track_id = track_ids.get(source_id, "")
-            if track_id:
-                source_options.append(f'<option value="{esc(source_id)}" data-track="{esc(track_id)}">{esc(source_id)} · {record_count:,} endpoints</option>')
             limitation_html = f'<p class="limitation"><strong>Known limitations:</strong> {esc(limitation)}</p>' if limitation else ""
+            article_license = row.get("article_license", "")
+            if article_license == "not_open_access_author_manuscript":
+                article_license = "Article not openly licensed"
             source_lines.append(f'''<div class="source-evidence" id="source-{esc(source_id)}" data-source-card="{esc(source_id)}">
   <div class="source-heading"><div><h4>{esc(source_id)}</h4><p>{esc(row.get('assay', ''))}</p></div>{_status_badge(row)}</div>
-  <dl class="source-facts"><div><dt>Evidence</dt><dd>{esc(evidence_label(evidence))}</dd></div><div><dt>Endpoint records</dt><dd>{record_count:,}</dd></div><div><dt>Article licence</dt><dd>{esc(row.get('article_license', 'Not specified'))}</dd></div><div><dt>Data redistribution</dt><dd>{esc(row.get('redistribution_status', 'Not specified'))}</dd></div><div><dt>Raw data</dt><dd>{raw_links}</dd></div></dl>
+  <dl class="source-facts"><div><dt>Evidence</dt><dd>{esc(evidence_label(evidence))}</dd></div><div><dt>Endpoint records</dt><dd>{record_count:,}</dd></div><div><dt>Article licence</dt><dd>{esc(article_license or 'Not specified')}</dd></div><div><dt>Raw data</dt><dd>{raw_links}</dd></div></dl>
   <p class="evidence-explanation">{esc(evidence_note(evidence))}</p>{limitation_html}<p class="signal-state">{signal_text}</p>
 </div>''')
         supplementary: list[str] = []
@@ -413,14 +470,14 @@ def genome_content(
     for pmid, audit_rows in _group_studies([row for row in all_source_rows if not is_published_status(row.get("release_status"))]):
         title = next((row.get("title", "") for row in audit_rows if row.get("title")), f"Study PMID {pmid}")
         ids = ", ".join(row["source_id"] for row in audit_rows)
-        unpublished_cards.append(f'''<article class="study-card audit-card"><header><div><p class="eyebrow">Not in endpoint release · PMID {esc(pmid)}</p><h3>{esc(title)}</h3></div><span class="badge badge-review">Internal review</span></header><p>{esc(ids)} is retained in the source ledger for review. No endpoint download or browser track is provided.</p></article>''')
+        unpublished_cards.append(f'''<article class="study-card audit-card"><header><div><p class="eyebrow">Study PMID {esc(pmid)}</p><h3>{esc(title)}</h3></div><span class="badge badge-review">No endpoint file</span></header><p>{esc(ids)} is listed so its source can be checked. Its observations are not included in the downloadable endpoint release or JBrowse tracks.</p></article>''')
 
     if jbrowse_config:
         signal_intro = ("Endpoint features and experimental signal are separate tracks."
                         if signal_sources else "Endpoint features are shown below. This genome has no experimental signal track.")
         signal_key = '<span class="key-signal">Experimental signal</span>' if signal_sources else ''
         browser_html = f'''<section class="browser-panel" id="genome-browser" data-genome-browser data-assembly="{esc(assembly)}">
-  <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>JBrowse</h2><p>{signal_intro}</p></div><label class="track-picker">Highlight a source below<select data-source-select>{''.join(source_options)}</select></label></div>
+  <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>JBrowse</h2><p>{signal_intro} Use the JBrowse track menu to show or hide studies.</p></div></div>
   <p class="browser-key"><span class="key-endpoint">Endpoint features</span>{signal_key}</p>
   <iframe data-browser-frame data-config="{esc(jbrowse_config)}" title="{esc(assembly)} genome browser" loading="lazy" referrerpolicy="no-referrer"></iframe>
   <p class="browser-caption">Use JBrowse to pan or zoom. A signal track shows experimental measurements and is not itself an endpoint call.</p>
@@ -463,7 +520,7 @@ def build_site(
             raise SiteBuildError(f"Published release file is missing from the browser allowlist: {relative}")
 
     site_root.mkdir(parents=True, exist_ok=True)
-    _write(site_root / "index.html", page("Genomes", index_content(genomes), current="home", scripts=("assets/genome-index.js",)))
+    _write(site_root / "index.html", page("Genomes", index_content(genomes, asset_map), current="home", scripts=("assets/genome-index.js",)))
     genome_files = 0
     for genome in genomes:
         assembly = str(genome["assembly"])

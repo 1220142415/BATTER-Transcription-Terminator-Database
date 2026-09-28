@@ -254,7 +254,13 @@ def main() -> int:
                 json_value(raw), source.get("assay_family"), source.get("evidence_class"),
                 source.get("record_count", 0), endpoint_asset.get("asset_id") if endpoint_asset else None,
                 1 if track_public else 0, order,
-                json_value({"source_note": source.get("source_note"), "decision_note": source.get("decision_note"), "known_limitations": source.get("known_limitations")}),
+                json_value({
+                    "source_note": source.get("source_note"),
+                    "decision_note": source.get("decision_note"),
+                    "known_limitations": source.get("known_limitations"),
+                    "citation": publication.get("citation_json") if publication else None,
+                    "article_license": source.get("article_license"),
+                }),
             )
         )
     files["07_tracks.sql"] = write_batch(

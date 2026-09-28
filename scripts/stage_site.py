@@ -24,6 +24,11 @@ from build_v0_4_site import SiteBuildError, build_site as build_v04_site, materi
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+BTED_PLUGIN_SOURCE = REPO_ROOT / "jbrowse-plugin/dist/bted-track-plugin.js"
+BTED_CITATIONS = REPO_ROOT / "data/registry/study_citations.v0.4.0.tsv"
+PLUS_STRAND_COLOR = "#0f766e"
+MINUS_STRAND_COLOR = "#be123c"
+UNKNOWN_STRAND_COLOR = "#64748b"
 PACKAGE_NAME = "BTED-v0.2.0-jbrowse"
 ARCHIVE_NAME = f"{PACKAGE_NAME}-assets.tar.gz"
 RUNTIME_FILES = ("index.html", "manifest.json", "favicon.ico", "robots.txt", "version.txt")
@@ -42,6 +47,37 @@ V03_SHARED_BASE_URL = f"{HF_DATASET_ROOT}/{V03_SHARED_REVISION}/v0.3.0"
 V04_BROWSER_ASSET_FIELDS = ("logical_path", "url", "byte_size", "sha256", "revision", "asset_kind")
 class StageError(RuntimeError):
     """Raised when a requested site artifact cannot be safely assembled."""
+
+
+def load_study_citations(path: Path = BTED_CITATIONS) -> dict[str, dict[str, str]]:
+    if not path.is_file():
+        raise StageError(f"Study citation table is missing: {path}")
+    with path.open(encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        required = {"pmid", "title", "authors", "journal", "year", "doi", "pubmed_url"}
+        if not reader.fieldnames or not required.issubset(reader.fieldnames):
+            raise StageError("Study citation table lacks required columns")
+        rows = list(reader)
+    citations = {row["pmid"]: row for row in rows}
+    if len(rows) != 14 or len(citations) != len(rows):
+        raise StageError("Expected 14 distinct study citations")
+    return citations
+
+
+def display_article_license(raw: str) -> str:
+    return "Article not openly licensed" if raw == "not_open_access_author_manuscript" else raw
+
+
+def install_bted_plugin(package_root: Path) -> None:
+    if not BTED_PLUGIN_SOURCE.is_file():
+        raise StageError("BTED JBrowse plugin is not built; run npm ci and npm run build in jbrowse-plugin/")
+    if (package_root / "version.txt").read_text(encoding="utf-8").strip() != "4.3.0":
+        raise StageError("BTED JBrowse plugin requires the pinned 4.3.0 application")
+    destination = package_root / "plugins" / BTED_PLUGIN_SOURCE.name
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(BTED_PLUGIN_SOURCE, destination)
+    if destination.stat().st_size > 100_000:
+        raise StageError("BTED JBrowse plugin is unexpectedly large")
 
 
 class _LinkCollector(HTMLParser):
@@ -1085,6 +1121,8 @@ def _endpoint_track_v04(
     source: dict[str, str],
     assembly_name: str,
     asset: dict[str, object],
+    citation: dict[str, str],
+    all_assets: dict[str, dict[str, object]],
 ) -> dict[str, object]:
     source_id = source["source_id"]
     track_id = f"bted_v04_{source_id.lower()}_endpoints"
@@ -1095,6 +1133,43 @@ def _endpoint_track_v04(
         f"Evidence class: {evidence or 'not specified'}. "
         "Endpoint records are shown separately from experimental signal tracks."
     )
+    evidence_text = (
+        "Paper-reported transcript 3′ end; this is not proof of terminator function."
+        if evidence == "author_called_endpoint" else
+        "Literature-curated 3′ end; BTED did not re-call this position from reads."
+    )
+    accession = str(source.get("raw_data_accessions", "")).split(";", 1)[0].strip()
+    raw_data_url = (
+        f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={quote(accession)}"
+        if accession.startswith("GSE") else
+        f"https://www.ncbi.nlm.nih.gov/sra/?term={quote(accession)}"
+        if accession.startswith(("SRP", "SRR")) else
+        f"https://www.ebi.ac.uk/ena/browser/view/{quote(accession)}"
+        if accession.startswith("PRJEB") else ""
+    )
+    genome = source["assembly"]
+    study_gff3 = (PurePosixPath("genomes") / genome / source["study_gff3"]).as_posix()
+    source_track = asset.get("local_path")
+    reference_name = ""
+    if isinstance(source_track, Path) and source_track.is_file():
+        with source_track.open(encoding="utf-8") as handle:
+            reference_name = next((line.split("\t", 1)[0] for line in handle if line.strip() and not line.startswith("#")), "")
+    study_asset = all_assets.get(study_gff3)
+    if not study_asset:
+        raise StageError(f"Study GFF3 download is missing from asset allowlist: {study_gff3}")
+    about = {
+        "kind": "endpoint", "title": citation["title"], "authors": citation["authors"],
+        "journal": citation["journal"], "year": citation["year"],
+        "pmid": citation["pmid"], "pubmed_url": citation["pubmed_url"],
+        "doi_url": f"https://doi.org/{quote(citation['doi'], safe='/')}" if citation["doi"] else "",
+        "source_id": source_id, "assay": source["assay"],
+        "record_count": source["record_count_number"], "evidence": evidence_text,
+        "explanation": "GFF3 rows are independent by source; same-coordinate studies are not merged.",
+        "assembly": genome, "reference_name": reference_name,
+        "license": display_article_license(source["article_license"]), "limitations": source["known_limitations"],
+        "raw_data_accessions": source["raw_data_accessions"], "raw_data_url": raw_data_url,
+        "gff3_url": _v04_jbrowse_uri(study_asset),
+    }
     return {
         "type": "FeatureTrack",
         "trackId": track_id,
@@ -1107,8 +1182,14 @@ def _endpoint_track_v04(
         "displays": [{
             "type": "LinearBasicDisplay",
             "displayId": f"{track_id}-LinearBasicDisplay",
+            "renderer": {
+                "type": "SvgFeatureRenderer",
+                "color1": "jexl:btedStrandColor(feature)",
+                "color2": "jexl:btedStrandColor(feature)",
+                "height": 14,
+            },
             "showLabels": False,
-            "height": 38,
+            "height": 44,
         }],
         "category": ["BTED v0.4.0", "Endpoint features", str(source["pmid"])],
         "assemblyNames": [assembly_name],
@@ -1118,11 +1199,15 @@ def _endpoint_track_v04(
             "pmid": str(source["pmid"]),
             "record_count": int(source["record_count_number"]),
             "evidence_class": evidence,
+            "btedAbout": about,
         },
     }
 
 
-def _default_signal_tracks(config: dict[str, object]) -> int:
+def _default_signal_tracks(
+    config: dict[str, object], sources: dict[str, dict[str, str]],
+    citations: dict[str, dict[str, str]],
+) -> int:
     tracks = config.get("tracks", [])
     if not isinstance(tracks, list):
         raise StageError("JBrowse tracks must be a list")
@@ -1138,6 +1223,11 @@ def _default_signal_tracks(config: dict[str, object]) -> int:
         track_id = str(track.get("trackId", ""))
         if not track_id:
             continue
+        strand = "+" if track_id.endswith(".forward") else "-" if track_id.endswith(".reverse") else "?"
+        color = PLUS_STRAND_COLOR if strand == "+" else MINUS_STRAND_COLOR if strand == "-" else UNKNOWN_STRAND_COLOR
+        source_match = next((source_id for source_id in sources if any(f"/tracks/{source_id}/" in uri for uri in uris)), "")
+        source = sources.get(source_match, {})
+        citation = citations.get(source.get("pmid", ""), {})
         name = str(track.get("name", ""))
         if not name.casefold().startswith("experimental signal"):
             track["name"] = f"Experimental signal · {name}" if name else f"Experimental signal · {track_id}"
@@ -1147,7 +1237,31 @@ def _default_signal_tracks(config: dict[str, object]) -> int:
         categories = track.get("category", [])
         categories = categories if isinstance(categories, list) else [categories]
         track["category"] = ["Observed experimental signal", *[str(item) for item in categories if item]]
-        track["metadata"] = {**(track.get("metadata", {}) if isinstance(track.get("metadata"), dict) else {}), "evidence_class": "observed_signal", "release_version": "v0.3.0"}
+        track["metadata"] = {
+            **(track.get("metadata", {}) if isinstance(track.get("metadata"), dict) else {}),
+            "evidence_class": "observed_signal", "release_version": "v0.4.0",
+            "btedAbout": {
+                "kind": "signal", "source_id": source_match, "strand": strand,
+                "title": citation.get("title", ""), "authors": citation.get("authors", ""),
+                "journal": citation.get("journal", ""), "year": citation.get("year", ""),
+                "pmid": citation.get("pmid", ""), "pubmed_url": citation.get("pubmed_url", ""),
+                "doi_url": f"https://doi.org/{quote(citation['doi'], safe='/')}" if citation.get("doi") else "",
+                "assay": source.get("assay", ""), "assembly": source.get("assembly", ""),
+                "raw_data_accessions": source.get("raw_data_accessions", ""),
+                "license": "NCBI GEO data-use policy",
+                "limitations": source.get("known_limitations", ""),
+                "explanation": "Measured BigWig signal; not individual reads or an endpoint call.",
+            },
+        }
+        track["displays"] = [{
+            "type": "LinearWiggleDisplay", "displayId": f"{track_id}-LinearWiggleDisplay",
+            "defaultRendering": "xyplot",
+            "renderers": {
+                "XYPlotRenderer": {"color": color},
+                "LinePlotRenderer": {"color": color},
+                "DensityRenderer": {"color": color},
+            },
+        }]
         _add_default_track(config, track_id, "QuantitativeTrack", "LinearWiggleDisplay")
         count += 1
     return count
@@ -1167,6 +1281,7 @@ def build_v04_jbrowse_configs(
     browser_configs: dict[str, str] = {}
     track_ids: dict[str, str] = {}
     catalog: dict[str, object] = {"release_version": "v0.4.0", "assemblies": {}}
+    citations = load_study_citations()
 
     for genome in genomes:
         if not isinstance(genome, dict):
@@ -1231,7 +1346,10 @@ def build_v04_jbrowse_configs(
                 raise StageError(
                     f"{source_id}: browser GFF3 has {actual_count} features, expected {source['record_count_number']}"
                 )
-            track = _endpoint_track_v04(source, assembly_name, asset)
+            citation = citations.get(source["pmid"])
+            if citation is None:
+                raise StageError(f"No verified PubMed citation for PMID {source['pmid']}")
+            track = _endpoint_track_v04(source, assembly_name, asset, citation, assets)
             tracks = config.setdefault("tracks", [])
             if not isinstance(tracks, list):
                 raise StageError("JBrowse config tracks must be a list")
@@ -1244,7 +1362,30 @@ def build_v04_jbrowse_configs(
             _add_default_track(config, track_id, "FeatureTrack", "LinearBasicDisplay")
             track_ids[source_id] = track_id
 
-        _default_signal_tracks(config)
+        source_lookup = {row["source_id"]: row for row in published}
+        _default_signal_tracks(config, source_lookup, citations)
+        reference_name = ""
+        views = config.get("defaultSession", {}).get("views", [])
+        if views and isinstance(views[0], dict):
+            regions = views[0].get("displayedRegions", [])
+            if regions and isinstance(regions[0], dict):
+                reference_name = str(regions[0].get("refName", ""))
+        for track in config.get("tracks", []):
+            if not isinstance(track, dict) or not _is_reference_annotation(track):
+                continue
+            uris = _all_config_uris(track)
+            annotation_asset = next((item for item in assets.values() if item.get("url") in uris and item.get("asset_kind") == "gff3"), None)
+            annotation_hash = str(annotation_asset.get("sha256", "")) if annotation_asset else ""
+            track["metadata"] = {
+                **(track.get("metadata", {}) if isinstance(track.get("metadata"), dict) else {}),
+                "btedAbout": {
+                    "kind": "reference", "assembly": assembly,
+                    "reference": f"{species} · {assembly}", "reference_name": reference_name,
+                    "annotation_version": f"GFF3 SHA-256 {annotation_hash[:16]}" if annotation_hash else "",
+                    "reference_url": f"https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/",
+                    "explanation": "NCBI-derived gene annotation for the displayed reference assembly.",
+                },
+            }
         config_file = package_root / "assemblies" / f"{assembly}.config.json"
         config_file.parent.mkdir(parents=True, exist_ok=True)
         config_file.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -1445,6 +1586,14 @@ def assemble_v04(
                 f"Generated {len(track_ids)} source endpoint tracks, expected {expected_endpoints} published sources"
             )
         validate_v04_jbrowse_configs(package_root, assets, browser_catalog, expected_endpoints)
+        install_bted_plugin(package_root)
+        for config_path in (package_root / "assemblies").glob("*.config.json"):
+            config = _read_config(config_path)
+            config["plugins"] = [{
+                "name": "BTEDTrackPlugin",
+                "esmUrl": "plugins/bted-track-plugin.js",
+            }]
+            config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         # The upstream package also contains v0.2 source configs with relative
         # BED paths. v0.4 links only to generated assembly configs; do not ship
         # the stale entry points alongside them.
@@ -1539,6 +1688,8 @@ def copy_worker_shell(package_root: Path, shell_root: Path) -> tuple[int, int]:
             shell_root / "assemblies",
             ignore=shutil.ignore_patterns("*.fna", "*.fai", "*.gff3", "*.bed", "*.bw", "*.tbi", "*.map"),
         )
+    if (package_root / "plugins").is_dir():
+        shutil.copytree(package_root / "plugins", shell_root / "plugins", copy_function=shutil.copyfile)
 
     def ignore_source_maps(_directory: str, names: list[str]) -> set[str]:
         return {name for name in names if name.endswith(".map")}

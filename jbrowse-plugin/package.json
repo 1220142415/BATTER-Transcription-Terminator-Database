@@ -1,0 +1,13 @@
+{
+  "name": "bted-jbrowse-track-plugin",
+  "private": true,
+  "version": "1.0.0",
+  "description": "BTED strand colors and concise JBrowse track information",
+  "scripts": {
+    "build": "esbuild src/plugin.js --bundle --format=esm --target=es2020 --outfile=dist/bted-track-plugin.js",
+    "check": "node --check src/plugin.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}
