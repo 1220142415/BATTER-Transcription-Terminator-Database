@@ -925,6 +925,7 @@ def _add_default_track(config: dict[str, object], track_id: str, track_type: str
             "id": f"{track_id}-v04-display",
             "type": display_type,
             "configuration": f"{track_id}-{display_type}",
+            **({"showSidebar": False} if display_type == "MultiLinearWiggleDisplay" else {}),
         }],
     })
 
@@ -1211,7 +1212,8 @@ def _default_signal_tracks(
     tracks = config.get("tracks", [])
     if not isinstance(tracks, list):
         raise StageError("JBrowse tracks must be a list")
-    count = 0
+    by_source: dict[str, dict[str, dict[str, object]]] = {}
+    old_ids: set[str] = set()
     for track in tracks:
         if not isinstance(track, dict) or track.get("type") != "QuantitativeTrack":
             continue
@@ -1223,48 +1225,70 @@ def _default_signal_tracks(
         track_id = str(track.get("trackId", ""))
         if not track_id:
             continue
-        strand = "+" if track_id.endswith(".forward") else "-" if track_id.endswith(".reverse") else "?"
-        color = PLUS_STRAND_COLOR if strand == "+" else MINUS_STRAND_COLOR if strand == "-" else UNKNOWN_STRAND_COLOR
+        strand = "plus" if track_id.endswith((".forward", "_forward")) else "minus" if track_id.endswith((".reverse", "_reverse")) else ""
+        if not strand:
+            continue
         source_match = next((source_id for source_id in sources if any(f"/tracks/{source_id}/" in uri for uri in uris)), "")
-        source = sources.get(source_match, {})
+        if not source_match:
+            continue
+        if strand in by_source.setdefault(source_match, {}):
+            raise StageError(f"Duplicate {strand} experimental signal for {source_match}")
+        by_source[source_match][strand] = track
+        old_ids.add(track_id)
+
+    if not by_source:
+        return 0
+    view = _session_view(config)
+    view["tracks"] = [item for item in view["tracks"] if not isinstance(item, dict) or item.get("configuration") not in old_ids]
+    config["tracks"] = [item for item in tracks if not isinstance(item, dict) or item.get("trackId") not in old_ids]
+    for source_match, pair in by_source.items():
+        if set(pair) != {"plus", "minus"}:
+            raise StageError(f"Experimental signal needs both strands for {source_match}")
+        source = sources[source_match]
         citation = citations.get(source.get("pmid", ""), {})
-        name = str(track.get("name", ""))
-        if not name.casefold().startswith("experimental signal"):
-            track["name"] = f"Experimental signal · {name}" if name else f"Experimental signal · {track_id}"
-        track["description"] = (
-            "Experimental BigWig signal. Values show measured signal density and are distinct from endpoint calls."
-        )
-        categories = track.get("category", [])
-        categories = categories if isinstance(categories, list) else [categories]
-        track["category"] = ["Observed experimental signal", *[str(item) for item in categories if item]]
-        track["metadata"] = {
-            **(track.get("metadata", {}) if isinstance(track.get("metadata"), dict) else {}),
-            "evidence_class": "observed_signal", "release_version": "v0.4.0",
-            "btedAbout": {
-                "kind": "signal", "source_id": source_match, "strand": strand,
-                "title": citation.get("title", ""), "authors": citation.get("authors", ""),
-                "journal": citation.get("journal", ""), "year": citation.get("year", ""),
-                "pmid": citation.get("pmid", ""), "pubmed_url": citation.get("pubmed_url", ""),
-                "doi_url": f"https://doi.org/{quote(citation['doi'], safe='/')}" if citation.get("doi") else "",
-                "assay": source.get("assay", ""), "assembly": source.get("assembly", ""),
-                "raw_data_accessions": source.get("raw_data_accessions", ""),
-                "license": "NCBI GEO data-use policy",
-                "limitations": source.get("known_limitations", ""),
-                "explanation": "Measured BigWig signal; not individual reads or an endpoint call.",
+        track_id = f"bted_v04_{source_match.lower()}_mirrored_signal"
+        subadapters = []
+        for strand, color in (("plus", PLUS_STRAND_COLOR), ("minus", MINUS_STRAND_COLOR)):
+            original = pair[strand]
+            uri = _all_config_uris(original)
+            if len(uri) != 1:
+                raise StageError(f"Expected one {strand} BigWig URI for {source_match}")
+            subadapters.append({
+                "type": "BigWigAdapter", "source": strand, "name": f"{'+' if strand == 'plus' else '−'} strand",
+                "color": color, "bigWigLocation": {"uri": uri[0], "locationType": "UriLocation"},
+            })
+        merged = {
+            "type": "MultiQuantitativeTrack", "trackId": track_id,
+            "name": f"{source_match} · experimental signal (+ / −)",
+            "description": "Measured BigWig signal mirrored around zero for display; raw values are unchanged.",
+            "adapter": {"type": "MultiWiggleAdapter", "subadapters": subadapters},
+            "category": ["Observed experimental signal", source_match],
+            "assemblyNames": pair["plus"].get("assemblyNames", []),
+            "metadata": {
+                "evidence_class": "observed_signal", "release_version": "v0.4.0",
+                "btedMirroredSignal": True,
+                "signal_display": "Mirrored for viewing; raw BigWig values are unchanged",
+                "btedAbout": {
+                    "kind": "signal", "source_id": source_match, "strand": "+ / −",
+                    "title": citation.get("title", ""), "authors": citation.get("authors", ""),
+                    "journal": citation.get("journal", ""), "year": citation.get("year", ""),
+                    "pmid": citation.get("pmid", ""), "pubmed_url": citation.get("pubmed_url", ""),
+                    "doi_url": f"https://doi.org/{quote(citation['doi'], safe='/')}" if citation.get("doi") else "",
+                    "assay": source.get("assay", ""), "assembly": source.get("assembly", ""),
+                    "raw_data_accessions": source.get("raw_data_accessions", ""),
+                    "license": "NCBI GEO data-use policy",
+                    "limitations": source.get("known_limitations", ""),
+                    "explanation": "Measured signal from the study. The graph mirrors + and − around zero; the original BigWig values are unchanged. This track does not mark called 3′ ends.",
+                },
             },
+            "displays": [{
+                "type": "MultiLinearWiggleDisplay", "displayId": f"{track_id}-MultiLinearWiggleDisplay",
+                "defaultRendering": "xyplot", "height": 180,
+            }],
         }
-        track["displays"] = [{
-            "type": "LinearWiggleDisplay", "displayId": f"{track_id}-LinearWiggleDisplay",
-            "defaultRendering": "xyplot",
-            "renderers": {
-                "XYPlotRenderer": {"color": color},
-                "LinePlotRenderer": {"color": color},
-                "DensityRenderer": {"color": color},
-            },
-        }]
-        _add_default_track(config, track_id, "QuantitativeTrack", "LinearWiggleDisplay")
-        count += 1
-    return count
+        config["tracks"].append(merged)
+        _add_default_track(config, track_id, "MultiQuantitativeTrack", "MultiLinearWiggleDisplay")
+    return len(by_source) * 2
 
 
 def build_v04_jbrowse_configs(
@@ -1463,7 +1487,8 @@ def validate_v04_jbrowse_configs(
         default_ids = {str(track.get("configuration", "")) for track in default_tracks if isinstance(track, dict)}
         endpoint_tracks = [
             track for track in tracks
-            if isinstance(track, dict) and str(track.get("trackId", "")).startswith("bted_v04_")
+            if isinstance(track, dict) and track.get("type") == "FeatureTrack"
+            and str(track.get("trackId", "")).startswith("bted_v04_")
         ]
         endpoint_count += len(endpoint_tracks)
         for track in endpoint_tracks:
@@ -1476,14 +1501,17 @@ def validate_v04_jbrowse_configs(
         for track in tracks:
             if not isinstance(track, dict):
                 continue
-            if track.get("type") == "QuantitativeTrack" and any(
-                uri.lower().endswith((".bw", ".bigwig")) for uri in _all_config_uris(track)
-            ):
-                signal_track_count += 1
+            if track.get("type") == "MultiQuantitativeTrack" and track.get("metadata", {}).get("btedMirroredSignal") is True:
+                subadapters = track.get("adapter", {}).get("subadapters", [])
+                if len(subadapters) != 2 or {item.get("source") for item in subadapters} != {"plus", "minus"}:
+                    raise StageError(f"{assembly}: mirrored signal must have one BigWig per strand")
+                if any(item.get("color") != (PLUS_STRAND_COLOR if item.get("source") == "plus" else MINUS_STRAND_COLOR) for item in subadapters):
+                    raise StageError(f"{assembly}: mirrored signal has the wrong strand colors")
+                signal_track_count += len(subadapters)
                 track_id = str(track.get("trackId", ""))
                 if track_id not in default_ids:
                     raise StageError(f"{assembly}: experimental signal track is not shown by default: {track_id}")
-                if not str(track.get("name", "")).startswith("Experimental signal"):
+                if "experimental signal" not in str(track.get("name", "")).casefold():
                     raise StageError(f"{assembly}: signal track is not labelled as experimental signal: {track_id}")
 
         for uri in _all_config_uris(config):

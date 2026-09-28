@@ -15,7 +15,7 @@ python -m unittest discover -s tests -p 'test*.py' -q
 
 新基因组的 NCBI 参考包放在 `data/registry/browser_refs/`。下面的命令会核对原包、参考序列和长度，并准备 FASTA、FAI 与基因注释。Cascino 论文的 `CP000100.1` 与浏览器使用的 `NC_007604.1` 已核对为相同序列。
 
-JBrowse 轨道说明和链向颜色由仓库内的 BTED 插件提供。插件按锁定的依赖构建，生成文件只进入组装后的 Pages/Worker 包：
+JBrowse 轨道说明、链向颜色和双链信号镜像由仓库内的 BTED 插件提供。现用的 JBrowse 4.3.0 已支持所需接口，无须升级。插件按锁定的依赖构建，生成文件只进入组装后的 Pages/Worker 包：
 
 ```bash
 npm ci --prefix jbrowse-plugin
@@ -51,7 +51,7 @@ python scripts/serve_v04_preview.py --site dist/pages-site --port 8769 \
   --proxy http://127.0.0.1:7897
 ```
 
-打开 `http://127.0.0.1:8769/`，搜索基因组并进入对应页面。预览程序只代理发布清单中列出的固定 Hugging Face 文件；基因组页同时有来源说明、下载和 JBrowse。原有四个来源的正、负链 BigWig 默认可见；其他来源明确写“暂无信号轨道”。`dist/` 是本地组装结果，不提交到 Git。
+打开 `http://127.0.0.1:8769/`，搜索基因组并进入对应页面。预览程序只代理发布清单中列出的固定 Hugging Face 文件；基因组页同时有来源说明、下载和 JBrowse。原有四个来源各有一条正负链镜像信号轨道；其他来源明确写“暂无信号轨道”。镜像只改变显示方向，原始 BigWig 不变。`dist/` 是本地组装结果，不提交到 Git。
 
 ## 上传 Hugging Face 后固定版本
 

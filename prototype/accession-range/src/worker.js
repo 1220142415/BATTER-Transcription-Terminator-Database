@@ -616,32 +616,30 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       const grouped = endpointTracks.get(endpointGff3.logical_path);
       grouped[grouped.length - 1].about = metadata.btedAbout;
     }
-    for (const [strand, label] of [["forward", "+"], ["reverse", "-"]]) {
-      const signal = sourceAssets.find((asset) => asset.asset_kind === "bigwig" && asset.logical_path.endsWith(`signal.${strand}.bw`) && Number(asset.is_public) === 1);
-      if (!signal) continue;
-      const signalId = `${track.track_id}_${strand}_signal`;
+    const signalPlus = sourceAssets.find((asset) => asset.asset_kind === "bigwig" && asset.logical_path.endsWith("signal.forward.bw") && Number(asset.is_public) === 1);
+    const signalMinus = sourceAssets.find((asset) => asset.asset_kind === "bigwig" && asset.logical_path.endsWith("signal.reverse.bw") && Number(asset.is_public) === 1);
+    if (signalPlus && signalMinus) {
+      const signalId = `${track.track_id}_mirrored_signal`;
       tracksConfig.push({
-        type: "QuantitativeTrack",
+        type: "MultiQuantitativeTrack",
         trackId: signalId,
-        name: `${source.source_id} · raw 3′-end signal (${label} strand)`,
-        adapter: { type: "BigWigAdapter", bigWigLocation: { uri: assetUrl(request, signal.asset_key), locationType: "UriLocation" } },
+        name: `${source.source_id} · experimental signal (+ / −)`,
+        adapter: { type: "MultiWiggleAdapter", subadapters: [
+          { type: "BigWigAdapter", source: "plus", name: "+ strand", color: PLUS_STRAND_COLOR, bigWigLocation: { uri: assetUrl(request, signalPlus.asset_key), locationType: "UriLocation" } },
+          { type: "BigWigAdapter", source: "minus", name: "− strand", color: MINUS_STRAND_COLOR, bigWigLocation: { uri: assetUrl(request, signalMinus.asset_key), locationType: "UriLocation" } },
+        ] },
         category: ["BTED experimental signal", source.source_id],
         assemblyNames: [assemblyName],
         metadata: {
-          ...metadata, signal_values: "Raw repository values; not normalized by BTED", strand: label,
+          ...metadata, signal_values: "Raw BigWig values; mirrored only for display", strand: "+ / −", btedMirroredSignal: true,
           btedAbout: {
-            ...metadata.btedAbout, kind: "signal", strand: label,
+            ...metadata.btedAbout, kind: "signal", strand: "+ / −",
             license: "NCBI GEO data-use policy", record_count: "",
-            explanation: "Measured BigWig signal; not individual reads or an endpoint call.",
+            explanation: "Measured signal from the study. The graph mirrors + and − around zero; the original BigWig values are unchanged. This track does not mark called 3′ ends.",
           },
         },
         displays: [{
-          type: "LinearWiggleDisplay", displayId: `${signalId}_display`, defaultRendering: "xyplot",
-          renderers: {
-            XYPlotRenderer: { color: strand === "forward" ? PLUS_STRAND_COLOR : MINUS_STRAND_COLOR },
-            LinePlotRenderer: { color: strand === "forward" ? PLUS_STRAND_COLOR : MINUS_STRAND_COLOR },
-            DensityRenderer: { color: strand === "forward" ? PLUS_STRAND_COLOR : MINUS_STRAND_COLOR },
-          },
+          type: "MultiLinearWiggleDisplay", displayId: `${signalId}_display`, defaultRendering: "xyplot", height: 180,
         }],
       });
     }
@@ -733,8 +731,9 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     minimized: false,
     displays: [{
       id: `bted_display_${index + 1}`,
-      type: track.type === "QuantitativeTrack" ? "LinearWiggleDisplay" : "LinearBasicDisplay",
+      type: track.type === "MultiQuantitativeTrack" ? "MultiLinearWiggleDisplay" : "LinearBasicDisplay",
       configuration: track.displays?.[0]?.displayId || `${track.trackId}-LinearBasicDisplay`,
+      ...(track.type === "MultiQuantitativeTrack" ? { showSidebar: false } : {}),
     }],
   }));
   return json({

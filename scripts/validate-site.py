@@ -314,10 +314,12 @@ def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: 
                     problems.append(f"{config_path.relative_to(site_dir).as_posix()} 端点轨道未按链着色")
             if kind == "signal":
                 display = (track.get("displays") or [{}])[0]
-                color = display.get("renderers", {}).get("XYPlotRenderer", {}).get("color") if isinstance(display, dict) else None
-                expected_color = "#0f766e" if about.get("strand") == "+" else "#be123c" if about.get("strand") == "-" else "#64748b"
-                if color != expected_color:
-                    problems.append(f"{config_path.relative_to(site_dir).as_posix()} 信号轨道链向颜色错误")
+                subadapters = track.get("adapter", {}).get("subadapters", [])
+                by_source = {item.get("source"): item for item in subadapters if isinstance(item, dict)}
+                if (track.get("type") != "MultiQuantitativeTrack" or not track.get("metadata", {}).get("btedMirroredSignal")
+                        or display.get("type") != "MultiLinearWiggleDisplay" or set(by_source) != {"plus", "minus"}
+                        or by_source["plus"].get("color") != "#0f766e" or by_source["minus"].get("color") != "#be123c"):
+                    problems.append(f"{config_path.relative_to(site_dir).as_posix()} 信号轨道不是正负链镜像")
     return allowed_local
 
 

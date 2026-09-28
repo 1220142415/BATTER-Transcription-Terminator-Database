@@ -473,14 +473,15 @@ def genome_content(
         unpublished_cards.append(f'''<article class="study-card audit-card"><header><div><p class="eyebrow">Study PMID {esc(pmid)}</p><h3>{esc(title)}</h3></div><span class="badge badge-review">No endpoint file</span></header><p>{esc(ids)} is listed so its source can be checked. Its observations are not included in the downloadable endpoint release or JBrowse tracks.</p></article>''')
 
     if jbrowse_config:
-        signal_intro = ("Endpoint features and experimental signal are separate tracks."
-                        if signal_sources else "Endpoint features are shown below. This genome has no experimental signal track.")
-        signal_key = '<span class="key-signal">Experimental signal</span>' if signal_sources else ''
+        signal_intro = ("3′ ends and experimental signal share this browser. Open a track’s menu for study details."
+                        if signal_sources else "3′ ends are shown below. This genome has no experimental signal track.")
+        signal_key = ('<span class="key-signal"><i class="strand-plus" aria-hidden="true"></i> + signal above zero</span>'
+                      '<span class="key-signal"><i class="strand-minus" aria-hidden="true"></i> − signal below zero</span>') if signal_sources else ''
         browser_html = f'''<section class="browser-panel" id="genome-browser" data-genome-browser data-assembly="{esc(assembly)}">
-  <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>JBrowse</h2><p>{signal_intro} Use the JBrowse track menu to show or hide studies.</p></div></div>
-  <p class="browser-key"><span class="key-endpoint">Endpoint features</span>{signal_key}</p>
+  <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>Explore this genome</h2><p>{signal_intro}</p></div><a class="browser-open" href="../jbrowse/index.html?config={quote(jbrowse_config, safe='')}">Open full browser ↗</a></div>
+  <p class="browser-key"><span class="key-endpoint">Study 3′ ends</span>{signal_key}</p>
   <iframe data-browser-frame data-config="{esc(jbrowse_config)}" title="{esc(assembly)} genome browser" loading="lazy" referrerpolicy="no-referrer"></iframe>
-  <p class="browser-caption">Use JBrowse to pan or zoom. A signal track shows experimental measurements and is not itself an endpoint call.</p>
+  <p class="browser-caption">The signal track shows experimental measurements; the 3′ end track shows reported positions. Both BigWig files keep their original values.</p>
 </section>'''
     else:
         browser_html = '<section class="browser-panel browser-unavailable"><p class="eyebrow">Genome browser</p><h2>JBrowse is not available for this assembly</h2><p>Study downloads and evidence notes are available below.</p></section>'
@@ -489,10 +490,9 @@ def genome_content(
     content = f'''<main class="page-shell genome-page" data-genome-page data-assembly="{esc(assembly)}">
 <p class="breadcrumbs"><a href="../index.html">Genomes</a><span aria-hidden="true">/</span><span>{esc(assembly)}</span></p>
 <section class="genome-title"><div><p class="eyebrow">Reference genome</p><h1>{esc(species or assembly)}</h1><p class="assembly-id">{esc(assembly)}</p></div><div class="genome-title-actions"><button class="button primary" type="button" data-download-genome-package>Download genome package (.zip)</button>{metadata_link}<a class="button" href="https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/" target="_blank" rel="noopener">NCBI Assembly</a><p class="package-status" data-package-status role="status" aria-live="polite"></p></div></section>
-<section class="genome-summary" aria-label="Genome data summary"><div><strong>{len(studies)}</strong><span>published studies</span></div><div><strong>{len(published)}</strong><span>source records</span></div><div><strong>{total_records:,}</strong><span>endpoint records</span></div></section>
+<section class="genome-summary" aria-label="Genome data summary"><div><strong>{len(studies)}</strong><span>published {'study' if len(studies) == 1 else 'studies'}</span></div><div><strong>{len(published)}</strong><span>source {'record' if len(published) == 1 else 'records'}</span></div><div><strong>{total_records:,}</strong><span>3′ end records</span></div></section>
 {browser_html}
-<section class="evidence-intro"><h2>How to read the evidence</h2><p>Each study keeps its own coordinates and source identifiers. Experimental signal tracks show measured signal; GFF3 tracks show study-reported or curated endpoints. Endpoint records do not by themselves prove that a site functions as a terminator.</p></section>
-<section class="genome-studies"><div class="section-heading"><div><p class="eyebrow">Research and downloads</p><h2>Studies on this genome</h2></div><p>{len(studies)} published studies</p></div>{''.join(source_cards) if source_cards else '<p class="empty-state">No published study records are available for this genome.</p>'}{''.join(unpublished_cards)}</section>
+<section class="genome-studies"><div class="section-heading"><div><p class="eyebrow">Research and downloads</p><h2>Studies on this genome</h2></div><p>{len(studies)} published {'study' if len(studies) == 1 else 'studies'}</p></div>{''.join(source_cards) if source_cards else '<p class="empty-state">No published study records are available for this genome.</p>'}{''.join(unpublished_cards)}</section>
 </main>'''
     return content
 
