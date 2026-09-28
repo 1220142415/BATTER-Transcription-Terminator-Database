@@ -42,6 +42,9 @@ export default class BTEDTrackPlugin {
   name = 'BTEDTrackPlugin';
   version = '1.0.0';
 
+  // JBrowse 4.3.0 calls configure() on every installed plugin.
+  configure() {}
+
   install(pluginManager) {
     pluginManager.jexl.addFunction('btedStrandColor', strandColor);
     const React = pluginManager.jbrequire('react');

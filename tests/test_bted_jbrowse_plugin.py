@@ -26,13 +26,15 @@ const pluginManager = {
   },
   addToExtensionPoint(name, callback){if(name==='Core-replaceAbout')replaceAbout=callback;},
 };
-new mod.default().install(pluginManager);
+const plugin = new mod.default();
+plugin.install(pluginManager);
+plugin.configure(pluginManager);
 const original=()=>null;
 const about={kind:'endpoint',title:'Example paper',authors:'A; B',journal:'Test Journal',year:'2026',pmid:'12345678',source_id:'S1',assay:'Term-seq',record_count:17,evidence:'Paper-reported 3′ end',assembly:'GCF_TEST',license:'CC BY',gff3_url:'https://example.org/endpoints.gff3.gz',pubmed_url:'https://pubmed.ncbi.nlm.nih.gov/12345678/'};
 const component=replaceAbout(original,{config:{metadata:{btedAbout:about}}});
 const tree=component({config:{metadata:{btedAbout:about}}});
 const text=JSON.stringify(tree);
-process.stdout.write(JSON.stringify({colors:['+', '-', '?', 1, -1].map(x=>colorFunction({get(){return x;}})),keepsOriginal:replaceAbout(original,{config:{metadata:{}}})===original,content:text}));
+process.stdout.write(JSON.stringify({colors:['+', '-', '?', 1, -1].map(x=>colorFunction({get(){return x;}})),hasConfigure:typeof plugin.configure==='function',keepsOriginal:replaceAbout(original,{config:{metadata:{}}})===original,content:text}));
 """
 
 
@@ -46,6 +48,7 @@ class BtedJBrowsePluginTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         data = json.loads(result.stdout)
         self.assertEqual(data["colors"], ["#0f766e", "#be123c", "#64748b", "#0f766e", "#be123c"])
+        self.assertTrue(data["hasConfigure"])
         self.assertTrue(data["keepsOriginal"])
         for required in ("Study", "Endpoint evidence", "Source and use", "Example paper", "Test Journal", "S1", "CC BY", "Download study GFF3"):
             self.assertIn(required, data["content"])
