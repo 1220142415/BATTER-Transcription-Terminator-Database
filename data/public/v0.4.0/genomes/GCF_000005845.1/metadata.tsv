@@ -1,0 +1,2 @@
+source_id	pmid	species	assembly	title	assay	record_count	evidence_class	release_status	article_license	redistribution_status	raw_data_accessions	known_limitations	study_gff3	gene_associations	condition_observations
+BATTER_S1_001	29606352	Escherichia coli str. K-12 substr. MG1655	GCF_000005845.1	Evolutionary Convergence of Pathway-Specific Enzyme Expression Stoichiometry	Rend-seq	607	curated_record	published_standardized	not_open_access_author_manuscript	external_link_only	GSE95211	E. coli pilot: published in local browser.	studies/PMID_29606352/endpoints.gff3.gz		

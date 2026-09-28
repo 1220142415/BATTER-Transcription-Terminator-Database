@@ -5,10 +5,12 @@ const PUBLIC_EVIDENCE = new Set([
   "curated_record",
 ]);
 
-const CURRENT_RELEASE_VERSION = "v0.3.0";
+const CURRENT_RELEASE_VERSION = "v0.4.0";
 const RETIRED_RELEASE_ARCHIVE = "data/archive/BTED-v0.2.0.tar.gz";
 const DATA_RELEASE_MANIFEST_PATH = "/assets/data-release.json";
-const HF_DATA_BASE_PATTERN = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/v0\.3\.0$/;
+const HF_DATA_ASSET_PATTERN = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/(v0\.3\.0|v0\.4\.0)\/(.+)$/;
+const LOCAL_DATA_ASSET_PATTERN = /^downloads\/(v0\.3\.0|v0\.4\.0)\/(.+)$/;
+const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 
 const RESPONSE_HEADERS = [
   "accept-ranges",
@@ -104,7 +106,7 @@ function dataReleaseErrorResponse(error) {
   return json({ error: code }, 503, { "cache-control": "no-store" });
 }
 
-async function fixedDataReleaseBase(env, request) {
+async function fixedDataReleaseManifest(env, request) {
   if (!env.ASSETS || typeof env.ASSETS.fetch !== "function") {
     throw dataReleaseError("data_release_manifest_missing");
   }
@@ -125,23 +127,68 @@ async function fixedDataReleaseBase(env, request) {
   } catch {
     throw dataReleaseError("data_release_manifest_invalid");
   }
-  if (!manifest || manifest.releaseVersion !== CURRENT_RELEASE_VERSION) {
+  if (!manifest || manifest.releaseVersion !== CURRENT_RELEASE_VERSION
+      || !manifest.assets || typeof manifest.assets !== "object" || Array.isArray(manifest.assets)) {
     throw dataReleaseError("data_release_manifest_invalid");
   }
-  const base = typeof manifest.baseUrl === "string" ? manifest.baseUrl : "";
-  const match = HF_DATA_BASE_PATTERN.exec(base);
-  if (!match || manifest.revision !== match[1]) {
-    throw dataReleaseError("data_release_manifest_invalid");
+  for (const [logicalPath, asset] of Object.entries(manifest.assets)) {
+    if (!safeLogicalPath(logicalPath) || !asset || typeof asset !== "object"
+        || typeof asset.url !== "string" || !Number.isInteger(asset.byte_size) || asset.byte_size < 0
+        || !SHA256_PATTERN.test(String(asset.sha256 || ""))) {
+      throw dataReleaseError("data_release_manifest_invalid");
+    }
+    const match = HF_DATA_ASSET_PATTERN.exec(asset.url);
+    const localMatch = LOCAL_DATA_ASSET_PATTERN.exec(asset.url);
+    if (match) {
+      let decodedPath;
+      try { decodedPath = decodeURIComponent(match[3]); } catch { decodedPath = null; }
+      if (match[1] !== asset.revision || decodedPath !== logicalPath) {
+        throw dataReleaseError("data_release_manifest_invalid");
+      }
+    } else if (localMatch) {
+      let decodedPath;
+      try { decodedPath = decodeURIComponent(localMatch[2]); } catch { decodedPath = null; }
+      if (decodedPath !== logicalPath || asset.revision != null) {
+        throw dataReleaseError("data_release_manifest_invalid");
+      }
+    } else {
+      throw dataReleaseError("data_release_manifest_invalid");
+    }
   }
-  return base;
+  return manifest;
 }
 
-function hfDataUrl(base, relativePath) {
-  const safePath = String(relativePath).replace(/^\/+/, "");
-  if (!safePath || safePath.split("/").includes("..")) {
+function safeLogicalPath(value) {
+  if (typeof value !== "string" || !value || value.startsWith("/") || value.includes("\\")
+      || value.includes("?") || value.includes("#") || value.split("/").some((part) => !part || part === "." || part === "..")) {
+    return false;
+  }
+  return true;
+}
+
+function allowedAsset(manifest, logicalPath, expectedAsset = null) {
+  if (!safeLogicalPath(logicalPath)) throw dataReleaseError("data_release_manifest_invalid");
+  const asset = manifest.assets[logicalPath];
+  const compatibleKind = !expectedAsset || !asset?.asset_kind
+    || asset.asset_kind === expectedAsset.asset_kind
+    || (asset.asset_kind === "tsv" && expectedAsset.asset_kind === "metadata");
+  if (!asset || (expectedAsset && (
+    Number(asset.byte_size) !== Number(expectedAsset.byte_size)
+    || String(asset.sha256) !== String(expectedAsset.sha256)
+    || !compatibleKind
+  ))) {
     throw dataReleaseError("data_release_manifest_invalid");
   }
-  return new URL(safePath, `${base}/`).href;
+  return asset;
+}
+
+function dataAssetUrl(manifest, logicalPath, request, expectedAsset = null) {
+  const asset = allowedAsset(manifest, logicalPath, expectedAsset);
+  if (HF_DATA_ASSET_PATTERN.test(asset.url)) return asset.url;
+  if (!isLoopbackHost(new URL(request.url).hostname)) {
+    throw dataReleaseError("data_release_manifest_invalid");
+  }
+  return new URL(`/${asset.url}`, request.url).href;
 }
 
 async function withRelease(env, url) {
@@ -160,7 +207,7 @@ async function publicAsset(env, releaseVersion, assetKey) {
 }
 
 async function allAssets(env, releaseVersion, accession, sourceId) {
-  let sql = "SELECT asset_key, release_version, assembly_accession, source_id, asset_kind, logical_path, origin_host, content_type, byte_size, sha256, supports_range, redistribution_status, is_public FROM assets WHERE release_version = ? AND active = 1";
+  let sql = "SELECT asset_key, release_version, assembly_accession, source_id, asset_kind, logical_path, origin_host, content_type, byte_size, sha256, supports_range, redistribution_status, is_public FROM assets WHERE release_version = ? AND active = 1 AND is_public = 1";
   const params = [releaseVersion];
   if (accession) {
     sql += " AND assembly_accession = ?";
@@ -222,9 +269,9 @@ async function trackRows(env, releaseVersion, accession, sourceId) {
 async function sourcePayload(request, env, release, sourceId) {
   const source = await sourceRow(env, release.release_version, sourceId);
   if (!source) return null;
-  let dataBase;
+  let dataManifest;
   try {
-    dataBase = await fixedDataReleaseBase(env, request);
+    dataManifest = await fixedDataReleaseManifest(env, request);
   } catch (error) {
     return dataReleaseErrorResponse(error);
   }
@@ -236,12 +283,26 @@ async function sourcePayload(request, env, release, sourceId) {
     allAssets(env, release.release_version, source.assembly_accession, null),
   ]);
   const browserAvailable = tracks.some((track) => publicBrowserAvailable(source, track, assemblyAssets));
+  const studyGff3 = source.record_root
+    ? assemblyAssets.find((asset) => asset.logical_path === source.record_root && asset.asset_kind === "gff3")
+    : null;
+  let gff3Url = null;
+  try {
+    if (studyGff3 && Number(studyGff3.is_public) === 1) {
+      gff3Url = dataAssetUrl(dataManifest, studyGff3.logical_path, request, studyGff3);
+    }
+  } catch (error) {
+    return dataReleaseErrorResponse(error);
+  }
+  const visibleAssets = studyGff3 && !assets.some((asset) => asset.asset_key === studyGff3.asset_key)
+    ? [...assets, studyGff3]
+    : assets;
   const { used_for_batter_augmentation: _unusedAugmentationFlag, ...publicSource } = source;
   const links = {
-    bted_record: `/records/${encodeURIComponent(sourceId)}.html`,
+    bted_record: `/genomes/${encodeURIComponent(source.assembly_accession)}.html?source_id=${encodeURIComponent(sourceId)}`,
   };
   if (source.release_status === "published_standardized" && Number(source.record_count) > 0) {
-    links.gff3_download = hfDataUrl(dataBase, `records/${encodeURIComponent(sourceId)}/endpoints.gff3`);
+    if (gff3Url) links.gff3_download = gff3Url;
     links.endpoint_records = `/api/endpoints?source_id=${encodeURIComponent(sourceId)}`;
     if (browserAvailable) {
       const config = new URL(`/api/assemblies/${encodeURIComponent(source.assembly_accession)}/jbrowse-config`, request.url);
@@ -256,7 +317,7 @@ async function sourcePayload(request, env, release, sourceId) {
       publication: paper,
       accessions,
       tracks,
-      assets,
+      assets: visibleAssets,
       browser_available: browserAvailable,
       links,
       provenance: {
@@ -306,9 +367,9 @@ async function assemblyPayload(request, env, release, accession) {
     "SELECT * FROM assemblies WHERE release_version = ? AND accession = ?",
   ).bind(release.release_version, accession).first();
   if (!assembly) return null;
-  let dataBase;
+  let dataManifest;
   try {
-    dataBase = await fixedDataReleaseBase(env, request);
+    dataManifest = await fixedDataReleaseManifest(env, request);
   } catch (error) {
     return dataReleaseErrorResponse(error);
   }
@@ -321,15 +382,24 @@ async function assemblyPayload(request, env, release, accession) {
   ]);
   const trackData = [];
   for (const track of tracks) {
-      const source = await sourceRow(env, release.release_version, track.source_id);
-    const sourceAssets = registeredAssets.filter((asset) => asset.source_id === track.source_id);
+    const source = await sourceRow(env, release.release_version, track.source_id);
+    const sourceGff3 = registeredAssets.find((asset) => asset.asset_key === track.asset_key && asset.asset_kind === "gff3")
+      || (source?.record_root
+      ? registeredAssets.find((asset) => asset.logical_path === source.record_root && asset.asset_kind === "gff3")
+      : null);
+    let gff3Url = null;
+    try {
+      if (sourceGff3 && Number(sourceGff3.is_public) === 1) {
+        gff3Url = dataAssetUrl(dataManifest, sourceGff3.logical_path, request, sourceGff3);
+      }
+    } catch (error) {
+      return dataReleaseErrorResponse(error);
+    }
     trackData.push({
       ...track,
       source_status: source?.release_status,
       browser_available: publicBrowserAvailable(source, track, assets),
-      gff3_url: source?.release_status === "published_standardized" && Number(source.record_count) > 0
-        ? hfDataUrl(dataBase, `records/${encodeURIComponent(track.source_id)}/endpoints.gff3`)
-        : null,
+      gff3_url: gff3Url,
       links: { source: `/api/sources/${encodeURIComponent(track.source_id)}` },
     });
   }
@@ -343,10 +413,8 @@ async function assemblyPayload(request, env, release, accession) {
       assets,
       endpoint_count: Number(endpointCount?.total || 0),
       browser_available: browserAvailable,
-      gff3_url: Number(endpointCount?.total || 0) > 0
-        ? hfDataUrl(dataBase, `assemblies/${encodeURIComponent(accession)}/endpoints.gff3`)
-        : null,
-      metadata_url: hfDataUrl(dataBase, `assemblies/${encodeURIComponent(accession)}/metadata.json`),
+      gff3_url: null,
+      metadata_url: dataAssetUrl(dataManifest, `genomes/${accession}/metadata.tsv`, request),
       links: {
         catalogue: `/api/catalogue?assembly_accession=${encodeURIComponent(accession)}`,
         ...(browserAvailable ? { jbrowse_config: new URL(`/api/assemblies/${encodeURIComponent(accession)}/jbrowse-config`, request.url).href } : {}),
@@ -445,9 +513,9 @@ async function endpointDetail(env, release, endId) {
 }
 
 async function jbrowseConfig(request, env, release, accession, sourceId) {
-  let dataBase;
+  let dataManifest;
   try {
-    dataBase = await fixedDataReleaseBase(env, request);
+    dataManifest = await fixedDataReleaseManifest(env, request);
   } catch (error) {
     return dataReleaseErrorResponse(error);
   }
@@ -465,12 +533,21 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     const source = await sourceRow(env, release.release_version, track.source_id);
     if (!source || source.release_status !== "published_standardized" || Number(track.is_public) !== 1) continue;
     const sourceAssets = await allAssets(env, release.release_version, null, source.source_id);
-    publicTracks.push({ track, source, sourceAssets });
+    const endpointGff3 = assemblyAssets.find((asset) => asset.asset_key === track.asset_key
+      && asset.asset_kind === "gff3" && Number(asset.is_public) === 1)
+      || assemblyAssets.find((asset) => asset.asset_kind === "gff3"
+        && Number(asset.is_public) === 1 && asset.logical_path === source.record_root);
+    publicTracks.push({ track, source, sourceAssets, endpointGff3 });
   }
   if (!publicTracks.length) return json({ error: "jbrowse_unavailable", reason: "no public published endpoint track" }, 404);
   const assemblyName = `BTED_${accession.replaceAll(".", "_")}`;
-  const gff = assemblyAssets.find((asset) => asset.asset_kind === "gff3" && Number(asset.is_public) === 1);
+  const gff = assemblyAssets.find((asset) => asset.asset_kind === "gff3"
+    && asset.logical_path.startsWith(`assemblies/${accession}/reference/`)
+    && Number(asset.is_public) === 1);
   const tbi = assemblyAssets.find((asset) => asset.asset_kind === "tbi" && Number(asset.is_public) === 1);
+  const browserGff = assemblyAssets.find((asset) => asset.asset_kind === "gff3"
+    && asset.logical_path === `browser/${accession}/annotation.gff3`
+    && Number(asset.is_public) === 1);
   const contig = await env.BTED_DB.prepare("SELECT contig_accession, length_bp FROM contigs WHERE release_version = ? AND assembly_accession = ? ORDER BY contig_accession LIMIT 1").bind(release.release_version, accession).first();
   const firstEndpoint = await env.BTED_DB.prepare("SELECT reference_name, biological_coordinate_1based FROM endpoints WHERE release_version = ? AND reference_assembly = ? AND source_id = ? ORDER BY biological_coordinate_1based, end_id LIMIT 1").bind(release.release_version, accession, publicTracks[0].source.source_id).first();
   const contigName = firstEndpoint?.reference_name || contig?.contig_accession;
@@ -479,12 +556,20 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
   const regionStart = Math.max(0, center - 501);
   const regionEnd = Math.min(length, center + 500);
   const tracksConfig = [];
-  for (const { track, source, sourceAssets } of publicTracks) {
+  const endpointTracks = new Map();
+  for (const { track, source, sourceAssets, endpointGff3 } of publicTracks) {
     const rawAccessions = JSON.parse(track.raw_accessions_json || "[]");
-    const endpointGff3Url = hfDataUrl(
-      dataBase,
-      `records/${encodeURIComponent(source.source_id)}/endpoints.gff3`,
-    );
+    let endpointGff3Url = null;
+    try {
+      if (endpointGff3) {
+        endpointGff3Url = dataAssetUrl(dataManifest, endpointGff3.logical_path, request, endpointGff3);
+        const grouped = endpointTracks.get(endpointGff3.logical_path) || [];
+        grouped.push({ track, source, rawAccessions, endpointGff3, endpointGff3Url });
+        endpointTracks.set(endpointGff3.logical_path, grouped);
+      }
+    } catch (error) {
+      return dataReleaseErrorResponse(error);
+    }
     const metadata = {
       source_id: source.source_id,
       evidence_class: source.evidence_class,
@@ -494,7 +579,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       DOI: track.doi ? `https://doi.org/${track.doi}` : null,
       raw_data_accessions: rawAccessions.map((item) => item.accession).join(", "),
       raw_data_links: rawAccessions.map((item) => item.external_url).filter(Boolean).join(" ; "),
-      BTED_record: new URL(`/records/${encodeURIComponent(source.source_id)}.html`, request.url).href,
+      BTED_record: new URL(`/genomes/${encodeURIComponent(accession)}.html?source_id=${encodeURIComponent(source.source_id)}`, request.url).href,
       GFF3_download: endpointGff3Url,
       release_version: release.release_version,
     };
@@ -513,15 +598,38 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
         displays: [{ type: "LinearWiggleDisplay", displayId: `${signalId}_display` }],
       });
     }
+  }
+  for (const [logicalPath, studyTracks] of endpointTracks) {
+    const first = studyTracks[0];
+    const sourceIds = studyTracks.map(({ source: sourceItem }) => sourceItem.source_id);
+    const assays = [...new Set(studyTracks.map(({ track: trackItem }) => trackItem.assay).filter(Boolean))];
+    const publicationTitles = [...new Set(studyTracks.map(({ track: trackItem }) => trackItem.paper_title).filter(Boolean))];
+    const pmids = [...new Set(studyTracks.map(({ track: trackItem }) => trackItem.pmid).filter(Boolean))];
+    const rawAccessions = [...new Set(studyTracks.flatMap(({ rawAccessions: values }) => values.map((item) => item.accession).filter(Boolean)))];
+    const endpointTrackId = `source_${sourceIds[0].replace(/[^A-Za-z0-9_]/g, "_")}_endpoints`;
+    const evidenceClasses = [...new Set(studyTracks.map(({ source: sourceItem }) => sourceItem.evidence_class).filter(Boolean))];
+    const metadata = {
+      source_ids: sourceIds,
+      evidence_class: evidenceClasses.length === 1 ? evidenceClasses[0] : evidenceClasses.join(", "),
+      record_count: studyTracks.reduce((sum, { source: sourceItem }) => sum + Number(sourceItem.record_count || 0), 0),
+      publication_title: publicationTitles.join("; "),
+      PubMed: pmids.map((pmid) => `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`).join(" ; "),
+      DOI: [...new Set(studyTracks.map(({ track: trackItem }) => trackItem.doi).filter(Boolean))].map((doi) => `https://doi.org/${doi}`).join(" ; "),
+      raw_data_accessions: rawAccessions.join(", "),
+      raw_data_links: [...new Set(studyTracks.flatMap(({ rawAccessions: values }) => values.map((item) => item.external_url).filter(Boolean)))].join(" ; "),
+      GFF3_download: dataAssetUrl(dataManifest, first.source.record_root, request),
+      release_version: release.release_version,
+      logical_path: logicalPath,
+    };
     tracksConfig.push({
       type: "FeatureTrack",
-      trackId: track.track_id,
-      name: `${source.source_id} · ${track.assay} endpoints`,
-      adapter: { type: "Gff3Adapter", gffLocation: { uri: endpointGff3Url, locationType: "UriLocation" } },
-      category: ["BTED endpoint tracks", source.source_id],
+      trackId: endpointTrackId,
+      name: `${sourceIds.join(", ")} · PMID ${pmids.join(", ")} · ${assays.join(" / ")} endpoints`,
+      adapter: { type: "Gff3Adapter", gffLocation: { uri: first.endpointGff3Url, locationType: "UriLocation" } },
+      category: ["BTED endpoint tracks", ...sourceIds],
       assemblyNames: [assemblyName],
       metadata,
-      displays: [{ type: "LinearBasicDisplay", displayId: `${track.track_id}_display`, showLabels: false, height: 38 }],
+      displays: [{ type: "LinearBasicDisplay", displayId: `${endpointTrackId}_display`, showLabels: false, height: 38 }],
     });
   }
   const configTracks = [];
@@ -534,6 +642,16 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       category: ["Reference annotation"],
       assemblyNames: [assemblyName],
       metadata: { release_version: release.release_version, gff3_sha256: gff.sha256, tbi_sha256: tbi.sha256 },
+    });
+  } else if (browserGff) {
+    configTracks.push({
+      type: "FeatureTrack",
+      trackId: `${assemblyName}_genes`,
+      name: "Reference gene annotation",
+      adapter: { type: "Gff3Adapter", gffLocation: { uri: assetUrl(request, browserGff.asset_key), locationType: "UriLocation" } },
+      category: ["Reference annotation"],
+      assemblyNames: [assemblyName],
+      metadata: { release_version: release.release_version, gff3_sha256: browserGff.sha256 },
     });
   }
   configTracks.push(...tracksConfig);
@@ -563,15 +681,17 @@ async function proxyAsset(request, env, release, assetKey) {
   const range = request.headers.get("range");
   if (range && Number(asset.supports_range) !== 1) return json({ error: "range_not_supported" }, 416, { "content-range": `bytes */${asset.byte_size}` });
   const requestUrl = new URL(request.url);
-  const logicalPath = asset.logical_path.split("/").map(encodeURIComponent).join("/");
-  let dataBase;
+  let dataManifest;
+  let assetRef;
   try {
-    dataBase = await fixedDataReleaseBase(env, request);
+    dataManifest = await fixedDataReleaseManifest(env, request);
+    assetRef = allowedAsset(dataManifest, asset.logical_path, asset);
   } catch (error) {
     return dataReleaseErrorResponse(error);
   }
   const localBase = String(env.LOCAL_ASSET_BASE || "").trim();
   let origin;
+  let staticAssetRequest = false;
   if (isLoopbackHost(requestUrl.hostname) && localBase) {
     let localUrl;
     try {
@@ -590,10 +710,19 @@ async function proxyAsset(request, env, release, assetKey) {
       return json({ error: "local_origin_not_allowed" }, 403);
     }
     const prefix = localUrl.pathname.replace(/\/$/, "");
-    origin = new URL(`${localUrl.origin}${prefix}/${logicalPath}`);
+    const localRelative = LOCAL_DATA_ASSET_PATTERN.exec(assetRef.url);
+    const localPath = localRelative ? assetRef.url : asset.logical_path;
+    origin = new URL(`${localUrl.origin}${prefix}/${localPath.split("/").map(encodeURIComponent).join("/")}`);
   } else {
-    origin = new URL(hfDataUrl(dataBase, logicalPath));
-    if (origin.protocol !== "https:" || origin.hostname !== String(env.ALLOWED_ORIGIN_HOST || "")) {
+    const localRelative = LOCAL_DATA_ASSET_PATTERN.exec(assetRef.url);
+    if (localRelative) {
+      if (!isLoopbackHost(requestUrl.hostname)) return dataReleaseErrorResponse(dataReleaseError("data_release_manifest_invalid"));
+      origin = new URL(`/${assetRef.url}`, request.url);
+      staticAssetRequest = true;
+    } else {
+      origin = new URL(assetRef.url);
+    }
+    if (!staticAssetRequest && (origin.protocol !== "https:" || origin.hostname !== "huggingface.co")) {
       return json({ error: "origin_not_allowed" }, 403);
     }
   }
@@ -604,7 +733,11 @@ async function proxyAsset(request, env, release, assetKey) {
   }
   let upstream;
   try {
-    upstream = await fetch(origin, { method: request.method, headers: headersIn, redirect: "follow" });
+    if (staticAssetRequest && env.ASSETS && typeof env.ASSETS.fetch === "function") {
+      upstream = await env.ASSETS.fetch(new Request(origin, { method: request.method, headers: headersIn }));
+    } else {
+      upstream = await fetch(origin, { method: request.method, headers: headersIn, redirect: "follow" });
+    }
   } catch {
     // Keep an unavailable upstream from surfacing as an opaque Worker 500. In
     // local Wrangler this commonly means the sandbox cannot reach HF; the

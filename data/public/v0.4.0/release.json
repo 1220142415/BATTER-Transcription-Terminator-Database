@@ -1,0 +1,733 @@
+{
+  "counts": {
+    "annotation_count": 24887,
+    "audit_only_source_count": 1,
+    "cascino_endpoint_count": 1061,
+    "condition_observation_count": 2277,
+    "endpoint_count": 29460,
+    "gene_association_count": 805,
+    "genome_count": 21,
+    "genome_study_count": 23,
+    "linked_gene_association_count": 460,
+    "old_endpoint_count": 28399,
+    "published_source_count": 24,
+    "source_count": 25,
+    "study_count": 14,
+    "unlinked_gene_association_count": 345
+  },
+  "files": [
+    {
+      "byte_size": 571,
+      "path": "genomes/GCF_000005845.1/metadata.tsv",
+      "sha256": "94162fcd5f6031ce16c02e82ca984c28b75631290daa2f79ad721f9c03e7b6cd"
+    },
+    {
+      "byte_size": 17299,
+      "path": "genomes/GCF_000005845.1/studies/PMID_29606352/endpoints.gff3.gz",
+      "sha256": "c7e5328b2b199a785794206a330cf0be97c9bab3b16890b8188fb32f6f2ca63e"
+    },
+    {
+      "byte_size": 660,
+      "path": "genomes/GCF_000005845.2/metadata.tsv",
+      "sha256": "e009f294b0e3f280533a8a501d400396b0f4a83ba4cc5b680343178768c21c48"
+    },
+    {
+      "byte_size": 723,
+      "path": "genomes/GCF_000006765.1/metadata.tsv",
+      "sha256": "964d7821ea7ca95540877d2b35dc0b2b9a34ec19361e485edee08e44c0d76157"
+    },
+    {
+      "byte_size": 154443,
+      "path": "genomes/GCF_000006765.1/studies/PMID_31594819/endpoints.gff3.gz",
+      "sha256": "8d60df80d8bb9a45bc65ff37589a9993b55be89255e8b7044ddd1c22ccf9ef27"
+    },
+    {
+      "byte_size": 36622,
+      "path": "genomes/GCF_000006765.1/studies/PMID_31594819/gene_associations.tsv.gz",
+      "sha256": "e72402c0ddc932288a0418233adec415af9005f2da689e6006fc3a28373c634d"
+    },
+    {
+      "byte_size": 671,
+      "path": "genomes/GCF_000006885.1/metadata.tsv",
+      "sha256": "0f8092c720c7b7cd50b2e840c8472b4b472c0809a2a9725a9173bcf177624e37"
+    },
+    {
+      "byte_size": 162764,
+      "path": "genomes/GCF_000006885.1/studies/PMID_30517198/endpoints.gff3.gz",
+      "sha256": "48dca7e74ba651d3f3dfb6a1988f0f4d129d9b780f31663a73a02f1b97fab35b"
+    },
+    {
+      "byte_size": 751,
+      "path": "genomes/GCF_000008685.2/metadata.tsv",
+      "sha256": "9ad8baa328a8992f85fc205720eb6ebcedcf35c63b6df9a4aae2b8632180e74f"
+    },
+    {
+      "byte_size": 207005,
+      "path": "genomes/GCF_000008685.2/studies/PMID_37402717/condition_observations.tsv.gz",
+      "sha256": "95ff1fc6bee0bf4a98a3aee4845256534bb1bd60dea474ea4fcf13baf33ac960"
+    },
+    {
+      "byte_size": 89362,
+      "path": "genomes/GCF_000008685.2/studies/PMID_37402717/endpoints.gff3.gz",
+      "sha256": "b65a48e6ddc2923986b559428fa4d61b1db05ff6212a1a0f33fee4423d5cec3f"
+    },
+    {
+      "byte_size": 697,
+      "path": "genomes/GCF_000009045.1/metadata.tsv",
+      "sha256": "b561a211f92428e3f0f943eaca9c4b947be4d2030eca60c3a3581f8c2f7ed3bc"
+    },
+    {
+      "byte_size": 38572,
+      "path": "genomes/GCF_000009045.1/studies/PMID_29606352/endpoints.gff3.gz",
+      "sha256": "72f20c75e23cfd0b6835069fe2356b902e9a3f8777eb5701263803c967c898ca"
+    },
+    {
+      "byte_size": 553,
+      "path": "genomes/GCF_000009725.1/metadata.tsv",
+      "sha256": "a5d5c3fac7d984c232167bf87863559336463d7629fc551878dc0c025a3c64d9"
+    },
+    {
+      "byte_size": 20943,
+      "path": "genomes/GCF_000009725.1/studies/PMID_34874777/endpoints.gff3.gz",
+      "sha256": "524af5f8479a9573934d8db651066d9387cc01db3480a634d8b6acb9bf17562e"
+    },
+    {
+      "byte_size": 667,
+      "path": "genomes/GCF_000009765.2/metadata.tsv",
+      "sha256": "73f5673c68c0c1de0069aded3e1ae73d5ad767913650379fe78443a650241793"
+    },
+    {
+      "byte_size": 37370,
+      "path": "genomes/GCF_000009765.2/studies/PMID_33319794/endpoints.gff3.gz",
+      "sha256": "f05d380bc84b1a97ec9486f88eb9b7d49f6fe1089147dc0c2762f07485a31eeb"
+    },
+    {
+      "byte_size": 619,
+      "path": "genomes/GCF_000010605.1/metadata.tsv",
+      "sha256": "d43a5e1f367ea589fbebe5d4c7dfc393c6b00e32f366387a6498490b58fe3c90"
+    },
+    {
+      "byte_size": 64100,
+      "path": "genomes/GCF_000010605.1/studies/PMID_33319794/endpoints.gff3.gz",
+      "sha256": "1d7a01074ead7c5a31714674b25469f77221ba431ef613acaa171b609fc5f016"
+    },
+    {
+      "byte_size": 1529,
+      "path": "genomes/GCF_000012525.1/metadata.tsv",
+      "sha256": "686fe53608f32762343ef7d00b538b0be317fefc640524d0987a7509b7e9c948"
+    },
+    {
+      "byte_size": 30184,
+      "path": "genomes/GCF_000012525.1/studies/PMID_42148773/endpoints.gff3.gz",
+      "sha256": "19e09327482713daa9bd77ed8e8818e02347671e8303aeafd3ffba98125e0fd0"
+    },
+    {
+      "byte_size": 606,
+      "path": "genomes/GCF_000022005.1/metadata.tsv",
+      "sha256": "6269bf3b4eb4c0c9176d821b61bbcd5a607b432c22cbc47ee5f9781b26eea303"
+    },
+    {
+      "byte_size": 9869,
+      "path": "genomes/GCF_000022005.1/studies/PMID_29606352/endpoints.gff3.gz",
+      "sha256": "d90f6a3752173a4d410e9dd2f546adaf09314b04ede6fa4e77925a5a248e3ad7"
+    },
+    {
+      "byte_size": 718,
+      "path": "genomes/GCF_000147055.1/metadata.tsv",
+      "sha256": "b3b78ed50f59ac040d52c9e06b58d0dbfeb04e1c0b412039f7cc6d56c92f491a"
+    },
+    {
+      "byte_size": 28810,
+      "path": "genomes/GCF_000147055.1/studies/PMID_35491820/endpoints.gff3.gz",
+      "sha256": "60d4b2a6bdc02cf4fd4aaac6b4f2174edfb21f4acf3b41a95fd747518fbf70cb"
+    },
+    {
+      "byte_size": 780,
+      "path": "genomes/GCF_000195955.2/metadata.tsv",
+      "sha256": "c91fc46d35872bd2f48528d0fe554cda040927476cc7133ad5d1dc12f2401f65"
+    },
+    {
+      "byte_size": 107512,
+      "path": "genomes/GCF_000195955.2/studies/PMID_37096044/endpoints.gff3.gz",
+      "sha256": "fb5dac10c6cf38be1eb759ddee8c21b50e12f1b9dd755b36f515d30f34c44c98"
+    },
+    {
+      "byte_size": 602,
+      "path": "genomes/GCF_000203835.1/metadata.tsv",
+      "sha256": "a2d2b14b25fd169d28d955eae6d64fbaf96ebbd6edd97f4f4f4a73db16c66454"
+    },
+    {
+      "byte_size": 41838,
+      "path": "genomes/GCF_000203835.1/studies/PMID_33319794/endpoints.gff3.gz",
+      "sha256": "69da23a525ebf7c14821e90f28ddefb5f5161d057afc62618b6bb9719cec510e"
+    },
+    {
+      "byte_size": 1047,
+      "path": "genomes/GCF_000739105.1/metadata.tsv",
+      "sha256": "dc021fd64123e46acf75305827633ee6818a6387cccf90de027e6c5c763accf7"
+    },
+    {
+      "byte_size": 51850,
+      "path": "genomes/GCF_000739105.1/studies/PMID_31555254/endpoints.gff3.gz",
+      "sha256": "31d0243f184ac4e6474356ab5ef8e951380e75c6197e641b18af0e4cefd439c0"
+    },
+    {
+      "byte_size": 38587,
+      "path": "genomes/GCF_000739105.1/studies/PMID_33319794/endpoints.gff3.gz",
+      "sha256": "bf10fef97b3443557408d94e98b80e79aa4fb3c452bc4ea49cdd7e45f65b6cc0"
+    },
+    {
+      "byte_size": 773,
+      "path": "genomes/GCF_001456255.1/metadata.tsv",
+      "sha256": "374af639977cfe25e1b3850b1e041873953f7932eb54b8d43df9536017d97e50"
+    },
+    {
+      "byte_size": 30999,
+      "path": "genomes/GCF_001456255.1/studies/PMID_29606352/endpoints.gff3.gz",
+      "sha256": "2c6714e6f12b921d901dd6ae79621be69f186b98023a6102009840b4bced4a34"
+    },
+    {
+      "byte_size": 735,
+      "path": "genomes/GCF_003054575.1/metadata.tsv",
+      "sha256": "88fed23faacff66087513731caf7104c1ba50c37946ba8b8909200a015cc6767"
+    },
+    {
+      "byte_size": 53022,
+      "path": "genomes/GCF_003054575.1/studies/PMID_32694125/endpoints.gff3.gz",
+      "sha256": "12b5534cbf87958795a97da201f86fffaaca2798873afbf72bc759ecf22b8eea"
+    },
+    {
+      "byte_size": 596,
+      "path": "genomes/GCF_003932715.1/metadata.tsv",
+      "sha256": "f2b413c901853b1fc0bd01de39e6d279b975b0d38aaa6e33652e5896a4f65eec"
+    },
+    {
+      "byte_size": 41177,
+      "path": "genomes/GCF_003932715.1/studies/PMID_33319794/endpoints.gff3.gz",
+      "sha256": "2d7177266684383b0b774cd37caaca47a93effd7c225eded54e635e02d9b3919"
+    },
+    {
+      "byte_size": 1057,
+      "path": "genomes/GCF_005519465.1/metadata.tsv",
+      "sha256": "27614ddb6349fc377cee466c87d6d127783e440f0cdaaf12207f757f4882fc5f"
+    },
+    {
+      "byte_size": 36596,
+      "path": "genomes/GCF_005519465.1/studies/PMID_33319794/endpoints.gff3.gz",
+      "sha256": "949175964e28d499a4135e8b79d6b232d027b03bc2eacf6e86387540c9a0fc9d"
+    },
+    {
+      "byte_size": 75560,
+      "path": "genomes/GCF_005519465.1/studies/PMID_33947798/endpoints.gff3.gz",
+      "sha256": "5dc74d8e6e4e8b78adcad3c54068409aec5faf64f0c80d56335b8e09c9071a3b"
+    },
+    {
+      "byte_size": 756,
+      "path": "genomes/GCF_015710995.1/metadata.tsv",
+      "sha256": "b22250011d3c47a1b2d887ed8b3b86feb213662e647d1ff17948db4f5b07ec1b"
+    },
+    {
+      "byte_size": 28187,
+      "path": "genomes/GCF_015710995.1/studies/PMID_33319794/endpoints.gff3.gz",
+      "sha256": "ddc2d99fe4b9c6626d5d90238311fff9e03c70170117f308f6eb1e406646225a"
+    },
+    {
+      "byte_size": 576,
+      "path": "genomes/GCF_018282115.1/metadata.tsv",
+      "sha256": "35efff336a92c86f013fc6eabc4369fbe14f9228fbd9e148f216793f205d6903"
+    },
+    {
+      "byte_size": 13665,
+      "path": "genomes/GCF_018282115.1/studies/PMID_34054774/endpoints.gff3.gz",
+      "sha256": "7cc3bd6896c4f89af3e78f2fd1753c65eddb9d263434e53e240e833d57c086dd"
+    }
+  ],
+  "genomes": [
+    {
+      "assembly": "GCF_000005845.1",
+      "endpoint_count": 607,
+      "metadata_path": "genomes/GCF_000005845.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 607,
+          "gene_association_count": 0,
+          "path": "studies/PMID_29606352",
+          "pmid": "29606352",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_001"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000005845.2",
+      "endpoint_count": 0,
+      "metadata_path": "genomes/GCF_000005845.2/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 0,
+          "gene_association_count": 0,
+          "path": "studies/PMID_38030608",
+          "pmid": "38030608",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_002"
+          ],
+          "status": "audit_only"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000006765.1",
+      "endpoint_count": 1965,
+      "metadata_path": "genomes/GCF_000006765.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1965,
+          "gene_association_count": 805,
+          "path": "studies/PMID_31594819",
+          "pmid": "31594819",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_008"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000006885.1",
+      "endpoint_count": 1864,
+      "metadata_path": "genomes/GCF_000006885.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1864,
+          "gene_association_count": 0,
+          "path": "studies/PMID_30517198",
+          "pmid": "30517198",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_006"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000008685.2",
+      "endpoint_count": 1905,
+      "metadata_path": "genomes/GCF_000008685.2/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 2277,
+          "endpoint_count": 1905,
+          "gene_association_count": 0,
+          "path": "studies/PMID_37402717",
+          "pmid": "37402717",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_021"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000009045.1",
+      "endpoint_count": 1414,
+      "metadata_path": "genomes/GCF_000009045.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1414,
+          "gene_association_count": 0,
+          "path": "studies/PMID_29606352",
+          "pmid": "29606352",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_003"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000009725.1",
+      "endpoint_count": 784,
+      "metadata_path": "genomes/GCF_000009725.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 784,
+          "gene_association_count": 0,
+          "path": "studies/PMID_34874777",
+          "pmid": "34874777",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_019"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000009765.2",
+      "endpoint_count": 1159,
+      "metadata_path": "genomes/GCF_000009765.2/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1159,
+          "gene_association_count": 0,
+          "path": "studies/PMID_33319794",
+          "pmid": "33319794",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_010"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000010605.1",
+      "endpoint_count": 2024,
+      "metadata_path": "genomes/GCF_000010605.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 2024,
+          "gene_association_count": 0,
+          "path": "studies/PMID_33319794",
+          "pmid": "33319794",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_011"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000012525.1",
+      "endpoint_count": 1061,
+      "metadata_path": "genomes/GCF_000012525.1/metadata.tsv",
+      "source_count": 3,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1061,
+          "gene_association_count": 0,
+          "path": "studies/PMID_42148773",
+          "pmid": "42148773",
+          "source_count": 3,
+          "source_ids": [
+            "BTED_EXT_2026_102",
+            "BTED_EXT_2026_103",
+            "BTED_EXT_2026_104"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000022005.1",
+      "endpoint_count": 337,
+      "metadata_path": "genomes/GCF_000022005.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 337,
+          "gene_association_count": 0,
+          "path": "studies/PMID_29606352",
+          "pmid": "29606352",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_004"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000147055.1",
+      "endpoint_count": 1165,
+      "metadata_path": "genomes/GCF_000147055.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1165,
+          "gene_association_count": 0,
+          "path": "studies/PMID_35491820",
+          "pmid": "35491820",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_020"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000195955.2",
+      "endpoint_count": 2567,
+      "metadata_path": "genomes/GCF_000195955.2/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 2567,
+          "gene_association_count": 0,
+          "path": "studies/PMID_37096044",
+          "pmid": "37096044",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_022"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000203835.1",
+      "endpoint_count": 1308,
+      "metadata_path": "genomes/GCF_000203835.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1308,
+          "gene_association_count": 0,
+          "path": "studies/PMID_33319794",
+          "pmid": "33319794",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_012"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_000739105.1",
+      "endpoint_count": 2848,
+      "metadata_path": "genomes/GCF_000739105.1/metadata.tsv",
+      "source_count": 2,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1640,
+          "gene_association_count": 0,
+          "path": "studies/PMID_31555254",
+          "pmid": "31555254",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_007"
+          ],
+          "status": "published_standardized"
+        },
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1208,
+          "gene_association_count": 0,
+          "path": "studies/PMID_33319794",
+          "pmid": "33319794",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_013"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 2
+    },
+    {
+      "assembly": "GCF_001456255.1",
+      "endpoint_count": 1154,
+      "metadata_path": "genomes/GCF_001456255.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1154,
+          "gene_association_count": 0,
+          "path": "studies/PMID_29606352",
+          "pmid": "29606352",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_005"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_003054575.1",
+      "endpoint_count": 2091,
+      "metadata_path": "genomes/GCF_003054575.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 2091,
+          "gene_association_count": 0,
+          "path": "studies/PMID_32694125",
+          "pmid": "32694125",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_009"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_003932715.1",
+      "endpoint_count": 1283,
+      "metadata_path": "genomes/GCF_003932715.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1283,
+          "gene_association_count": 0,
+          "path": "studies/PMID_33319794",
+          "pmid": "33319794",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_014"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_005519465.1",
+      "endpoint_count": 2567,
+      "metadata_path": "genomes/GCF_005519465.1/metadata.tsv",
+      "source_count": 2,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1140,
+          "gene_association_count": 0,
+          "path": "studies/PMID_33319794",
+          "pmid": "33319794",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_015"
+          ],
+          "status": "published_standardized"
+        },
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 1427,
+          "gene_association_count": 0,
+          "path": "studies/PMID_33947798",
+          "pmid": "33947798",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_017"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 2
+    },
+    {
+      "assembly": "GCF_015710995.1",
+      "endpoint_count": 870,
+      "metadata_path": "genomes/GCF_015710995.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 870,
+          "gene_association_count": 0,
+          "path": "studies/PMID_33319794",
+          "pmid": "33319794",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_016"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    },
+    {
+      "assembly": "GCF_018282115.1",
+      "endpoint_count": 487,
+      "metadata_path": "genomes/GCF_018282115.1/metadata.tsv",
+      "source_count": 1,
+      "studies": [
+        {
+          "condition_observation_count": 0,
+          "endpoint_count": 487,
+          "gene_association_count": 0,
+          "path": "studies/PMID_34054774",
+          "pmid": "34054774",
+          "source_count": 1,
+          "source_ids": [
+            "BATTER_S1_018"
+          ],
+          "status": "published_standardized"
+        }
+      ],
+      "study_count": 1
+    }
+  ],
+  "legacy_archive": {
+    "v0.2.0": {
+      "file_count": 153,
+      "file_manifest": "data/archive/BTED-v0.2.0.SHA256SUMS.txt",
+      "path": "data/archive/BTED-v0.2.0.tar.gz",
+      "sha256": "38e8ff5880bbd63fde5792132fa4fe835c8d033123a66497412f4e346d85d366"
+    },
+    "v0.3.0": {
+      "archive_checksum": "data/archive/BTED-v0.3.0.tar.gz.sha256",
+      "file_count": 43,
+      "file_manifest": "data/archive/BTED-v0.3.0.SHA256SUMS.txt",
+      "path": "data/archive/BTED-v0.3.0.tar.gz",
+      "sha256": "50afc8ddcfa90698ff6376cec43ba60c9ef2cf6654f86a26b83c67ce62e3a73e",
+      "uncompressed_bytes": 1517164
+    }
+  },
+  "release_version": "v0.4.0",
+  "schema_version": "1.0",
+  "summary": "Genome-organized, source-attributed experimental transcription endpoint release."
+}

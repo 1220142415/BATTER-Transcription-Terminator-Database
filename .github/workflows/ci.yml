@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      HF_DATA_BASE_URL: https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0
+      HF_V04_DATA_BASE_URL: https://huggingface.co/datasets/liurulong/terminator/resolve/eea5b7225975b224a1c837f60c4fa10497fef022/v0.4.0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,8 +24,8 @@ jobs:
           node-version: "20"
       - name: Validate source templates
         run: python3 scripts/validate_bted_templates.py
-      - name: Validate v0.3.0 release and v0.2.0 archive
-        run: python3 scripts/validate_bted_v0_3.py
+      - name: Validate v0.4.0 release and archived versions
+        run: python3 scripts/validate_bted_v0_4.py
       - name: Check repository layout and Markdown links
         run: |
           python3 scripts/validate_repo_layout.py
@@ -37,13 +37,19 @@ jobs:
       - name: Check Worker and site JavaScript syntax
         run: |
           node --check prototype/accession-range/src/worker.js
-          node --check site/assets/browser-wrapper.js
-          node --check site/assets/site.js
+          node --check site/assets/genome-index.js
+          node --check site/assets/genome-page.js
+      - name: Rebuild pinned asset allowlist
+        run: |
+          python3 scripts/prepare_v04_reference.py --output-root dist/v04-browser-objects
+          python3 scripts/build_v0_4_site.py --output-root dist/v04-browser-objects
+          python3 scripts/build_v04_asset_manifest.py --revision eea5b7225975b224a1c837f60c4fa10497fef022 --output "$RUNNER_TEMP/browser_assets.tsv"
+          cmp data/registry/browser_assets.v0.4.0.tsv "$RUNNER_TEMP/browser_assets.tsv"
       - name: Download the versioned JBrowse application archive
-        run: gh release download preview-v0.2.0 --pattern 'BTED-v0.2.0-jbrowse-assets.tar.gz*' --dir "$RUNNER_TEMP"
+        run: gh release download preview-v0.2.0 --repo seu-yolo/BATTER-Transcription-Terminator-Database --pattern 'BTED-v0.2.0-jbrowse-assets.tar.gz*' --dir "$RUNNER_TEMP"
       - name: Assemble Pages and Worker sites
         run: |
-          python3 scripts/stage_site.py --mode pages --release-archive "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" --release-sha256-file "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" --hf-data-base-url "$HF_DATA_BASE_URL" --output-dir "$RUNNER_TEMP/bted-pages"
-          python3 scripts/stage_site.py --mode worker --release-archive "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" --release-sha256-file "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" --hf-data-base-url "$HF_DATA_BASE_URL" --output-dir "$RUNNER_TEMP/bted-worker"
+          python3 scripts/stage_site.py --data-version v0.4.0 --mode pages --release-archive "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" --release-sha256-file "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" --hf-v04-data-base-url "$HF_V04_DATA_BASE_URL" --output-dir "$RUNNER_TEMP/bted-pages"
+          python3 scripts/stage_site.py --data-version v0.4.0 --mode worker --release-archive "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" --release-sha256-file "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" --hf-v04-data-base-url "$HF_V04_DATA_BASE_URL" --output-dir "$RUNNER_TEMP/bted-worker"
           python3 scripts/validate-site.py "$RUNNER_TEMP/bted-pages"
           python3 scripts/validate-site.py "$RUNNER_TEMP/bted-worker"

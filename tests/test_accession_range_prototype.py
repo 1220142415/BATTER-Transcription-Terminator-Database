@@ -93,17 +93,14 @@ class TestAccessionRangePrototype(unittest.TestCase):
                 parse_byte_range(invalid, 1_000)
 
     def test_legacy_accession_url_redirects_to_genome_search(self) -> None:
-        page = (REPO_ROOT / "site/accession-range-demo.html").read_text(encoding="utf-8")
-        genomes = (REPO_ROOT / "site/sources.html").read_text(encoding="utf-8")
-        script = (REPO_ROOT / "site/assets/site.js").read_text(encoding="utf-8")
-        self.assertIn('sources.html', page)
-        self.assertIn('params.get("accession")', page)
-        self.assertIn('searchParams.set("search", value)', page)
-        self.assertIn('params.get("search") || params.get("accession")', script)
-        self.assertNotIn("data-accession-demo", page)
-        self.assertNotIn("accession-range-demo.js", page)
-        self.assertNotIn("Quick search", genomes)
-        self.assertNotIn("API pilot", genomes)
+        builder = (REPO_ROOT / "scripts/build_v0_4_site.py").read_text(encoding="utf-8")
+        script = (REPO_ROOT / "site/assets/genome-index.js").read_text(encoding="utf-8")
+        self.assertIn('site_root / "accession-range-demo.html"', builder)
+        self.assertIn('params.get("accession")', builder)
+        self.assertIn('searchParams.set("search",value)', builder)
+        self.assertIn('URLSearchParams', script)
+        self.assertNotIn("data-accession-demo", builder)
+        self.assertNotIn("accession-range-demo.js", builder)
 
 
 if __name__ == "__main__":

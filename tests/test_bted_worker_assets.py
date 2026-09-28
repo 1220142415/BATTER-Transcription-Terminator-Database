@@ -33,17 +33,17 @@ const moduleUrl = "data:text/javascript;base64," + Buffer.from(source).toString(
 const {{ worker }} = await import(moduleUrl);
 
 const release = {{
-  release_version: "v0.3.0",
+  release_version: "v0.4.0",
   status: "preview",
-  canonical_manifest_path: "data/public/v0.3.0/release.json",
+  canonical_manifest_path: "data/public/v0.4.0/release.json",
   canonical_manifest_sha256: "a".repeat(64),
   asset_origin_status: "verified",
   materializer_version: "test",
   is_current: 1,
 }};
 const asset = {{
-  asset_key: "v0.3.0--assembly-GCF_000009045.1--fai",
-  release_version: "v0.3.0",
+  asset_key: "v0.4.0--assembly-GCF_000009045.1--fai",
+  release_version: "v0.4.0",
   assembly_accession: "GCF_000009045.1",
   source_id: null,
   asset_kind: "fai",
@@ -63,7 +63,7 @@ const browserAssembly = {{
 }};
 const browserTracks = [{{
   track_id: "track-BATTER_S1_003",
-  release_version: "v0.3.0",
+  release_version: "v0.4.0",
   source_id: "BATTER_S1_003",
   assembly_accession: "GCF_000009045.1",
   assay: "Term-seq",
@@ -73,19 +73,38 @@ const browserTracks = [{{
   pmid: "12345678",
   doi: "10.1000/test",
   is_public: 1,
-  asset_key: null,
+  asset_key: "v0.4.0--study-GCF_000009045.1-PMID_12345678",
 }}];
 const browserSource = {{
   source_id: "BATTER_S1_003",
-  release_version: "v0.3.0",
+  release_version: "v0.4.0",
   release_status: "published_standardized",
   evidence_class: "author_called_endpoint",
   record_count: 1070,
   has_jbrowse: 1,
+  record_root: "genomes/GCF_000009045.1/studies/PMID_12345678/endpoints.gff3.gz",
+}};
+const studyGff = {{
+  asset_key: "v0.4.0--study-GCF_000009045.1-PMID_12345678",
+  release_version: "v0.4.0",
+  assembly_accession: "GCF_000009045.1",
+  source_id: null,
+  asset_kind: "gff3",
+  logical_path: browserSource.record_root,
+  origin_host: "huggingface.co",
+  content_type: "application/gzip",
+  byte_size: 100,
+  sha256: "c".repeat(64),
+  supports_range: 1,
+  redistribution_status: "verified_redistributable",
+  is_public: 1,
 }};
 const browserAssets = [
-  {{ ...asset, asset_key: "v0.3.0--assembly-GCF_000009045.1--fasta", asset_kind: "fasta", logical_path: "assemblies/GCF_000009045.1/reference/reference.fna" }},
-  {{ ...asset, asset_key: "v0.3.0--assembly-GCF_000009045.1--fai", asset_kind: "fai", logical_path: "assemblies/GCF_000009045.1/reference/reference.fna.fai" }},
+  {{ ...asset, asset_key: "v0.3.0--assembly-GCF_000009045.1--fasta", asset_kind: "fasta", logical_path: "assemblies/GCF_000009045.1/reference/reference.fna", byte_size: 200, sha256: "d".repeat(64) }},
+  asset,
+  {{ ...asset, asset_key: "v0.3.0--assembly-GCF_000009045.1--gff3", asset_kind: "gff3", logical_path: "assemblies/GCF_000009045.1/reference/genes.gff3.gz", byte_size: 300, sha256: "e".repeat(64) }},
+  {{ ...asset, asset_key: "v0.3.0--assembly-GCF_000009045.1--tbi", asset_kind: "tbi", logical_path: "assemblies/GCF_000009045.1/reference/genes.gff3.gz.tbi", byte_size: 400, sha256: "f".repeat(64) }},
+  studyGff,
 ];
 const db = {{
   prepare(sql) {{
@@ -96,11 +115,11 @@ const db = {{
     if (sql.startsWith("SELECT contig_accession, length_bp")) return {{ bind() {{ return {{ first: async () => ({{ contig_accession: "NC_000964.3", length_bp: 4215606 }}) }}; }} }};
     if (sql.startsWith("SELECT reference_name, biological_coordinate_1based")) return {{ bind() {{ return {{ first: async () => ({{ reference_name: "NC_000964.3", biological_coordinate_1based: 19000 }}) }}; }} }};
     if (sql.includes("FROM assets")) return {{ bind(...params) {{ return {{ first: async () => params[0] === asset.asset_key && params[1] === asset.release_version ? asset : null, all: async () => ({{ results: params[1] === browserAssembly.accession ? browserAssets : [] }}) }}; }} }};
-    if (sql.includes("SELECT release_status")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ release_status: "published_standardized", total: 21 }}, {{ release_status: "audit_only", total: 1 }}] }}) }}; }} }};
-    if (sql.includes("SELECT evidence_class")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ evidence_class: "author_reported", total: 28399 }}] }}) }}; }} }};
-    if (sql.includes("FROM endpoints WHERE")) return {{ bind() {{ return {{ first: async () => ({{ total: 28399 }}) }}; }} }};
-    if (sql.includes("FROM assemblies WHERE")) return {{ bind() {{ return {{ first: async () => ({{ total: 20 }}) }}; }} }};
-    if (sql.includes("FROM sources WHERE")) return {{ bind() {{ return {{ first: async () => ({{ total: 19 }}) }}; }} }};
+    if (sql.includes("SELECT release_status")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ release_status: "published_standardized", total: 24 }}, {{ release_status: "audit_only", total: 1 }}] }}) }}; }} }};
+    if (sql.includes("SELECT evidence_class")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ evidence_class: "author_called_endpoint", total: 1061 }}, {{ evidence_class: "author_reported", total: 28399 }}] }}) }}; }} }};
+    if (sql.includes("FROM endpoints WHERE")) return {{ bind() {{ return {{ first: async () => ({{ total: 29460 }}) }}; }} }};
+    if (sql.includes("FROM assemblies WHERE")) return {{ bind() {{ return {{ first: async () => ({{ total: 21 }}) }}; }} }};
+    if (sql.includes("FROM sources WHERE")) return {{ bind() {{ return {{ first: async () => ({{ total: 24 }}) }}; }} }};
     throw new Error(`Unexpected query: ${{sql}}`);
   }},
 }};
@@ -109,9 +128,15 @@ let fetchedUrl = null;
 const fetchMode = {fetch_mode_js};
 const dataReleaseManifestMode = {data_release_manifest_mode_js};
 const dataReleaseManifest = {{
-  releaseVersion: "v0.3.0",
-  baseUrl: "https://huggingface.co/datasets/liurulong/terminator/resolve/0123456789abcdef0123456789abcdef01234567/v0.3.0",
-  revision: "0123456789abcdef0123456789abcdef01234567",
+  releaseVersion: "v0.4.0",
+  assets: {{
+    "assemblies/GCF_000009045.1/reference/reference.fna": {{ url: "https://huggingface.co/datasets/liurulong/terminator/resolve/0123456789abcdef0123456789abcdef01234567/v0.3.0/assemblies/GCF_000009045.1/reference/reference.fna", revision: "0123456789abcdef0123456789abcdef01234567", asset_kind: "fasta", byte_size: 200, sha256: "d".repeat(64) }},
+    "assemblies/GCF_000009045.1/reference/reference.fna.fai": {{ url: "https://huggingface.co/datasets/liurulong/terminator/resolve/0123456789abcdef0123456789abcdef01234567/v0.3.0/assemblies/GCF_000009045.1/reference/reference.fna.fai", revision: "0123456789abcdef0123456789abcdef01234567", asset_kind: "fai", byte_size: 29, sha256: "b".repeat(64) }},
+    "assemblies/GCF_000009045.1/reference/genes.gff3.gz": {{ url: "https://huggingface.co/datasets/liurulong/terminator/resolve/0123456789abcdef0123456789abcdef01234567/v0.3.0/assemblies/GCF_000009045.1/reference/genes.gff3.gz", revision: "0123456789abcdef0123456789abcdef01234567", asset_kind: "gff3", byte_size: 300, sha256: "e".repeat(64) }},
+    "assemblies/GCF_000009045.1/reference/genes.gff3.gz.tbi": {{ url: "https://huggingface.co/datasets/liurulong/terminator/resolve/0123456789abcdef0123456789abcdef01234567/v0.3.0/assemblies/GCF_000009045.1/reference/genes.gff3.gz.tbi", revision: "0123456789abcdef0123456789abcdef01234567", asset_kind: "tbi", byte_size: 400, sha256: "f".repeat(64) }},
+    "genomes/GCF_000009045.1/studies/PMID_12345678/endpoints.gff3.gz": {{ url: "https://huggingface.co/datasets/liurulong/terminator/resolve/abcdefabcdefabcdefabcdefabcdefabcdefabcd/v0.4.0/genomes/GCF_000009045.1/studies/PMID_12345678/endpoints.gff3.gz", revision: "abcdefabcdefabcdefabcdefabcdefabcdefabcd", asset_kind: "gff3", byte_size: 100, sha256: "c".repeat(64) }},
+    "genomes/GCF_000009045.1/metadata.tsv": {{ url: "https://huggingface.co/datasets/liurulong/terminator/resolve/abcdefabcdefabcdefabcdefabcdefabcdefabcd/v0.4.0/genomes/GCF_000009045.1/metadata.tsv", revision: "abcdefabcdefabcdefabcdefabcdefabcdefabcd", asset_kind: "metadata", byte_size: 50, sha256: "a".repeat(64) }},
+  }},
 }};
 globalThis.fetch = async (url) => {{
   fetchedUrl = String(url);
@@ -126,7 +151,7 @@ const env = {{
     async fetch(request) {{
       if (new URL(request.url).pathname !== "/assets/data-release.json") return new Response("missing", {{ status: 404 }});
       if (dataReleaseManifestMode === "missing") return new Response("missing", {{ status: 404 }});
-      if (dataReleaseManifestMode === "malformed") return new Response(JSON.stringify({{ ...dataReleaseManifest, baseUrl: "https://huggingface.co/datasets/liurulong/terminator/resolve/main/v0.3.0" }}), {{ status: 200 }});
+      if (dataReleaseManifestMode === "malformed") return new Response(JSON.stringify({{ ...dataReleaseManifest, assets: {{ ...dataReleaseManifest.assets, "assemblies/GCF_000009045.1/reference/reference.fna.fai": {{ ...dataReleaseManifest.assets["assemblies/GCF_000009045.1/reference/reference.fna.fai"], url: "https://huggingface.co/datasets/liurulong/terminator/resolve/main/v0.3.0/assemblies/GCF_000009045.1/reference/reference.fna.fai" }} }} }}), {{ status: 200 }});
       return new Response(JSON.stringify(dataReleaseManifest), {{ status: 200, headers: {{ "content-type": "application/json" }} }});
     }}
   }},
@@ -198,7 +223,7 @@ process.stdout.write(JSON.stringify({{
             payload["body"],
             {
                 "error": "asset_origin_unavailable",
-                "asset_key": "v0.3.0--assembly-GCF_000009045.1--fai",
+                "asset_key": "v0.4.0--assembly-GCF_000009045.1--fai",
             },
         )
         self.assertEqual(payload["cacheControl"], "no-store")
@@ -207,7 +232,7 @@ process.stdout.write(JSON.stringify({{
         health = self.run_worker(request_path="/api/health")
         self.assertEqual(health["status"], 200)
         self.assertEqual(health["body"]["status"], "ok")
-        self.assertEqual(health["body"]["release"]["release_version"], "v0.3.0")
+        self.assertEqual(health["body"]["release"]["release_version"], "v0.4.0")
         self.assertIsNone(health["fetchedUrl"])
 
         retired = self.run_worker(request_path="/api/v1/health")
@@ -219,7 +244,7 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(retired["body"], {
             "error": "release_version_retired",
             "release_version": "v0.2.0",
-            "current_release_version": "v0.3.0",
+            "current_release_version": "v0.4.0",
             "archive_path": "data/archive/BTED-v0.2.0.tar.gz",
         })
         self.assertIsNone(retired["fetchedUrl"])
@@ -237,33 +262,36 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(old_asset["body"]["error"], "unknown_or_private_asset")
         self.assertIsNone(old_asset["fetchedUrl"])
 
-    def test_jbrowse_config_uses_v03_gff3_download_without_d1_asset_key(self):
+    def test_jbrowse_config_uses_v04_genome_study_gff3_and_v03_reference_assets(self):
         payload = self.run_worker(
             request_url="https://preview.example.test",
             request_path="/api/assemblies/GCF_000009045.1/jbrowse-config",
         )
         self.assertEqual(payload["status"], 200)
         config = payload["body"]
-        self.assertEqual(config["metadata"]["release_version"], "v0.3.0")
-        endpoint_track = next(track for track in config["tracks"] if track["trackId"] == "track-BATTER_S1_003")
-        expected_gff3 = "https://huggingface.co/datasets/liurulong/terminator/resolve/0123456789abcdef0123456789abcdef01234567/v0.3.0/records/BATTER_S1_003/endpoints.gff3"
+        self.assertEqual(config["metadata"]["release_version"], "v0.4.0")
+        endpoint_track = next(track for track in config["tracks"] if track["trackId"].startswith("source_"))
+        expected_gff3 = "https://huggingface.co/datasets/liurulong/terminator/resolve/abcdefabcdefabcdefabcdefabcdefabcdefabcd/v0.4.0/genomes/GCF_000009045.1/studies/PMID_12345678/endpoints.gff3.gz"
         self.assertEqual(endpoint_track["adapter"]["type"], "Gff3Adapter")
         self.assertEqual(endpoint_track["adapter"]["gffLocation"]["uri"], expected_gff3)
         self.assertEqual(endpoint_track["metadata"]["GFF3_download"], expected_gff3)
+        self.assertEqual(endpoint_track["metadata"]["source_ids"], ["BATTER_S1_003"])
         self.assertNotIn("BED_download", endpoint_track["metadata"])
         self.assertIsNone(payload["fetchedUrl"])
+        reference_track = next(track for track in config["tracks"] if track["trackId"].endswith("_genes"))
+        self.assertEqual(reference_track["adapter"]["gffGzLocation"]["uri"], "https://preview.example.test/api/assets/v0.3.0--assembly-GCF_000009045.1--gff3")
 
     def test_stats_keeps_release_and_source_status_counts(self):
         payload = self.run_worker(request_path="/api/stats")
         self.assertEqual(payload["status"], 200)
-        self.assertEqual(payload["body"]["release"]["release_version"], "v0.3.0")
+        self.assertEqual(payload["body"]["release"]["release_version"], "v0.4.0")
         self.assertEqual(payload["body"]["sources"], {
-            "total": 22,
-            "published_standardized": 21,
+            "total": 25,
+            "published_standardized": 24,
             "audit_only": 1,
         })
-        self.assertEqual(payload["body"]["endpoints"]["total"], 28399)
-        self.assertEqual(payload["body"]["assemblies"]["total"], 20)
+        self.assertEqual(payload["body"]["endpoints"]["total"], 29460)
+        self.assertEqual(payload["body"]["assemblies"]["total"], 21)
         self.assertNotIn("augmentation", payload["body"])
 
     def test_augmentation_api_route_is_removed(self):

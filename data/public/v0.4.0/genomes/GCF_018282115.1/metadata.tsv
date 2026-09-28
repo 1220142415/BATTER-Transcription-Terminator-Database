@@ -1,0 +1,2 @@
+source_id	pmid	species	assembly	title	assay	record_count	evidence_class	release_status	article_license	redistribution_status	raw_data_accessions	known_limitations	study_gff3	gene_associations	condition_observations
+BATTER_S1_018	34054774	Synechocystis sp. PCC 7338	GCF_018282115.1	Multi-Omic Analyses of Synechocystis sp. PCC 7338	Term-seq / dRNA-seq	487	author_called_endpoint	published_standardized	CC BY	verified_redistributable	PRJNA629670	Supplementary Data S2 imported: 487 TEPs across CP054306.1 chromosome and three plasmids.	studies/PMID_34054774/endpoints.gff3.gz		

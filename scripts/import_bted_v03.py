@@ -37,6 +37,7 @@ from bted_pipeline import (  # noqa: E402
 from bted_pipeline.materialize import TABLE_ORDER, _atomic_write_bundle  # noqa: E402
 from scripts.v03_legacy_inputs import legacy_inputs, workspace_scratch  # noqa: E402
 from scripts.v03_tables import iter_endpoints  # noqa: E402
+from scripts.bted_v04_d1 import materialize_v04_d1  # noqa: E402
 
 
 V03_RELEASE = "data/public/v0.3.0"
@@ -318,11 +319,74 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="B1 materialization bundle directory",
     )
+    materialize_v04 = subparsers.add_parser(
+        "materialize-v04",
+        help="从 v0.4.0 genome GFF3 与内部来源清单生成 D1 staging bundle",
+    )
+    materialize_v04.add_argument(
+        "--release-root", default="data/public/v0.4.0",
+        help="canonical v0.4.0 release directory",
+    )
+    materialize_v04.add_argument(
+        "--source-provenance", default="data/registry/internal/v0.4.0/source_provenance.json",
+        help="internal source defaults and annotation maps with SHA256SUMS.txt",
+    )
+    materialize_v04.add_argument(
+        "--asset-manifest", default="data/registry/browser_assets.v0.4.0.tsv",
+        help="single allowlist for fixed HF assets, sizes and SHA-256 values",
+    )
+    materialize_v04.add_argument(
+        "--contig-registry", default=None,
+        help="additional verified contigs TSV (defaults to data/registry/browser_refs/contigs.tsv)",
+    )
+    materialize_v04.add_argument(
+        "--output-dir", required=True,
+        help="new or empty directory for the v0.4.0 D1 staging bundle",
+    )
+    materialize_v04.add_argument(
+        "--origin-verified", action="store_true",
+        help="assert after independent remote checks that every fixed asset passed size/SHA and required Range checks",
+    )
+    materialize_v04.add_argument(
+        "--generated-at-utc", default=None,
+        help="fixed ISO-8601 timestamp for reproducible output",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "materialize-v04":
+        try:
+            manifest = materialize_v04_d1(
+                release_root=args.release_root,
+                source_provenance_path=args.source_provenance,
+                asset_manifest_path=args.asset_manifest,
+                output_dir=args.output_dir,
+                repo_root=REPO_ROOT,
+                contig_registry_path=args.contig_registry,
+                origin_verified=args.origin_verified,
+                generated_at_utc=args.generated_at_utc,
+            )
+            verification = verify_bundle(args.output_dir)
+            json.dump(
+                {
+                    "ok": True,
+                    "output_dir": str(Path(args.output_dir).expanduser().resolve()),
+                    "release_version": verification.release_version,
+                    "table_counts": verification.table_counts,
+                    "asset_origin_status": manifest["asset_origin"]["asset_origin_status"],
+                },
+                sys.stdout,
+                ensure_ascii=False,
+                indent=2,
+            )
+            sys.stdout.write("\n")
+            return 0
+        except (ValueError, OSError, MaterializationError, BundleVerificationError) as exc:
+            json.dump({"ok": False, "error": str(exc)}, sys.stderr, ensure_ascii=False)
+            sys.stderr.write("\n")
+            return 1
     if args.command in {"validate", "materialize"} and _is_v03_release(args.release_root):
         repo_root = _v03_repo_root(args.release_root, args.repo_root)
         try:

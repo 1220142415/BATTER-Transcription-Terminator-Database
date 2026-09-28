@@ -1,2 +1,0 @@
-source_id	species	assembly	pmid	title	assay	record_count	evidence_class	release_status	article_license	redistribution_status	raw_data_accessions	known_limitations
-BATTER_S1_019	Synechocystis sp. PCC 6803	GCF_000009725.1	34874777	Regulatory Modes of Synechocystis sp. PCC 6803	Term-seq / dRNA-seq	784	author_called_endpoint	published_standardized	CC BY	verified_redistributable	PRJNA666973	Table S5 imported: 784 manually curated Term-seq TEPs on NC_000911.1.

@@ -1,31 +1,25 @@
 # BTED
 
-BTED 收集公开研究报告的细菌转录本 3′ 端位置。记录保留论文来源、样本、参考序列和原表行号，方便查回原始依据。这些位置有实验数据支持，但并非每个位点都做过单独的转录终止功能实验。
+BTED 整理公开论文中的细菌转录本 3′ 端位置。每条记录保留研究来源、参考序列和原表线索，方便回查。3′ 端位置不等于已经单独验证功能的转录终止子。
 
-🌐 [打开 BTED 网站](https://seu-yolo.github.io/BATTER-Transcription-Terminator-Database/)
+仓库当前发布数据为 **v0.4.0**：14 篇论文、25 份来源登记（其中 1 份只供核查）、21 个参考组装和 29,460 条端点记录。新版按基因组存放 GFF3 和可读的 `metadata.tsv`。Cascino 论文新增的 1,061 条明确端点与旧版 28,399 条记录分开核对过；尚待审核的候选位置没有混入。
 
-当前数据版本是 **v0.3.0**：13 篇论文、22 份来源数据、28,399 条 3′ 端位置记录。规范发布文件按 PMID 分目录；每个研究目录包含 `endpoints.gff3.gz`、方便阅读的 `metadata.tsv` 和保存完整来源对象的 `metadata.json`。研究专属关系 TSV 也放在对应目录。网站按来源或参考组装生成的文件只用于 JBrowse 和兼容下载。本次只改了文件格式，没有改变生物学记录或证据判断。
-
-## 从哪里开始
-
-| 要做什么 | 阅读 |
+| 想了解什么 | 从这里开始 |
 |---|---|
-| 了解 v0.3.0 数据格式、下载和校验 | [v0.3.0 发布说明](docs/releases/v0.3.0.md) |
-| 查论文与来源的关键判断 | [来源说明](docs/SOURCES.md) |
-| 本地组装 Pages、Worker 或 JBrowse | [部署手册](docs/v0.3/deployment.md) |
-| 接入或修订来源 | [贡献指南](CONTRIBUTING.md) |
+| 发布了哪些文件、怎样读和校验 | [v0.4.0 发布说明](docs/releases/v0.4.0.md) |
+| 每篇论文和来源的关键判断 | [来源说明](docs/SOURCES.md) |
+| 本地组装 Pages、Worker 与 JBrowse | [运行手册](docs/deployment.md) |
+| 添加或修订来源 | [贡献指南](CONTRIBUTING.md) |
 
-发布文件在 [`data/public/v0.3.0/`](data/public/v0.3.0/)；每篇论文对应 `studies/PMID_<pmid>/`。版本目录根部只保留研究文件夹、`release.json` 和 `SHA256SUMS.txt`。完整的 v0.2.0 旧文件保存在 [`data/archive/`](data/archive/)；解压后仍使用原来的 `data/public/v0.2.0/` 路径。`site/` 保存网页源文件；按来源或参考基因组拆分的页面和 JBrowse 兼容文件在组装网站时生成。
+正式文件位于 [`data/public/v0.4.0/`](data/public/v0.4.0/)；内部来源判断与旧版可校验归档分别位于 `data/registry/` 和 [`data/archive/`](data/archive/)。网页由构建脚本生成，`site/` 只保存样式和交互脚本。
 
-## 本地检查
-
-在仓库根目录运行：
+本地检查：
 
 ```bash
-python3 scripts/validate_bted_v0_3.py
-python3 scripts/validate_repo_layout.py
-python3 scripts/check_markdown_links.py
-python3 -m unittest discover -s tests -p 'test*.py' -q
+python scripts/validate_bted_v0_4.py
+python scripts/validate_repo_layout.py
+python scripts/check_markdown_links.py
+python -m unittest discover -s tests -p 'test*.py' -q
 ```
 
-Pages 和 Worker 组装、API 检查及本地预览方式见[部署手册](docs/v0.3/deployment.md)。
+[现有线上网站](https://seu-yolo.github.io/BATTER-Transcription-Terminator-Database/)尚未部署本分支的 v0.4.0 改动。

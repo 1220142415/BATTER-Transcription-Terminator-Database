@@ -75,23 +75,23 @@ class SiteFormatValidationTests(unittest.TestCase):
     def test_assembly_zip_allows_only_gff3_and_metadata(self) -> None:
         self.assertEqual(
             validate_site.check_assembly_zip_members(
-                ["endpoints.gff3", "metadata.json"], "assembly.zip"
+                ["GCF_000012525.1/studies/PMID_42148773/endpoints.gff3.gz", "GCF_000012525.1/metadata.tsv"], "assembly.zip"
             ),
             [],
         )
 
     def test_metadata_only_assembly_zip_is_allowed(self) -> None:
         self.assertEqual(
-            validate_site.check_assembly_zip_members(["metadata.json"]), []
+            validate_site.check_assembly_zip_members(["GCF_000005845.2/metadata.tsv"]), []
         )
 
     def test_assembly_zip_rejects_bed_and_other_exports(self) -> None:
         issues = validate_site.check_assembly_zip_members(
-            ["endpoints.bed", "endpoints.tsv", "metadata.json"], "assembly.zip"
+            ["endpoints.bed", "endpoints.tsv", "metadata.tsv", "metadata.json"], "assembly.zip"
         )
         self.assertEqual(len(issues), 1)
         self.assertIn("endpoints.bed", issues[0])
-        self.assertIn("endpoints.tsv", issues[0])
+        self.assertIn("metadata.json", issues[0])
 
 
 if __name__ == "__main__":

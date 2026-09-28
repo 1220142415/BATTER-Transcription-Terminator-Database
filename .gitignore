@@ -2,6 +2,7 @@
 *.xlsx
 *.pdf
 *.zip
+!data/registry/browser_refs/GCF_000012525.1.ncbi.zip
 文献X-BATTER/
 my_document_check.txt
 pmid_records.xml

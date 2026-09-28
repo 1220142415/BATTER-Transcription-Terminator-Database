@@ -1,4 +1,4 @@
-"""Exercise the browser's assembly ZIP code and inspect the resulting archive."""
+"""Exercise the current genome-page ZIP builder with readable release files."""
 
 from __future__ import annotations
 
@@ -13,82 +13,69 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-NODE_HARNESS = r"""
+HARNESS = r"""
 const fs = require('fs');
 const vm = require('vm');
-const releaseBase = 'https://huggingface.co/datasets/liurulong/terminator/resolve/0123456789abcdef0123456789abcdef01234567/v0.3.0';
-const fixtures = {
-  'assets/data-release.json': JSON.stringify({baseUrl: releaseBase}),
-  [`${releaseBase}/assemblies/A/metadata.json`]: JSON.stringify({record_count: 1}),
-  [`${releaseBase}/assemblies/A/endpoints.gff3`]: '##gff-version 3\ncontig\tBTED\tendpoint\t1\t1\t.\t+\t.\tID=E1;source_id=S1\n',
-  [`${releaseBase}/assemblies/B/metadata.json`]: JSON.stringify({record_count: 0}),
+const files = {
+  'https://bted.example/v0.4.0/genomes/GCF_TEST/metadata.tsv': 'source_id\tpmid\nS1\t123\n',
+  'https://bted.example/v0.4.0/genomes/GCF_TEST/studies/PMID_123/endpoints.gff3.gz': 'GFF3-bytes',
 };
-const choices = ['A', 'B'].map(value => ({
-  value, checked: true, dataset: {records: value === 'A' ? '1' : '0'},
-  addEventListener() {},
+let clickHandler, archiveBlob, downloadName;
+const links = Object.keys(files).map((href, index) => ({
+  href,
+  dataset: {zipPath: index ? 'GCF_TEST/studies/PMID_123/endpoints.gff3.gz' : 'GCF_TEST/metadata.tsv'},
 }));
-let clickHandler, zipBlob, downloadName;
-const button = {disabled: false, addEventListener(event, fn) {
-  if (event === 'click') clickHandler = fn;
+const button = {disabled: false, addEventListener(event, fn) {if (event === 'click') clickHandler = fn;}};
+const status = {textContent: ''};
+const frame = {dataset: {config: 'assemblies/GCF_TEST.config.json'}, src: ''};
+const select = {value: '', addEventListener() {}};
+const root = {dataset: {assembly: 'GCF_TEST'}, querySelectorAll(selector) {
+  return selector === '[data-package-file][data-zip-path]' ? links : [];
 }};
-const fields = {
-  '[data-selected-count]': {textContent: ''},
-  '[data-selected-records]': {textContent: ''},
-  '[data-download-status]': {textContent: ''},
-  '[data-download-selected]': button,
+global.window = {location: {search: '', href: 'https://bted.example/genomes/GCF_TEST.html'},
+  addEventListener() {}, history: {replaceState() {}}, setTimeout(fn) {fn();}};
+global.document = {baseURI: 'https://bted.example/genomes/GCF_TEST.html', body: {append() {}},
+  querySelector(selector) {
+    return {'[data-genome-page]': root, '[data-browser-frame]': frame,
+      '[data-source-select]': select, '[data-download-genome-package]': button,
+      '[data-package-status]': status}[selector] || null;
+  },
+  querySelectorAll() {return [];},
+  createElement() {return {click() {downloadName = this.download;}, remove() {}};},
 };
-global.document = {
-  baseURI: 'https://bted.example/sources.html',
-  querySelectorAll(selector) { return selector === '[data-download-choice]' ? choices : []; },
-  querySelector(selector) { return fields[selector] || null; },
-  createElement() { return {click() { downloadName = this.download; }, remove() {}}; },
-  body: {appendChild() {}},
+global.fetch = async href => {
+  if (!(href in files)) return {ok: false, status: 404};
+  const value = Buffer.from(files[href]);
+  return {ok: true, arrayBuffer: async () => value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength)};
 };
-global.fetch = async url => {
-  url = String(url);
-  if (!(url in fixtures)) return {ok: false, status: 404};
-  const body = fixtures[url];
-  const data = Buffer.from(body, 'utf8');
-  return {ok: true, json: async () => JSON.parse(body), arrayBuffer: async () => data.buffer.slice(
-    data.byteOffset, data.byteOffset + data.byteLength,
-  )};
-};
-URL.createObjectURL = blob => { zipBlob = blob; return 'blob:test'; };
+URL.createObjectURL = blob => {archiveBlob = blob; return 'blob:test';};
 URL.revokeObjectURL = () => {};
 vm.runInThisContext(fs.readFileSync(process.argv[1], 'utf8'));
 (async () => {
   await clickHandler();
-  if (!zipBlob) throw new Error(fields['[data-download-status]'].textContent);
-  process.stdout.write(JSON.stringify({
-    archive: Buffer.from(await zipBlob.arrayBuffer()).toString('base64'),
-    filename: downloadName,
-    status: fields['[data-download-status]'].textContent,
-  }));
-})().catch(error => { console.error(error); process.exitCode = 1; });
+  if (!archiveBlob) throw new Error(status.textContent);
+  process.stdout.write(JSON.stringify({archive: Buffer.from(await archiveBlob.arrayBuffer()).toString('base64'), filename: downloadName, status: status.textContent}));
+})().catch(error => {console.error(error); process.exitCode = 1;});
 """
 
 
-class CatalogueZipTests(unittest.TestCase):
-    def test_archive_contains_gff3_and_metadata_only_when_records_exist(self) -> None:
+class GenomeZipTests(unittest.TestCase):
+    def test_genome_zip_contains_only_gff3_and_readable_metadata(self) -> None:
         result = subprocess.run(
-            ["node", "-e", NODE_HARNESS, str(ROOT / "site/assets/site.js")],
+            ["node", "-e", HARNESS, str(ROOT / "site/assets/genome-page.js")],
             cwd=ROOT, capture_output=True, text=True, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         outcome = json.loads(result.stdout)
-        self.assertEqual(outcome["filename"], "BTED-v0.3.0-2-assemblies.zip")
-        self.assertEqual(outcome["status"], "Packaged 2 genome assemblies.")
+        self.assertEqual(outcome["filename"], "BTED-v0.4.0-GCF_TEST.zip")
+        self.assertIn("2 GFF3 and TSV files", outcome["status"])
         with zipfile.ZipFile(io.BytesIO(base64.b64decode(outcome["archive"]))) as archive:
-            self.assertIsNone(archive.testzip())
-            self.assertEqual(sorted(archive.namelist()), [
-                "A/endpoints.gff3", "A/metadata.json", "B/metadata.json",
+            self.assertEqual(archive.namelist(), [
+                "GCF_TEST/metadata.tsv",
+                "GCF_TEST/studies/PMID_123/endpoints.gff3.gz",
             ])
-            self.assertEqual(
-                archive.read("A/endpoints.gff3"),
-                b"##gff-version 3\ncontig\tBTED\tendpoint\t1\t1\t.\t+\t.\tID=E1;source_id=S1\n",
-            )
-            self.assertFalse(any(name.lower().endswith((".csv", ".tsv", ".bed")) for name in archive.namelist()))
-            self.assertEqual(json.loads(archive.read("B/metadata.json"))["record_count"], 0)
+            self.assertEqual(archive.read("GCF_TEST/metadata.tsv"), b"source_id\tpmid\nS1\t123\n")
+            self.assertFalse(any(name.endswith((".json", ".bed", ".csv")) for name in archive.namelist()))
 
 
 if __name__ == "__main__":

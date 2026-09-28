@@ -26,30 +26,42 @@ jobs:
     env:
       RELEASE_TAG: ${{ github.event.inputs.release_tag || 'preview-v0.2.0' }}
       GH_TOKEN: ${{ github.token }}
-      HF_DATA_BASE_URL: https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0
+      HF_V04_DATA_BASE_URL: https://huggingface.co/datasets/liurulong/terminator/resolve/eea5b7225975b224a1c837f60c4fa10497fef022/v0.4.0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Validate v0.3.0 release and repository layout
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate v0.4.0 release and repository layout
         run: |
-          python3 scripts/validate_bted_v0_3.py
+          python3 scripts/validate_bted_v0_4.py
           python3 scripts/validate_repo_layout.py
           python3 scripts/check_markdown_links.py
+          python3 -m unittest discover -s tests -p 'test*.py' -q
+          node --check prototype/accession-range/src/worker.js
+          node --check site/assets/genome-index.js
+          node --check site/assets/genome-page.js
+          python3 scripts/prepare_v04_reference.py --output-root dist/v04-browser-objects
+          python3 scripts/build_v0_4_site.py --output-root dist/v04-browser-objects
+          python3 scripts/build_v04_asset_manifest.py --revision eea5b7225975b224a1c837f60c4fa10497fef022 --output "$RUNNER_TEMP/browser_assets.tsv"
+          cmp data/registry/browser_assets.v0.4.0.tsv "$RUNNER_TEMP/browser_assets.tsv"
       - name: Download versioned JBrowse asset
         run: |
           gh release download "$RELEASE_TAG" \
+            --repo seu-yolo/BATTER-Transcription-Terminator-Database \
             --pattern "BTED-v0.2.0-jbrowse-assets.tar.gz" \
             --pattern "BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" \
             --dir "$RUNNER_TEMP"
       - name: Stage Pages artifact
         run: |
           python3 scripts/stage_site.py \
-            --mode pages \
+            --data-version v0.4.0 --mode pages \
             --release-archive "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" \
             --release-sha256-file "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" \
-            --hf-data-base-url "$HF_DATA_BASE_URL" \
+            --hf-v04-data-base-url "$HF_V04_DATA_BASE_URL" \
             --output-dir _site
           python3 scripts/validate-site.py _site
       - uses: actions/configure-pages@v5

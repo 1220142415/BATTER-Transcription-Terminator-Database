@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import re
@@ -18,6 +19,8 @@ from urllib.parse import quote, urlsplit
 
 from build_assembly_downloads import RELEASE_VERSION, build as build_assembly_downloads, load_sources
 from build_v0_3_site import build_site as build_v03_site
+import build_v0_4_site as v04_site
+from build_v0_4_site import SiteBuildError, build_site as build_v04_site, materialize_browser_tracks, read_release as read_v04_release
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -30,6 +33,13 @@ SHA_LINE = re.compile(r"^([0-9a-fA-F]{64})(?:\s+\*?(.+))?$")
 HF_DATA_BASE_PATTERN = re.compile(
     r"^https://huggingface\.co/datasets/liurulong/terminator/resolve/([0-9a-f]{40})/v0\.3\.0$"
 )
+HF_V04_DATA_BASE_PATTERN = re.compile(
+    r"^https://huggingface\.co/datasets/liurulong/terminator/resolve/([0-9a-f]{40})/v0\.4\.0$"
+)
+HF_DATASET_ROOT = "https://huggingface.co/datasets/liurulong/terminator/resolve"
+V03_SHARED_REVISION = "90651318aedf5a5ca26b8308070927d36fd3d6c9"
+V03_SHARED_BASE_URL = f"{HF_DATASET_ROOT}/{V03_SHARED_REVISION}/v0.3.0"
+V04_BROWSER_ASSET_FIELDS = ("logical_path", "url", "byte_size", "sha256", "revision", "asset_kind")
 class StageError(RuntimeError):
     """Raised when a requested site artifact cannot be safely assembled."""
 
@@ -670,6 +680,808 @@ def copy_v03_download_tables(destination: Path) -> None:
             raise StageError(f"{study_dir.name}: study package is missing required files {missing}")
 
 
+def normalize_v04_data_base_url(value: str) -> tuple[str, str]:
+    """Require an immutable Hugging Face commit URL for a published v0.4.0 build."""
+    base = value.strip().rstrip("/")
+    match = HF_V04_DATA_BASE_PATTERN.fullmatch(base)
+    if not match:
+        raise StageError(
+            "v0.4.0 published assets must use https://huggingface.co/datasets/liurulong/terminator/"
+            "resolve/<40-character-commit>/v0.4.0"
+        )
+    return base, match.group(1)
+
+
+def _safe_logical_asset_path(raw: str) -> str:
+    normalized = raw.strip().replace("\\", "/")
+    path = PurePosixPath(normalized)
+    if not normalized or path.is_absolute() or ":" in normalized or ".." in path.parts:
+        raise StageError(f"Unsafe browser asset logical path: {raw!r}")
+    return path.as_posix()
+
+
+def _asset_url_revision(url: str) -> tuple[str, str, str] | None:
+    match = re.fullmatch(
+        r"https://huggingface\.co/datasets/liurulong/terminator/resolve/([0-9a-f]{40})/(v0\.3\.0|v0\.4\.0)/(.+)",
+        url,
+    )
+    if not match:
+        return None
+    return match.group(1), match.group(2), match.group(3)
+
+
+def _resolve_local_v04_asset(logical_path: str, release_root: Path, browser_objects_root: Path) -> Path:
+    candidates = (
+        release_root / Path(*PurePosixPath(logical_path).parts),
+        browser_objects_root / "v0.4.0" / Path(*PurePosixPath(logical_path).parts),
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    raise StageError(f"Local v0.4.0 browser asset is missing: {logical_path}")
+
+
+def load_v04_browser_assets(
+    manifest_path: Path,
+    release_root: Path,
+    browser_objects_root: Path,
+    hf_v04_data_base_url: str | None = None,
+) -> tuple[dict[str, dict[str, object]], str | None]:
+    """Load the canonical allowlist and verify its bytes, revisions and URLs."""
+    try:
+        with manifest_path.open("r", encoding="utf-8-sig", newline="") as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+            fields = reader.fieldnames or []
+            missing = sorted(set(V04_BROWSER_ASSET_FIELDS) - set(fields))
+            if missing:
+                raise StageError(f"Browser asset manifest is missing columns: {missing}")
+            rows = list(reader)
+    except OSError as exc:
+        raise StageError(f"Could not read browser asset manifest: {manifest_path}") from exc
+
+    _release, release_files = read_v04_release(release_root)
+    assets: dict[str, dict[str, object]] = {}
+    remote_v04_bases: set[str] = set()
+    versions_seen: set[str] = set()
+    for raw in rows:
+        logical_path = _safe_logical_asset_path(str(raw.get("logical_path", "")))
+        if logical_path in assets:
+            raise StageError(f"Duplicate browser asset logical path: {logical_path}")
+        url = str(raw.get("url", "")).strip()
+        sha256 = str(raw.get("sha256", "")).strip().lower()
+        asset_kind = str(raw.get("asset_kind", "")).strip()
+        revision = str(raw.get("revision", "")).strip()
+        try:
+            byte_size = int(str(raw.get("byte_size", "")))
+        except ValueError as exc:
+            raise StageError(f"Invalid byte_size for browser asset {logical_path}") from exc
+        if byte_size < 0 or not re.fullmatch(r"[0-9a-f]{64}", sha256) or not asset_kind:
+            raise StageError(f"Invalid size, checksum, or asset kind for {logical_path}")
+
+        remote = _asset_url_revision(url)
+        if remote:
+            remote_revision, version, remote_path = remote
+            if remote_path != logical_path or revision != remote_revision:
+                raise StageError(f"Browser asset URL/revision does not match its logical path: {logical_path}")
+            if version == "v0.3.0" and remote_revision != V03_SHARED_REVISION:
+                raise StageError(f"Shared v0.3.0 asset is not pinned to the approved commit: {logical_path}")
+            if version == "v0.4.0":
+                remote_v04_bases.add(f"{HF_DATASET_ROOT}/{remote_revision}/v0.4.0")
+            versions_seen.add(version)
+        else:
+            if not url.startswith("downloads/v0.4.0/") or url != f"downloads/v0.4.0/{logical_path}":
+                raise StageError(f"Browser asset URL is outside the local or pinned allowlist: {url!r}")
+            if revision not in {"", "local"}:
+                raise StageError(f"A local v0.4.0 asset must not claim a Hugging Face revision: {logical_path}")
+            versions_seen.add("local-v0.4.0")
+
+        if logical_path in release_files:
+            declared = release_files[logical_path]
+            if int(declared["byte_size"]) != byte_size or str(declared["sha256"]).lower() != sha256:
+                raise StageError(f"Browser allowlist differs from release.json for {logical_path}")
+            release_version = "v0.4.0"
+        else:
+            release_version = "v0.4.0" if remote and remote[1] == "v0.4.0" else "v0.3.0" if remote else "v0.4.0"
+
+        local_path: Path | None = None
+        if release_version == "v0.4.0":
+            try:
+                local_path = _resolve_local_v04_asset(logical_path, release_root, browser_objects_root)
+            except StageError:
+                # Remote-only builds still need reference indexes locally to
+                # create a usable initial JBrowse location. Other remote files
+                # are verified by their pinned manifest entry and API proxy.
+                if asset_kind in {"fasta", "fai", "gff3", "tbi"} and logical_path.startswith("browser/"):
+                    raise
+                if logical_path.startswith("tracks/"):
+                    raise
+                if url.startswith("downloads/v0.4.0/"):
+                    raise
+            if local_path is not None:
+                if local_path.stat().st_size != byte_size or sha256_file(local_path) != sha256:
+                    raise StageError(f"Local v0.4.0 asset checksum does not match allowlist: {logical_path}")
+        assets[logical_path] = {
+            "url": url,
+            "byte_size": byte_size,
+            "sha256": sha256,
+            "revision": revision,
+            "asset_kind": asset_kind,
+            "local_path": local_path,
+            "version": release_version,
+        }
+
+    missing_release = sorted(set(release_files) - set(assets))
+    if missing_release:
+        raise StageError(f"Browser allowlist omits public v0.4.0 release files: {missing_release[:5]}")
+    if len(remote_v04_bases) > 1:
+        raise StageError("v0.4.0 browser assets use more than one Hugging Face revision")
+    if "local-v0.4.0" in versions_seen and any(version == "v0.4.0" for version in versions_seen):
+        raise StageError("v0.4.0 browser allowlist mixes local and remote assets")
+
+    selected_base = next(iter(remote_v04_bases), None)
+    if hf_v04_data_base_url:
+        requested_base, requested_revision = normalize_v04_data_base_url(hf_v04_data_base_url)
+        if selected_base and selected_base != requested_base:
+            raise StageError("Browser asset manifest does not match --hf-v04-data-base-url")
+        if not selected_base and "local-v0.4.0" in versions_seen:
+            raise StageError("--hf-v04-data-base-url cannot be used with a local v0.4.0 allowlist")
+        if selected_base and not selected_base.endswith(f"/{requested_revision}/v0.4.0"):
+            raise StageError("v0.4.0 browser asset revision does not match the requested revision")
+        selected_base = requested_base
+    elif any(version == "v0.4.0" for version in versions_seen) and not selected_base:
+        raise StageError("Remote v0.4.0 assets do not identify one pinned Hugging Face revision")
+
+    # release.json and its checksum file are machine-readable verification
+    # resources. They are allowlisted for API integrity but never linked as
+    # user-facing downloads.
+    for filename in ("release.json", "SHA256SUMS.txt"):
+        path = release_root / filename
+        if path.is_file():
+            url = f"{selected_base}/{filename}" if selected_base else f"downloads/v0.4.0/{filename}"
+            assets[filename] = {
+                "url": url,
+                "byte_size": path.stat().st_size,
+                "sha256": sha256_file(path),
+                "revision": selected_base.rsplit("/", 2)[-2] if selected_base else "local",
+                "asset_kind": "release_manifest" if filename == "release.json" else "checksum_list",
+                "local_path": path.resolve(),
+                "version": "v0.4.0",
+            }
+    return assets, selected_base
+
+
+def _v04_jbrowse_uri(asset: dict[str, object]) -> str:
+    url = str(asset["url"])
+    if url.startswith("downloads/v0.4.0/"):
+        return f"../../{url}"
+    return url
+
+
+def _session_view(config: dict[str, object]) -> dict[str, object]:
+    session = config.setdefault("defaultSession", {"name": "BTED genome view", "views": []})
+    if not isinstance(session, dict):
+        raise StageError("JBrowse defaultSession must be an object")
+    views = session.setdefault("views", [])
+    if not isinstance(views, list):
+        raise StageError("JBrowse defaultSession views must be a list")
+    if not views:
+        views.append({"id": "bted_v04_genome_view", "type": "LinearGenomeView", "tracks": []})
+    view = views[0]
+    if not isinstance(view, dict):
+        raise StageError("JBrowse defaultSession contains an invalid view")
+    view_tracks = view.setdefault("tracks", [])
+    if not isinstance(view_tracks, list):
+        raise StageError("JBrowse defaultSession view tracks must be a list")
+    return view
+
+
+def _add_default_track(config: dict[str, object], track_id: str, track_type: str, display_type: str) -> None:
+    view = _session_view(config)
+    view_tracks = view.setdefault("tracks", [])
+    if any(isinstance(item, dict) and item.get("configuration") == track_id for item in view_tracks):
+        return
+    view_tracks.append({
+        "id": f"{track_id}-v04-view",
+        "type": track_type,
+        "configuration": track_id,
+        "minimized": False,
+        "displays": [{
+            "id": f"{track_id}-v04-display",
+            "type": display_type,
+            "configuration": f"{track_id}-{display_type}",
+        }],
+    })
+
+
+def _sanitize_v04_source_config(
+    source_id: str,
+    package_root: Path,
+    asset_paths: dict[str, dict[str, str]],
+) -> dict[str, object] | None:
+    config_path = package_root / f"{source_id}.config.json"
+    if not config_path.is_file():
+        return None
+    config = _read_config(config_path)
+    return _sanitize_v04_config(config, package_root, asset_paths)
+
+
+def _sanitize_v04_config(
+    config: dict[str, object],
+    package_root: Path,
+    asset_paths: dict[str, dict[str, str]],
+) -> dict[str, object]:
+    _remove_legacy_endpoint_tracks(config)
+    _remove_nonredistributable_signal_tracks(config)
+    _remove_unpublished_text_search_indices(config, asset_paths)
+    rewrite_jbrowse_asset_uris(config, package_root, V03_SHARED_BASE_URL, asset_paths)
+    return config
+
+
+def _is_reference_annotation(track: dict[str, object]) -> bool:
+    category = track.get("category", [])
+    labels = category if isinstance(category, list) else [category]
+    label = " ".join([str(track.get("name", "")), *map(str, labels)]).casefold()
+    return "reference annotation" in label or "gene annotation" in label
+
+
+def _merge_source_configs(
+    base: dict[str, object],
+    additional: dict[str, object],
+) -> None:
+    tracks = base.setdefault("tracks", [])
+    if not isinstance(tracks, list):
+        raise StageError("JBrowse track collection must be a list")
+    existing_ids = {str(item.get("trackId", "")) for item in tracks if isinstance(item, dict)}
+    for track in additional.get("tracks", []):
+        if not isinstance(track, dict) or _is_reference_annotation(track):
+            continue
+        track_id = str(track.get("trackId", ""))
+        if not track_id or track_id in existing_ids:
+            continue
+        tracks.append(track)
+        existing_ids.add(track_id)
+
+    view = _session_view(base)
+    view_tracks = view.setdefault("tracks", [])
+    existing_configurations = {
+        str(item.get("configuration", "")) for item in view_tracks if isinstance(item, dict)
+    }
+    other_views = additional.get("defaultSession", {}).get("views", [])
+    if other_views and isinstance(other_views[0], dict):
+        for view_track in other_views[0].get("tracks", []):
+            if not isinstance(view_track, dict):
+                continue
+            configuration = str(view_track.get("configuration", ""))
+            matching_track = next(
+                (track for track in additional.get("tracks", [])
+                 if isinstance(track, dict) and str(track.get("trackId", "")) == configuration),
+                None,
+            )
+            if matching_track and _is_reference_annotation(matching_track):
+                continue
+            if configuration and configuration not in existing_configurations:
+                view_tracks.append(view_track)
+                existing_configurations.add(configuration)
+
+
+def _assembly_ref_assets(
+    assembly: str,
+    asset_map: dict[str, dict[str, object]],
+) -> tuple[dict[str, object], dict[str, dict[str, object]], Path | None]:
+    candidates = {
+        path: item for path, item in asset_map.items()
+        if path.startswith((f"browser/{assembly}/", f"assemblies/{assembly}/"))
+    }
+    fasta = next(((path, item) for path, item in candidates.items() if item["asset_kind"] == "fasta"), None)
+    fai = next(((path, item) for path, item in candidates.items() if item["asset_kind"] == "fai"), None)
+    if not fasta or not fai:
+        raise StageError(f"No allowlisted FASTA/FAI reference assets for {assembly}")
+    fna_path, fna_asset = fasta
+    fai_path, fai_asset = fai
+    local_fai = fai_asset.get("local_path")
+    if not isinstance(local_fai, Path) or not local_fai.is_file():
+        raise StageError(f"Reference FAI is not available locally for {assembly}: {fai_path}")
+    gff3 = next(((path, item) for path, item in candidates.items() if item["asset_kind"] == "gff3"), None)
+    tbi = next(((path, item) for path, item in candidates.items() if item["asset_kind"] == "tbi"), None)
+    extra: dict[str, dict[str, object]] = {}
+    if gff3:
+        extra["gff3"] = {"path": gff3[0], **gff3[1]}
+    if tbi:
+        extra["tbi"] = {"path": tbi[0], **tbi[1]}
+    return {
+        "fasta_path": fna_path,
+        "fasta": fna_asset,
+        "fai_path": fai_path,
+        "fai": fai_asset,
+    }, extra, local_fai
+
+
+def _new_v04_assembly_config(
+    assembly: str,
+    species: str,
+    asset_map: dict[str, dict[str, object]],
+) -> dict[str, object]:
+    reference, annotation, fai_file = _assembly_ref_assets(assembly, asset_map)
+    with fai_file.open("r", encoding="utf-8") as handle:
+        first = handle.readline().rstrip("\r\n").split("\t")
+    if len(first) < 2:
+        raise StageError(f"Reference FAI is malformed for {assembly}")
+    ref_name = first[0]
+    try:
+        ref_length = int(first[1])
+    except ValueError as exc:
+        raise StageError(f"Reference FAI has an invalid length for {assembly}") from exc
+    assembly_name = re.sub(r"[^A-Za-z0-9_]", "_", f"BTED_{assembly}")
+    reference_track = {
+        "type": "ReferenceSequenceTrack",
+        "trackId": f"bted_{assembly_name}_reference",
+        "adapter": {
+            "type": "IndexedFastaAdapter",
+            "fastaLocation": {"uri": _v04_jbrowse_uri(reference["fasta"]), "locationType": "UriLocation"},
+            "faiLocation": {"uri": _v04_jbrowse_uri(reference["fai"]), "locationType": "UriLocation"},
+        },
+    }
+    config: dict[str, object] = {
+        "assemblies": [{
+            "name": assembly_name,
+            "displayName": f"{species} · {assembly}" if species else assembly,
+            "sequence": reference_track,
+        }],
+        "configuration": {},
+        "connections": [],
+        "defaultSession": {
+            "name": f"BTED {assembly} · study evidence",
+            "views": [{
+                "id": "bted_v04_genome_view",
+                "type": "LinearGenomeView",
+                "offsetPx": 0,
+                "bpPerPx": 5,
+                "displayedRegions": [{
+                    "refName": ref_name,
+                    "start": 0,
+                    "end": min(ref_length, 10000),
+                    "reversed": False,
+                    "assemblyName": assembly_name,
+                }],
+                "tracks": [],
+            }],
+        },
+        "tracks": [],
+    }
+    if "gff3" in annotation:
+        ann = annotation["gff3"]
+        if "tbi" in annotation:
+            index = annotation["tbi"]
+            gene_track = {
+                "type": "FeatureTrack",
+                "trackId": f"bted_{assembly_name}_reference_annotation",
+                "name": "Reference gene annotation",
+                "adapter": {
+                    "type": "Gff3TabixAdapter",
+                    "gffGzLocation": {"uri": _v04_jbrowse_uri(ann), "locationType": "UriLocation"},
+                    "index": {"location": {"uri": _v04_jbrowse_uri(index), "locationType": "UriLocation"}, "indexType": "TBI"},
+                },
+                "category": ["Reference annotation"],
+                "assemblyNames": [assembly_name],
+            }
+        else:
+            gene_track = {
+                "type": "FeatureTrack",
+                "trackId": f"bted_{assembly_name}_reference_annotation",
+                "name": "Reference gene annotation",
+                "adapter": {
+                    "type": "Gff3Adapter",
+                    "gffLocation": {"uri": _v04_jbrowse_uri(ann), "locationType": "UriLocation"},
+                },
+                "category": ["Reference annotation"],
+                "assemblyNames": [assembly_name],
+            }
+        config["tracks"].append(gene_track)
+        _add_default_track(config, str(gene_track["trackId"]), "FeatureTrack", "LinearBasicDisplay")
+    return config
+
+
+def _endpoint_track_v04(
+    source: dict[str, str],
+    assembly_name: str,
+    asset: dict[str, object],
+) -> dict[str, object]:
+    source_id = source["source_id"]
+    track_id = f"bted_v04_{source_id.lower()}_endpoints"
+    evidence = str(source.get("evidence_class", ""))
+    title = f"{source_id} · PMID {source['pmid']} · endpoint records"
+    description = (
+        f"Study-level endpoint records from PMID {source['pmid']}. "
+        f"Evidence class: {evidence or 'not specified'}. "
+        "Endpoint records are shown separately from experimental signal tracks."
+    )
+    return {
+        "type": "FeatureTrack",
+        "trackId": track_id,
+        "name": title,
+        "description": description,
+        "adapter": {
+            "type": "Gff3Adapter",
+            "gffLocation": {"uri": _v04_jbrowse_uri(asset), "locationType": "UriLocation"},
+        },
+        "displays": [{
+            "type": "LinearBasicDisplay",
+            "displayId": f"{track_id}-LinearBasicDisplay",
+            "showLabels": False,
+            "height": 38,
+        }],
+        "category": ["BTED v0.4.0", "Endpoint features", str(source["pmid"])],
+        "assemblyNames": [assembly_name],
+        "metadata": {
+            "release_version": "v0.4.0",
+            "source_id": source_id,
+            "pmid": str(source["pmid"]),
+            "record_count": int(source["record_count_number"]),
+            "evidence_class": evidence,
+        },
+    }
+
+
+def _default_signal_tracks(config: dict[str, object]) -> int:
+    tracks = config.get("tracks", [])
+    if not isinstance(tracks, list):
+        raise StageError("JBrowse tracks must be a list")
+    count = 0
+    for track in tracks:
+        if not isinstance(track, dict) or track.get("type") != "QuantitativeTrack":
+            continue
+        uris = _all_config_uris(track)
+        if not uris or any("signed-log10-ui-v4" in uri for uri in uris):
+            continue
+        if not any(uri.lower().endswith((".bw", ".bigwig")) for uri in uris):
+            continue
+        track_id = str(track.get("trackId", ""))
+        if not track_id:
+            continue
+        name = str(track.get("name", ""))
+        if not name.casefold().startswith("experimental signal"):
+            track["name"] = f"Experimental signal · {name}" if name else f"Experimental signal · {track_id}"
+        track["description"] = (
+            "Experimental BigWig signal. Values show measured signal density and are distinct from endpoint calls."
+        )
+        categories = track.get("category", [])
+        categories = categories if isinstance(categories, list) else [categories]
+        track["category"] = ["Observed experimental signal", *[str(item) for item in categories if item]]
+        track["metadata"] = {**(track.get("metadata", {}) if isinstance(track.get("metadata"), dict) else {}), "evidence_class": "observed_signal", "release_version": "v0.3.0"}
+        _add_default_track(config, track_id, "QuantitativeTrack", "LinearWiggleDisplay")
+        count += 1
+    return count
+
+
+def build_v04_jbrowse_configs(
+    package_root: Path,
+    release_root: Path,
+    assets: dict[str, dict[str, object]],
+    asset_paths: dict[str, dict[str, str]],
+) -> tuple[dict[str, str], dict[str, str], dict[str, object]]:
+    """Create one combined genome config with independent per-source GFF3 tracks."""
+    release, release_files = read_v04_release(release_root)
+    genomes = release.get("genomes", [])
+    if not isinstance(genomes, list):
+        raise StageError("v0.4.0 release.json genomes must be a list")
+    browser_configs: dict[str, str] = {}
+    track_ids: dict[str, str] = {}
+    catalog: dict[str, object] = {"release_version": "v0.4.0", "assemblies": {}}
+
+    for genome in genomes:
+        if not isinstance(genome, dict):
+            continue
+        assembly = str(genome.get("assembly", ""))
+        metadata_path = str(genome.get("metadata_path", ""))
+        metadata_file = release_root.joinpath(*PurePosixPath(metadata_path).parts)
+        try:
+            import build_v0_4_site
+            metadata_rows = build_v0_4_site.read_tsv(metadata_file, build_v0_4_site.REQUIRED_METADATA_COLUMNS)
+        except SiteBuildError as exc:
+            raise StageError(str(exc)) from exc
+        published = [
+            {**row, "record_count_number": int(row["record_count"])}
+            for row in metadata_rows
+            if v04_site.is_published_status(row.get("release_status")) and int(row["record_count"]) > 0
+        ]
+        if not published:
+            continue
+        species = next((row.get("species", "") for row in published if row.get("species")), "")
+
+        combined_path = package_root / "assemblies" / f"{assembly}.config.json"
+        config: dict[str, object] | None = (
+            _sanitize_v04_config(_read_config(combined_path), package_root, asset_paths)
+            if combined_path.is_file() else None
+        )
+        source_ids: list[str] = []
+        for source in published:
+            source_id = str(source["source_id"])
+            source_ids.append(source_id)
+            source_config = _sanitize_v04_source_config(source_id, package_root, asset_paths)
+            if source_config is None:
+                continue
+            if config is None:
+                config = source_config
+            elif not combined_path.is_file():
+                _merge_source_configs(config, source_config)
+
+        if config is None:
+            config = _new_v04_assembly_config(assembly, species, assets)
+        assemblies = config.get("assemblies", [])
+        if not isinstance(assemblies, list) or not assemblies or not isinstance(assemblies[0], dict):
+            raise StageError(f"JBrowse config has no assembly for {assembly}")
+        assembly_name = str(assemblies[0].get("name", ""))
+        if not assembly_name:
+            raise StageError(f"JBrowse config has an unnamed assembly for {assembly}")
+
+        for source in published:
+            source_id = str(source["source_id"])
+            logical = f"tracks/{source_id}/endpoints.gff3"
+            asset = assets.get(logical)
+            if not asset:
+                raise StageError(f"Source-specific endpoint browser asset is not allowlisted: {logical}")
+            if asset.get("asset_kind") != "gff3":
+                raise StageError(f"Source endpoint browser asset is not GFF3: {logical}")
+            local_track = asset.get("local_path")
+            if not isinstance(local_track, Path) or not local_track.is_file():
+                raise StageError(f"Source endpoint browser file is missing locally: {logical}")
+            with local_track.open("r", encoding="utf-8") as track_handle:
+                actual_count = sum(1 for line in track_handle if line.strip() and not line.startswith("#"))
+            if actual_count != source["record_count_number"]:
+                raise StageError(
+                    f"{source_id}: browser GFF3 has {actual_count} features, expected {source['record_count_number']}"
+                )
+            track = _endpoint_track_v04(source, assembly_name, asset)
+            tracks = config.setdefault("tracks", [])
+            if not isinstance(tracks, list):
+                raise StageError("JBrowse config tracks must be a list")
+            track_id = str(track["trackId"])
+            existing = next((item for item in tracks if isinstance(item, dict) and item.get("trackId") == track_id), None)
+            if existing is None:
+                tracks.append(track)
+            elif existing != track:
+                raise StageError(f"Conflicting endpoint track configuration: {track_id}")
+            _add_default_track(config, track_id, "FeatureTrack", "LinearBasicDisplay")
+            track_ids[source_id] = track_id
+
+        _default_signal_tracks(config)
+        config_file = package_root / "assemblies" / f"{assembly}.config.json"
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        relative_config = f"assemblies/{assembly}.config.json"
+        browser_configs[assembly] = relative_config
+        catalog["assemblies"][assembly] = {
+            "assembly": assembly,
+            "species": species,
+            "config": relative_config,
+            "source_ids": source_ids,
+            "endpoint_track_ids": [track_ids[source_id] for source_id in source_ids],
+        }
+
+    (package_root / "catalog.json").write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return browser_configs, track_ids, catalog
+
+
+def write_data_release_json(destination: Path, assets: dict[str, dict[str, object]], v04_revision: str | None) -> None:
+    payload_assets: dict[str, dict[str, object]] = {}
+    for logical_path, asset in sorted(assets.items()):
+        payload_assets[logical_path] = {
+            "url": asset["url"],
+            "byte_size": int(asset["byte_size"]),
+            "sha256": asset["sha256"],
+            "revision": asset["revision"],
+            "asset_kind": asset["asset_kind"],
+        }
+    payload = {
+        "releaseVersion": "v0.4.0",
+        "sharedAssets": {"releaseVersion": "v0.3.0", "revision": V03_SHARED_REVISION},
+        "releaseRevision": v04_revision,
+        "assets": payload_assets,
+    }
+    path = destination / "assets" / "data-release.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def copy_v04_local_assets(
+    destination: Path,
+    assets: dict[str, dict[str, object]],
+) -> None:
+    root = destination / "downloads" / "v0.4.0"
+    for logical_path, asset in assets.items():
+        if asset.get("version") != "v0.4.0" or not str(asset.get("url", "")).startswith("downloads/v0.4.0/"):
+            continue
+        source = asset.get("local_path")
+        if not isinstance(source, Path) or not source.is_file():
+            raise StageError(f"Local v0.4.0 allowlisted asset is missing: {logical_path}")
+        relative = PurePosixPath(logical_path)
+        target = root.joinpath(*relative.parts)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+
+
+def validate_v04_jbrowse_configs(
+    package_root: Path,
+    assets: dict[str, dict[str, object]],
+    catalog: dict[str, object],
+    expected_endpoint_count: int,
+) -> None:
+    allowed_uris = {_v04_jbrowse_uri(asset) for asset in assets.values()}
+    endpoint_count = 0
+    signal_track_count = 0
+    assembly_catalog = catalog.get("assemblies", {})
+    if not isinstance(assembly_catalog, dict):
+        raise StageError("Generated v0.4.0 JBrowse catalog has no assembly mapping")
+    for assembly, entry in assembly_catalog.items():
+        if not isinstance(entry, dict):
+            raise StageError(f"Invalid browser catalog entry for {assembly}")
+        config = _read_config(package_root / str(entry["config"]))
+        tracks = config.get("tracks", [])
+        default_tracks = config.get("defaultSession", {}).get("views", [{}])[0].get("tracks", [])
+        track_ids = {str(track.get("trackId", "")) for track in tracks if isinstance(track, dict)}
+        default_ids = {str(track.get("configuration", "")) for track in default_tracks if isinstance(track, dict)}
+        endpoint_tracks = [
+            track for track in tracks
+            if isinstance(track, dict) and str(track.get("trackId", "")).startswith("bted_v04_")
+        ]
+        endpoint_count += len(endpoint_tracks)
+        for track in endpoint_tracks:
+            track_id = str(track["trackId"])
+            if track_id not in default_ids:
+                raise StageError(f"{assembly}: endpoint track is not shown by default: {track_id}")
+            if "Endpoint features" not in track.get("category", []):
+                raise StageError(f"{assembly}: endpoint track is not clearly categorized: {track_id}")
+
+        for track in tracks:
+            if not isinstance(track, dict):
+                continue
+            if track.get("type") == "QuantitativeTrack" and any(
+                uri.lower().endswith((".bw", ".bigwig")) for uri in _all_config_uris(track)
+            ):
+                signal_track_count += 1
+                track_id = str(track.get("trackId", ""))
+                if track_id not in default_ids:
+                    raise StageError(f"{assembly}: experimental signal track is not shown by default: {track_id}")
+                if not str(track.get("name", "")).startswith("Experimental signal"):
+                    raise StageError(f"{assembly}: signal track is not labelled as experimental signal: {track_id}")
+
+        for uri in _all_config_uris(config):
+            if uri not in allowed_uris:
+                raise StageError(f"{assembly}: JBrowse URI is not in the browser asset allowlist: {uri}")
+        for identifier in default_ids:
+            if identifier and identifier not in track_ids:
+                raise StageError(f"{assembly}: default session points to a missing JBrowse track: {identifier}")
+
+    if endpoint_count != expected_endpoint_count:
+        raise StageError(
+            f"JBrowse configs contain {endpoint_count} endpoint tracks, expected {expected_endpoint_count}"
+        )
+    if signal_track_count != 8:
+        raise StageError(f"JBrowse configs contain {signal_track_count} raw experimental BigWig tracks, expected 8")
+
+
+def assemble_v04(
+    mode: str,
+    output: Path,
+    jbrowse_dir: Path | None,
+    archive: Path | None,
+    checksum_file: Path | None,
+    release_root: Path,
+    browser_assets_manifest: Path,
+    browser_objects_root: Path,
+    hf_v04_data_base_url: str | None = None,
+) -> None:
+    """Assemble the genome-first v0.4.0 Pages or Worker static site."""
+    check_output_path(output, jbrowse_dir)
+    if archive is not None:
+        if checksum_file is None:
+            raise StageError("--release-sha256-file is required with --release-archive")
+        verify_archive_sha256(archive, checksum_file)
+    elif checksum_file is not None:
+        raise StageError("--release-sha256-file only applies to --release-archive")
+
+    release_root = release_root.resolve()
+    browser_assets_manifest = browser_assets_manifest.resolve()
+    browser_objects_root = browser_objects_root.resolve()
+    output = output.resolve()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temp_stage = _new_work_directory(output.parent, f"{output.name}.stage")
+    temp_bundle: Path | None = None
+    try:
+        temp_bundle = _new_work_directory(output.parent, "bted-v04-jbrowse-release")
+        if archive is not None:
+            package_root = safe_extract_release(archive, temp_bundle)
+        else:
+            if jbrowse_dir is None or not jbrowse_dir.is_dir():
+                raise StageError("--jbrowse-dir must point to an unpacked JBrowse release package")
+            package_root = temp_bundle / PACKAGE_NAME
+            shutil.copytree(jbrowse_dir.resolve(), package_root, copy_function=shutil.copyfile)
+
+        run_validator("validate_jbrowse_release.py", package_root, "--legacy-compact-baseline")
+        release, release_files = read_v04_release(release_root)
+        # Keep the filtered browser GFF3 objects reproducible from the public
+        # study GFF3s before the manifest or any JBrowse config is accepted.
+        materialize_browser_tracks(release_root, browser_objects_root)
+        assets, v04_base_url = load_v04_browser_assets(
+            browser_assets_manifest,
+            release_root,
+            browser_objects_root,
+            hf_v04_data_base_url,
+        )
+
+        bundle_catalog_path = package_root / "catalog.json"
+        bundle_catalog = _read_config(bundle_catalog_path)
+        asset_paths = load_public_jbrowse_asset_paths(bundle_catalog=bundle_catalog)
+        for mapping in asset_paths.values():
+            logical_path = str(mapping["object_path"])
+            approved = assets.get(logical_path)
+            expected_url = f"{V03_SHARED_BASE_URL}/{logical_path}"
+            if (
+                approved is None
+                or approved.get("version") != "v0.3.0"
+                or approved.get("url") != expected_url
+                or approved.get("sha256") != mapping.get("sha256")
+                or approved.get("asset_kind") != mapping.get("asset_kind")
+            ):
+                raise StageError(f"Shared JBrowse asset is not pinned by the v0.4.0 asset manifest: {logical_path}")
+
+        browser_configs, track_ids, browser_catalog = build_v04_jbrowse_configs(
+            package_root,
+            release_root,
+            assets,
+            asset_paths,
+        )
+        # Published-source count is the expected number of source-filtered
+        # endpoint tracks, including sources sharing Cascino's study GFF3.
+        counts = release.get("counts", {})
+        if not isinstance(counts, dict):
+            raise StageError("v0.4.0 release.json counts must be an object")
+        try:
+            expected_endpoints = int(counts["published_source_count"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise StageError("v0.4.0 release.json is missing published_source_count") from exc
+        if len(track_ids) != expected_endpoints:
+            raise StageError(
+                f"Generated {len(track_ids)} source endpoint tracks, expected {expected_endpoints} published sources"
+            )
+        validate_v04_jbrowse_configs(package_root, assets, browser_catalog, expected_endpoints)
+        # The upstream package also contains v0.2 source configs with relative
+        # BED paths. v0.4 links only to generated assembly configs; do not ship
+        # the stale entry points alongside them.
+        for stale in package_root.glob("*.config.json"):
+            stale.unlink()
+        current_configs = {
+            str(entry["config"])
+            for entry in browser_catalog["assemblies"].values()
+        }
+        for candidate in (package_root / "assemblies").glob("*.config.json"):
+            if candidate.relative_to(package_root).as_posix() not in current_configs:
+                candidate.unlink()
+        refresh_checksums(package_root)
+
+        copy_site_source(temp_stage)
+        v04_revision = normalize_v04_data_base_url(v04_base_url)[1] if v04_base_url else None
+        write_data_release_json(temp_stage, assets, v04_revision)
+        if not v04_base_url:
+            copy_v04_local_assets(temp_stage, assets)
+        build_v04_site(temp_stage, release_root, assets, browser_configs, track_ids)
+
+        file_count, total_bytes = copy_worker_shell(package_root, temp_stage / "jbrowse")
+        run_validator("validate-site.py", temp_stage)
+        if mode == "worker":
+            print(f"PASS  Worker v0.4.0 shell staged: {file_count} files, {total_bytes:,} bytes")
+        elif mode == "pages":
+            print(f"PASS  Pages v0.4.0 site staged at {output}")
+        else:
+            raise StageError(f"Unknown staging mode: {mode}")
+        _publish_stage(temp_stage, output)
+    finally:
+        if temp_stage.exists():
+            shutil.rmtree(temp_stage)
+        if temp_bundle is not None:
+            shutil.rmtree(temp_bundle)
+
+
 def validate_worker_shell(shell_root: Path) -> tuple[int, int]:
     for name in RUNTIME_FILES:
         if not (shell_root / name).is_file():
@@ -890,6 +1702,7 @@ def assemble(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=("pages", "worker"), required=True)
+    parser.add_argument("--data-version", choices=("v0.3.0", "v0.4.0"), default="v0.4.0")
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--release-archive", type=Path, help="Versioned JBrowse release tar.gz")
     source.add_argument("--jbrowse-dir", type=Path, help="Local unpacked package fallback")
@@ -897,21 +1710,58 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, help="Staging directory (default depends on --mode)")
     parser.add_argument(
         "--hf-data-base-url",
-        required=True,
-        help="Fixed Hugging Face v0.3.0 resolve URL ending in /resolve/<40-character-commit>/v0.3.0",
+        help="Legacy v0.3.0 fixed Hugging Face base URL (required with --data-version v0.3.0)",
+    )
+    parser.add_argument("--hf-v04-data-base-url", help="Fixed Hugging Face v0.4.0 resolve URL with a commit SHA")
+    parser.add_argument(
+        "--release-root",
+        type=Path,
+        default=REPO_ROOT / "data" / "public" / "v0.4.0",
+        help="Local v0.4.0 canonical release directory",
+    )
+    parser.add_argument(
+        "--browser-assets-manifest",
+        type=Path,
+        default=REPO_ROOT / "data" / "registry" / "browser_assets.v0.4.0.tsv",
+        help="Canonical browser asset allowlist TSV",
+    )
+    parser.add_argument(
+        "--browser-objects-root",
+        type=Path,
+        default=REPO_ROOT / "dist" / "v04-browser-objects",
+        help="Local generated browser asset objects root",
     )
     args = parser.parse_args()
     default_output = "dist/pages-site" if args.mode == "pages" else "dist/worker-site"
     try:
-        assemble(
-            mode=args.mode,
-            output=args.output_dir or Path(default_output),
-            jbrowse_dir=args.jbrowse_dir.expanduser().resolve() if args.jbrowse_dir else None,
-            archive=args.release_archive.expanduser().resolve() if args.release_archive else None,
-            checksum_file=args.release_sha256_file.expanduser().resolve() if args.release_sha256_file else None,
-            hf_data_base_url=args.hf_data_base_url,
-        )
-    except (StageError, OSError, ValueError, tarfile.TarError, json.JSONDecodeError, subprocess.SubprocessError) as exc:
+        if args.data_version == "v0.3.0":
+            if not args.hf_data_base_url:
+                raise StageError("--hf-data-base-url is required with --data-version v0.3.0")
+            assemble(
+                mode=args.mode,
+                output=args.output_dir or Path(default_output),
+                jbrowse_dir=args.jbrowse_dir.expanduser().resolve() if args.jbrowse_dir else None,
+                archive=args.release_archive.expanduser().resolve() if args.release_archive else None,
+                checksum_file=args.release_sha256_file.expanduser().resolve() if args.release_sha256_file else None,
+                hf_data_base_url=args.hf_data_base_url,
+            )
+        else:
+            if args.hf_data_base_url:
+                legacy_shared_base, _legacy_revision = normalize_hf_data_base_url(args.hf_data_base_url)
+                if legacy_shared_base != V03_SHARED_BASE_URL:
+                    raise StageError("v0.4.0 builds require the approved fixed v0.3.0 shared asset revision")
+            assemble_v04(
+                mode=args.mode,
+                output=args.output_dir or Path(default_output),
+                jbrowse_dir=args.jbrowse_dir.expanduser().resolve() if args.jbrowse_dir else None,
+                archive=args.release_archive.expanduser().resolve() if args.release_archive else None,
+                checksum_file=args.release_sha256_file.expanduser().resolve() if args.release_sha256_file else None,
+                release_root=args.release_root.expanduser().resolve(),
+                browser_assets_manifest=args.browser_assets_manifest.expanduser().resolve(),
+                browser_objects_root=args.browser_objects_root.expanduser().resolve(),
+                hf_v04_data_base_url=args.hf_v04_data_base_url,
+            )
+    except (StageError, SiteBuildError, OSError, ValueError, tarfile.TarError, json.JSONDecodeError, subprocess.SubprocessError) as exc:
         print(f"FAIL  {exc}", file=sys.stderr)
         return 1
     return 0

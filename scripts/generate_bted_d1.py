@@ -105,7 +105,10 @@ def main() -> int:
 
     publication_by_pmid = {str(row["pmid"]): row for row in publications}
     bed_by_source: dict[str, dict[str, Any]] = {}
+    asset_by_path: dict[str, dict[str, Any]] = {}
     for asset in assets:
+        if asset.get("logical_path"):
+            asset_by_path[str(asset["logical_path"])] = asset
         source_id = asset.get("source_id_ref")
         if source_id and asset.get("asset_kind") == "bed":
             bed_by_source[str(source_id)] = asset
@@ -217,17 +220,29 @@ def main() -> int:
         publication = publication_by_pmid.get(str(source["publication_id_ref"]))
         raw = [a for a in accessions if a.get("source_id_ref") == source_id]
         bed = bed_by_source.get(source_id)
+        study_gff3 = asset_by_path.get(str(source.get("record_root") or ""))
+        source_track_gff3 = asset_by_path.get(f"tracks/{source_id}/endpoints.gff3")
+        endpoint_gff3 = source_track_gff3 or study_gff3
         # v0.3 source BEDs are generated into the Pages/Worker static tree.
-        # When no remote BED asset is registered, retain a public track only
-        # for published, browser-enabled sources whose redistribution was
-        # explicitly approved. The Worker resolves the versioned local BED.
-        source_track_public = (
-            source.get("release_status") == "published_standardized"
-            and bool(source.get("has_jbrowse"))
-            and int(source.get("record_count") or 0) > 0
-            and source.get("redistribution_status") == "verified_redistributable"
-        )
-        track_public = bool(bed.get("is_public")) if bed else source_track_public
+        # v0.4 stores endpoint features by genome and PMID. A published feature
+        # track is public only when its exact GFF3 file is in the allowlist.
+        # The legacy fallback remains for v0.3 migration tests and old bundles.
+        if endpoint_gff3:
+            track_public = (
+                source.get("release_status") == "published_standardized"
+                and int(source.get("record_count") or 0) > 0
+                and bool(endpoint_gff3.get("is_public"))
+            )
+            endpoint_asset = endpoint_gff3
+        else:
+            source_track_public = (
+                source.get("release_status") == "published_standardized"
+                and bool(source.get("has_jbrowse"))
+                and int(source.get("record_count") or 0) > 0
+                and source.get("redistribution_status") == "verified_redistributable"
+            )
+            track_public = bool(bed.get("is_public")) if bed else source_track_public
+            endpoint_asset = bed
         track_rows.append(
             (
                 f"{source_id}--track", release_version, source_id, source.get("assembly_id_ref"),
@@ -237,7 +252,7 @@ def main() -> int:
                 publication.get("paper_title") if publication else None,
                 publication.get("journal") if publication else None,
                 json_value(raw), source.get("assay_family"), source.get("evidence_class"),
-                source.get("record_count", 0), bed.get("asset_id") if bed else None,
+                source.get("record_count", 0), endpoint_asset.get("asset_id") if endpoint_asset else None,
                 1 if track_public else 0, order,
                 json_value({"source_note": source.get("source_note"), "decision_note": source.get("decision_note"), "known_limitations": source.get("known_limitations")}),
             )

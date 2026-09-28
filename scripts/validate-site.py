@@ -20,6 +20,7 @@ import re
 import sys
 import zipfile
 import json
+import hashlib
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -111,6 +112,8 @@ HF_RELEASE_BASE_PATTERN = re.compile(
 HF_RESOLVE_URL_PATTERN = re.compile(
     r"https://huggingface\.co/datasets/[^\s\"'<>]+/resolve/[^\s\"'<>]+"
 )
+V03_SHARED_REVISION = "90651318aedf5a5ca26b8308070927d36fd3d6c9"
+HF_DATASET_PREFIX = "https://huggingface.co/datasets/liurulong/terminator/resolve"
 
 
 class LinkCollector(HTMLParser):
@@ -130,10 +133,13 @@ def line_of(text: str, pos: int) -> int:
     return text.count("\n", 0, pos) + 1
 
 
-def is_allowed_download_file(rel: str, suffix: str, compound_suffix: str) -> bool:
-    """Allow standard metadata downloads and the staged v0.3.0 table files."""
+def is_allowed_download_file(
+    rel: str, suffix: str, compound_suffix: str, allowed_v04_paths: set[str] | None = None,
+) -> bool:
+    """Allow exactly the v0.4 manifest files or the legacy v0.3 downloads."""
     return (
-        rel in ALLOWED_VERSIONED_COMPRESSED_DOWNLOADS
+        rel in (allowed_v04_paths or set())
+        or rel in ALLOWED_VERSIONED_COMPRESSED_DOWNLOADS
         or bool(re.fullmatch(r"downloads/v0\.3\.0/studies/PMID_[0-9]+/endpoints\.gff3\.gz", rel))
         or bool(re.fullmatch(r"downloads/v0\.3\.0/studies/PMID_[0-9]+/metadata\.tsv", rel))
         or suffix in ALLOWED_DOWNLOAD_SUFFIXES
@@ -177,21 +183,125 @@ def config_uris(value: object) -> list[str]:
     return found
 
 
-def validate_fixed_hf_release(site_dir: Path, problems: list[str]) -> None:
-    """Check staged data links use one immutable v0.3.0 Hugging Face revision."""
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: list[str]) -> set[str]:
+    """Validate one v0.4 data revision plus the reused, pinned v0.3 assets."""
+    shared = manifest.get("sharedAssets")
+    revision = manifest.get("releaseRevision")
+    assets = manifest.get("assets")
+    if (
+        not isinstance(shared, dict)
+        or shared.get("releaseVersion") != "v0.3.0"
+        or shared.get("revision") != V03_SHARED_REVISION
+        or not isinstance(assets, dict)
+        or not assets
+        or (revision is not None and (not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision)))
+    ):
+        problems.append("assets/data-release.json 的 v0.4.0 版本或固定资产版本无效")
+        return set()
+
+    allowed_urls: set[str] = set()
+    allowed_local: set[str] = set()
+    for logical_path, entry in assets.items():
+        if (
+            not isinstance(logical_path, str)
+            or not logical_path
+            or logical_path.startswith("/")
+            or ".." in Path(logical_path).parts
+            or not isinstance(entry, dict)
+        ):
+            problems.append(f"资产清单路径无效: {logical_path!r}")
+            continue
+        url = entry.get("url")
+        asset_revision = entry.get("revision")
+        sha256 = entry.get("sha256")
+        size = entry.get("byte_size")
+        if (
+            not isinstance(url, str)
+            or not isinstance(sha256, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", sha256)
+            or not isinstance(size, int)
+            or size < 0
+            or not isinstance(entry.get("asset_kind"), str)
+        ):
+            problems.append(f"资产清单字段无效: {logical_path}")
+            continue
+        shared_url = f"{HF_DATASET_PREFIX}/{V03_SHARED_REVISION}/v0.3.0/{logical_path}"
+        local_url = f"downloads/v0.4.0/{logical_path}"
+        published_url = f"{HF_DATASET_PREFIX}/{revision}/v0.4.0/{logical_path}" if revision else None
+        if url == shared_url and asset_revision == V03_SHARED_REVISION:
+            pass
+        elif revision is None and url == local_url and asset_revision == "local":
+            rel = local_url
+            allowed_local.add(rel)
+            path = site_dir / rel
+            if not path.is_file() or path.stat().st_size != size or _sha256_file(path) != sha256:
+                problems.append(f"本地发布资产缺失或校验失败: {rel}")
+        elif published_url and url == published_url and asset_revision == revision:
+            pass
+        else:
+            problems.append(f"资产 URL 未固定到批准版本: {logical_path}")
+            continue
+        allowed_urls.add(url)
+
+    if revision is not None and (site_dir / "downloads").exists():
+        problems.append("已固定到 Hugging Face 的站点不应重复打包 downloads 目录")
+    if revision is None and not allowed_local:
+        problems.append("本地 v0.4.0 站点缺少发布资产")
+
+    for path in site_dir.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in TEXT_EXTENSIONS:
+            continue
+        rel = path.relative_to(site_dir).as_posix()
+        if is_pinned_jbrowse_vendor_asset(rel):
+            continue
+        try:
+            content = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        for found in HF_RESOLVE_URL_PATTERN.finditer(content):
+            url = found.group(0).rstrip("),.;")
+            if url not in allowed_urls:
+                problems.append(f"{rel} 引用未列入清单的 Hugging Face 文件: {url[:120]}")
+
+    jbrowse_root = site_dir / "jbrowse"
+    for config_path in [*jbrowse_root.glob("*.config.json"), *jbrowse_root.glob("assemblies/*.config.json")]:
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            problems.append(f"{config_path.relative_to(site_dir).as_posix()} 不是有效 JSON")
+            continue
+        for uri in config_uris(config):
+            normalized = uri.removeprefix("../../")
+            if uri not in allowed_urls and normalized not in allowed_urls:
+                problems.append(f"{config_path.relative_to(site_dir).as_posix()} 的数据 URI 未列入清单: {uri}")
+    return allowed_local
+
+
+def validate_fixed_hf_release(site_dir: Path, problems: list[str]) -> set[str]:
+    """Validate either the legacy v0.3 site or the v0.4 dual-revision site."""
     manifest_path = site_dir / "assets/data-release.json"
     try:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         problems.append("缺少或无法读取 assets/data-release.json")
-        return
+        return set()
+    if isinstance(manifest, dict) and manifest.get("releaseVersion") == "v0.4.0":
+        return validate_v04_release(site_dir, manifest, problems)
     base = manifest.get("baseUrl") if isinstance(manifest, dict) else None
     release_version = manifest.get("releaseVersion") if isinstance(manifest, dict) else None
     revision = manifest.get("revision") if isinstance(manifest, dict) else None
     match = HF_RELEASE_BASE_PATTERN.fullmatch(base or "") if isinstance(base, str) else None
     if not match or release_version != "v0.3.0" or revision != match.group(1):
         problems.append("assets/data-release.json 必须指向固定的 liurulong/terminator v0.3.0 commit")
-        return
+        return set()
 
     expected_prefix = f"{base}/"
     for path in site_dir.rglob("*"):
@@ -224,6 +334,7 @@ def validate_fixed_hf_release(site_dir: Path, problems: list[str]) -> None:
 
     if (site_dir / "downloads").exists():
         problems.append("站点不应重复打包数据下载目录；请只生成 HF manifest 和外部下载链接")
+    return set()
 
 
 def is_pinned_jbrowse_vendor_asset(rel: str) -> bool:
@@ -278,7 +389,7 @@ def check_links(path: Path, site_root: Path, rel: str, problems: list[str]) -> N
 
 
 def check_assembly_zip(path: Path) -> list[str]:
-    """Require assembly ZIPs to contain only GFF3 and their metadata JSON."""
+    """Require genome ZIPs to contain only GFF3 and readable metadata tables."""
     try:
         with zipfile.ZipFile(path) as archive:
             members = [name for name in archive.namelist() if not name.endswith("/")]
@@ -290,12 +401,21 @@ def check_assembly_zip(path: Path) -> list[str]:
 
 def check_assembly_zip_members(members: list[str], archive_name: str = "assembly.zip") -> list[str]:
     """Validate the archive member names without touching the filesystem."""
-    allowed = {"metadata.json", "endpoints.gff3"}
-    if "metadata.json" not in members:
-        return [f"{archive_name} 缺少 metadata.json"]
-    unexpected = sorted(set(members) - allowed)
+    if not any(name == "metadata.tsv" or name.endswith("/metadata.tsv") for name in members):
+        return [f"{archive_name} 缺少 metadata.tsv"]
+    unexpected = sorted(
+        name for name in members
+        if name.startswith("/")
+        or ".." in Path(name).parts
+        or not (
+            name.endswith(("/endpoints.gff3", "/endpoints.gff3.gz"))
+            or Path(name).name in {
+                "metadata.tsv", "gene_associations.tsv.gz", "condition_observations.tsv.gz"
+            }
+        )
+    )
     if unexpected:
-        return [f"{archive_name} 含有 GFF3 和元数据以外的文件: {unexpected}"]
+        return [f"{archive_name} 含有 GFF3 和 TSV 以外的文件: {unexpected}"]
     if len(members) != len(set(members)):
         return [f"{archive_name} 含有重复文件名"]
     return []
@@ -311,6 +431,7 @@ def main() -> int:
     warnings: list[str] = []
     file_count = 0
     total_bytes = 0
+    allowed_v04_paths: set[str] = set()
 
     # 0. 必需文件
     for name in REQUIRED_FILES:
@@ -320,7 +441,7 @@ def main() -> int:
     # The raw checked-in ``site/`` source has no bundled JBrowse shell. A
     # Pages/Worker artifact does and must carry the same fixed HF revision.
     if (site_dir / "jbrowse").is_dir():
-        validate_fixed_hf_release(site_dir, problems)
+        allowed_v04_paths = validate_fixed_hf_release(site_dir, problems)
 
     for root, _dirs, files in os.walk(site_dir):
         for fname in files:
@@ -340,7 +461,7 @@ def main() -> int:
                 or compound_suffix in ALLOWED_JBROWSE_SUFFIXES
             )
             download_allowed = in_downloads and is_allowed_download_file(
-                rel, fpath.suffix.lower(), compound_suffix
+                rel, fpath.suffix.lower(), compound_suffix, allowed_v04_paths
             )
             if any(s in FORBIDDEN_EXTENSIONS for s in suffixes) and not (
                 jbrowse_allowed or download_allowed

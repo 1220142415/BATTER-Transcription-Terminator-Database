@@ -1,0 +1,635 @@
+#!/usr/bin/env python3
+"""Render the BTED v0.4.0 genome-first static website from release files."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import gzip
+import hashlib
+import html
+import json
+import re
+import sys
+from pathlib import Path, PurePosixPath
+from typing import Iterable
+from urllib.parse import quote
+
+
+RELEASE_VERSION = "v0.4.0"
+REQUIRED_METADATA_COLUMNS = (
+    "source_id", "pmid", "species", "assembly", "title", "assay", "record_count",
+    "evidence_class", "release_status", "article_license", "redistribution_status",
+    "raw_data_accessions", "known_limitations", "study_gff3", "gene_associations",
+    "condition_observations",
+)
+SOURCE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+ASSEMBLY_RE = re.compile(r"^GCF_[0-9]+\.[0-9]+$")
+PMID_RE = re.compile(r"^[0-9]+$")
+# The verified main chromosome in the NCBI v0.4 browser reference is byte-for-
+# byte sequence-identical to Cascino's author reference CP000100.1. This mapping
+# is used only for derived browser tracks; canonical GFF3 keeps its raw seqid.
+BROWSER_SEQID_MAPS = {
+    "GCF_000012525.1": {"CP000100.1": "NC_007604.1"},
+}
+
+
+class SiteBuildError(RuntimeError):
+    """Raised when release data cannot safely produce a v0.4.0 site."""
+
+
+def esc(value: object) -> str:
+    return html.escape(str(value or ""), quote=True)
+
+
+def safe_relative_path(raw: str, *, label: str) -> PurePosixPath:
+    value = raw.strip().replace("\\", "/")
+    path = PurePosixPath(value)
+    if not value or path.is_absolute() or ":" in value or ".." in path.parts or any(part in {"", "."} for part in path.parts):
+        raise SiteBuildError(f"Unsafe {label} path: {raw!r}")
+    return path
+
+
+def release_file_path(release_root: Path, raw: str, *, label: str) -> Path:
+    relative = safe_relative_path(raw, label=label)
+    target = (release_root / Path(*relative.parts)).resolve()
+    try:
+        target.relative_to(release_root.resolve())
+    except ValueError as exc:
+        raise SiteBuildError(f"{label} path escapes release root: {raw!r}") from exc
+    return target
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def read_release(release_root: Path) -> tuple[dict[str, object], dict[str, dict[str, object]]]:
+    manifest_path = release_root / "release.json"
+    try:
+        release = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SiteBuildError(f"Could not read v0.4.0 release manifest: {manifest_path}") from exc
+    if not isinstance(release, dict) or release.get("release_version") != RELEASE_VERSION:
+        raise SiteBuildError("Release manifest is not BTED v0.4.0")
+    files = release.get("files")
+    if not isinstance(files, list):
+        raise SiteBuildError("release.json must contain a files array")
+    indexed: dict[str, dict[str, object]] = {}
+    for row in files:
+        if not isinstance(row, dict):
+            raise SiteBuildError("release.json files must contain objects")
+        raw_path = str(row.get("path", ""))
+        relative = safe_relative_path(raw_path, label="release file").as_posix()
+        if relative in indexed:
+            raise SiteBuildError(f"Duplicate release file path: {relative}")
+        path = release_file_path(release_root, relative, label="release file")
+        if not path.is_file():
+            raise SiteBuildError(f"Release file is missing: {relative}")
+        try:
+            expected_size = int(row["byte_size"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise SiteBuildError(f"Release file has an invalid byte_size: {relative}") from exc
+        expected_hash = str(row.get("sha256", "")).lower()
+        if expected_size != path.stat().st_size:
+            raise SiteBuildError(f"Release file size mismatch: {relative}")
+        if not re.fullmatch(r"[0-9a-f]{64}", expected_hash) or sha256_file(path) != expected_hash:
+            raise SiteBuildError(f"Release file SHA-256 mismatch: {relative}")
+        indexed[relative] = row
+    return release, indexed
+
+
+def read_tsv(path: Path, required: Iterable[str] = ()) -> list[dict[str, str]]:
+    try:
+        with path.open("r", encoding="utf-8-sig", newline="") as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+            fields = reader.fieldnames or []
+            missing = sorted(set(required) - set(fields))
+            if missing:
+                raise SiteBuildError(f"{path}: missing TSV columns {missing}")
+            return [{str(k): (v or "") for k, v in row.items() if k is not None} for row in reader]
+    except OSError as exc:
+        raise SiteBuildError(f"Could not read TSV: {path}") from exc
+
+
+def load_genomes(release_root: Path, release: dict[str, object], files: dict[str, dict[str, object]]) -> list[dict[str, object]]:
+    manifest_genomes = release.get("genomes")
+    if not isinstance(manifest_genomes, list):
+        raise SiteBuildError("release.json must contain a genomes array")
+    genomes: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for manifest_genome in manifest_genomes:
+        if not isinstance(manifest_genome, dict):
+            raise SiteBuildError("release.json genomes must contain objects")
+        assembly = str(manifest_genome.get("assembly", ""))
+        if not ASSEMBLY_RE.fullmatch(assembly) or assembly in seen:
+            raise SiteBuildError(f"Invalid or duplicate assembly accession: {assembly!r}")
+        seen.add(assembly)
+        metadata_path = str(manifest_genome.get("metadata_path", ""))
+        relative_metadata = safe_relative_path(metadata_path, label="genome metadata").as_posix()
+        if relative_metadata not in files:
+            raise SiteBuildError(f"Genome metadata is absent from release.json files: {relative_metadata}")
+        metadata_rows = read_tsv(
+            release_file_path(release_root, relative_metadata, label="genome metadata"),
+            REQUIRED_METADATA_COLUMNS,
+        )
+        if not metadata_rows:
+            raise SiteBuildError(f"Genome metadata has no source rows: {relative_metadata}")
+        for row in metadata_rows:
+            if row["assembly"] != assembly:
+                raise SiteBuildError(f"{relative_metadata}: row assembly does not match {assembly}")
+            if not SOURCE_ID_RE.fullmatch(row["source_id"]):
+                raise SiteBuildError(f"{relative_metadata}: invalid source_id {row['source_id']!r}")
+            if not PMID_RE.fullmatch(row["pmid"]):
+                raise SiteBuildError(f"{relative_metadata}: invalid PMID {row['pmid']!r}")
+            try:
+                row["record_count_number"] = int(row["record_count"])
+            except ValueError as exc:
+                raise SiteBuildError(f"{relative_metadata}: invalid record_count for {row['source_id']}") from exc
+            for column in ("study_gff3", "gene_associations", "condition_observations"):
+                value = row[column].strip()
+                if not value:
+                    continue
+                genome_dir = PurePosixPath(relative_metadata).parent
+                file_path = (genome_dir / safe_relative_path(value, label=column)).as_posix()
+                if file_path not in files:
+                    raise SiteBuildError(f"{relative_metadata}: {column} path is absent from release.json: {file_path}")
+                if PurePosixPath(file_path).parts[:3] != ("genomes", assembly, "studies"):
+                    raise SiteBuildError(f"{relative_metadata}: {column} must stay under this genome's studies directory")
+            if is_published_status(row["release_status"]) and row["record_count_number"] > 0 and not row["study_gff3"].strip():
+                raise SiteBuildError(f"{relative_metadata}: published source {row['source_id']} has no study GFF3")
+        genomes.append({
+            "assembly": assembly,
+            "metadata_path": relative_metadata,
+            "metadata_rows": metadata_rows,
+            "manifest": manifest_genome,
+        })
+    return sorted(genomes, key=lambda item: str(item["assembly"]))
+
+
+def is_published_status(value: object) -> bool:
+    status = str(value or "").strip().casefold()
+    return status == "published" or status.startswith("published_")
+
+
+def evidence_label(value: str) -> str:
+    labels = {
+        "observed_signal": "Experimental signal",
+        "author_called_endpoint": "Author-reported endpoint",
+        "curated_record": "Literature-curated endpoint",
+        "experimentally_supported_endpoint": "Experimentally supported endpoint",
+        "predicted_candidate": "Predicted candidate",
+    }
+    return labels.get(value, value.replace("_", " ").strip().capitalize() or "Evidence not specified")
+
+
+def evidence_note(value: str) -> str:
+    notes = {
+        "observed_signal": "Signal values show an experiment's measured read signal. They are not called endpoints.",
+        "author_called_endpoint": "The study authors reported these transcript 3′ ends. A reported endpoint is not automatically a functional terminator validation.",
+        "curated_record": "Positions were curated from study evidence. The evidence label does not imply a separate functional test for every position.",
+        "experimentally_supported_endpoint": "Records are supported by experimental evidence as described in the source metadata.",
+        "predicted_candidate": "This is a computational candidate and should not be read as an experimental endpoint.",
+    }
+    return notes.get(value, "See the study citation and limitations for how these positions were produced.")
+
+
+def raw_data_links(raw: str) -> str:
+    links: list[str] = []
+    seen: set[str] = set()
+    for accession in re.split(r"[;,\s]+", raw.strip()):
+        accession = accession.strip()
+        if not accession or accession in seen:
+            continue
+        seen.add(accession)
+        if re.fullmatch(r"GSE\d+", accession):
+            url = f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={quote(accession)}"
+        elif re.fullmatch(r"SR[APRX]\d+", accession):
+            url = f"https://www.ncbi.nlm.nih.gov/sra/?term={quote(accession)}"
+        elif re.fullmatch(r"PRJNA\d+", accession):
+            url = f"https://www.ncbi.nlm.nih.gov/bioproject/{quote(accession)}"
+        elif re.fullmatch(r"PRJEB\d+", accession):
+            url = f"https://www.ebi.ac.uk/ena/browser/view/{quote(accession)}"
+        else:
+            continue
+        links.append(f'<a href="{esc(url)}" target="_blank" rel="noopener">{esc(accession)}</a>')
+    if not links:
+        return '<span class="muted">No raw-data accession recorded</span>'
+    return " · ".join(links)
+
+
+def site_href(asset_url: str, page_depth: int) -> str:
+    if asset_url.startswith(("https://", "http://", "/")):
+        return esc(asset_url)
+    prefix = "../" * page_depth
+    return esc(prefix + asset_url.removeprefix("./"))
+
+
+def get_asset_url(asset_map: dict[str, dict[str, object]], logical_path: str, *, optional: bool = False) -> str | None:
+    item = asset_map.get(logical_path)
+    if item is None:
+        if optional:
+            return None
+        raise SiteBuildError(f"Asset URL is not allowlisted: {logical_path}")
+    return str(item["url"])
+
+
+def nav(current: str = "home", depth: int = 0) -> str:
+    active_home = ' aria-current="page"' if current == "home" else ""
+    prefix = "../" * depth
+    return f'''<header class="site-header"><div class="header-inner">
+  <a class="brand" href="{prefix}index.html"><span class="brand-mark">BTED</span><span class="brand-name">Bacterial Transcript 3′ End Database</span></a>
+  <nav class="site-nav" aria-label="Primary navigation"><a href="{prefix}index.html"{active_home}>Genomes</a><a href="{prefix}methodology.html">Data notes</a></nav>
+</div></header>'''
+
+
+def page(title: str, content: str, *, current: str = "", scripts: tuple[str, ...] = (), depth: int = 0) -> str:
+    version_counts = "BTED v0.4.0 · genome-first experimental endpoint data"
+    prefix = "../" * depth
+    script_tags = "".join(f'<script src="{esc(src)}" defer></script>' for src in scripts)
+    return f'''<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="BTED v0.4.0 genome-first bacterial transcript 3′ end data"><title>{esc(title)} · BTED</title>
+<link rel="icon" href="{prefix}assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="{prefix}css/style.css"></head>
+<body>{nav(current, depth)}{content}<footer class="site-footer"><div class="footer-inner"><span>{esc(version_counts)}</span><a href="https://github.com/1220142415/BATTER-Transcription-Terminator-Database">GitHub</a></div></footer>{script_tags}</body></html>
+'''
+
+
+def _publication_link(pmid: str) -> str:
+    return f"https://pubmed.ncbi.nlm.nih.gov/{quote(pmid)}/"
+
+
+def _status_badge(row: dict[str, str]) -> str:
+    status = row.get("release_status", "")
+    if is_published_status(status):
+        label = status.replace("_", " ").capitalize() if status != "published" else "Published"
+        return f'<span class="badge badge-published">{esc(label)}</span>'
+    label = status.replace("_", " ").capitalize() if status else "Not published"
+    return f'<span class="badge badge-review">{esc(label)}</span>'
+
+
+def _asset_exists(asset_map: dict[str, dict[str, object]], predicate) -> bool:
+    return any(predicate(path, item) for path, item in asset_map.items())
+
+
+def _search_blob(assembly: str, rows: list[dict[str, str]]) -> str:
+    values = [assembly]
+    for row in rows:
+        values.extend(row.get(key, "") for key in ("species", "title", "pmid", "source_id", "assay", "raw_data_accessions"))
+    return " ".join(values).casefold()
+
+
+def index_content(genomes: list[dict[str, object]]) -> str:
+    count = len(genomes)
+    total_sources = sum(
+        1
+        for genome in genomes
+        for row in genome["metadata_rows"]
+        if is_published_status(row.get("release_status"))
+    )
+    total_records = sum(
+        int(row["record_count_number"])
+        for genome in genomes
+        for row in genome["metadata_rows"]
+        if is_published_status(row.get("release_status"))
+    )
+    cards: list[str] = []
+    for genome in genomes:
+        assembly = str(genome["assembly"])
+        rows = genome["metadata_rows"]
+        published = [row for row in rows if is_published_status(row.get("release_status"))]
+        species = next((row.get("species", "") for row in rows if row.get("species")), "")
+        study_count = len({row["pmid"] for row in published})
+        endpoint_count = sum(int(row["record_count_number"]) for row in published)
+        cards.append(f'''<article class="genome-card" data-genome-card data-search="{esc(_search_blob(assembly, rows))}">
+  <div><p class="eyebrow">Reference genome</p><h2><a href="genomes/{quote(assembly)}.html">{esc(species or assembly)}</a></h2><p class="assembly-id">{esc(assembly)}</p></div>
+  <dl class="genome-card-facts"><div><dt>Studies</dt><dd>{study_count}</dd></div><div><dt>Endpoint records</dt><dd>{endpoint_count:,}</dd></div></dl>
+  <a class="card-open" href="genomes/{quote(assembly)}.html" aria-label="Open {esc(species or assembly)} genome page">Open genome</a>
+</article>''')
+    content = f'''<main>
+<section class="hero hero-compact"><div class="page-shell hero-inner"><p class="eyebrow">BTED v0.4.0</p><h1>Find bacterial transcript 3′ ends by genome.</h1><p>Search a reference assembly to read study evidence, open endpoint and signal tracks, and download GFF3 or TSV files from one page.</p>
+  <form class="genome-search" role="search" data-genome-search-form><label for="genome-search-input">Genome, species, study or accession</label><div><input id="genome-search-input" type="search" placeholder="e.g. GCF_000005845.1 or Escherichia coli" autocomplete="off" data-genome-search><button class="button primary" type="submit">Search</button></div></form>
+</div></section>
+<section class="page-shell home-summary" aria-label="Release summary"><div><strong>{count}</strong><span>reference genomes</span></div><div><strong>{total_sources}</strong><span>source records</span></div><div><strong>{total_records:,}</strong><span>published endpoints</span></div></section>
+<section class="page-shell genome-results"><div class="section-heading"><div><p class="eyebrow">Genome directory</p><h2>Browse reference genomes</h2></div><p><span data-visible-count>{count}</span> genomes</p></div><p class="search-empty" data-empty hidden>No genomes match this search.</p><div class="genome-card-grid">{''.join(cards)}</div></section>
+</main>'''
+    return content
+
+
+def _group_studies(rows: list[dict[str, str]]) -> list[tuple[str, list[dict[str, str]]]]:
+    grouped: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        grouped.setdefault(row["pmid"], []).append(row)
+    return sorted(grouped.items(), key=lambda item: item[0])
+
+
+def genome_content(
+    genome: dict[str, object],
+    asset_map: dict[str, dict[str, object]],
+    track_ids: dict[str, str],
+    jbrowse_config: str | None,
+) -> str:
+    assembly = str(genome["assembly"])
+    rows: list[dict[str, str]] = genome["metadata_rows"]
+    published = [row for row in rows if is_published_status(row.get("release_status"))]
+    species = next((row.get("species", "") for row in published if row.get("species")), "")
+    studies = _group_studies(published)
+    total_records = sum(int(row["record_count_number"]) for row in published)
+    metadata_url = get_asset_url(asset_map, str(genome["metadata_path"]))
+    signal_sources = {
+        row["source_id"] for row in published
+        if _asset_exists(
+            asset_map,
+            lambda logical, _item, sid=row["source_id"]: logical.startswith(f"tracks/{sid}/")
+            and logical.lower().endswith((".bw", ".bigwig")),
+        )
+    }
+
+    source_cards: list[str] = []
+    source_options = ['<option value="">All endpoint tracks</option>']
+    for pmid, study_rows in studies:
+        title = next((row.get("title", "") for row in study_rows if row.get("title")), f"Study PMID {pmid}")
+        study_path = next((row.get("study_gff3", "").strip() for row in study_rows if row.get("study_gff3", "").strip()), "")
+        genome_dir = PurePosixPath(str(genome["metadata_path"])).parent
+        gff3_path = (genome_dir / study_path).as_posix() if study_path else ""
+        gff3_url = get_asset_url(asset_map, gff3_path, optional=True) if gff3_path else None
+        source_lines: list[str] = []
+        for row in study_rows:
+            source_id = row["source_id"]
+            record_count = int(row["record_count_number"])
+            evidence = row.get("evidence_class", "")
+            source_has_signal = source_id in signal_sources
+            if source_has_signal:
+                signal_text = '<span class="signal-present">Experimental signal track available</span>'
+            else:
+                signal_text = '<span class="signal-missing">No signal track</span>'
+            raw_links = raw_data_links(row.get("raw_data_accessions", ""))
+            limitation = row.get("known_limitations", "").strip()
+            track_id = track_ids.get(source_id, "")
+            if track_id:
+                source_options.append(f'<option value="{esc(source_id)}" data-track="{esc(track_id)}">{esc(source_id)} · {record_count:,} endpoints</option>')
+            limitation_html = f'<p class="limitation"><strong>Known limitations:</strong> {esc(limitation)}</p>' if limitation else ""
+            source_lines.append(f'''<div class="source-evidence" id="source-{esc(source_id)}" data-source-card="{esc(source_id)}">
+  <div class="source-heading"><div><h4>{esc(source_id)}</h4><p>{esc(row.get('assay', ''))}</p></div>{_status_badge(row)}</div>
+  <dl class="source-facts"><div><dt>Evidence</dt><dd>{esc(evidence_label(evidence))}</dd></div><div><dt>Endpoint records</dt><dd>{record_count:,}</dd></div><div><dt>Article licence</dt><dd>{esc(row.get('article_license', 'Not specified'))}</dd></div><div><dt>Data redistribution</dt><dd>{esc(row.get('redistribution_status', 'Not specified'))}</dd></div><div><dt>Raw data</dt><dd>{raw_links}</dd></div></dl>
+  <p class="evidence-explanation">{esc(evidence_note(evidence))}</p>{limitation_html}<p class="signal-state">{signal_text}</p>
+</div>''')
+        supplementary: list[str] = []
+        seen_paths: set[str] = set()
+        if gff3_path and gff3_url:
+            seen_paths.add(gff3_path)
+            zip_member = "/".join(PurePosixPath(gff3_path).parts[1:])
+            supplementary.append(f'<a class="download-card featured" data-package-file data-zip-path="{esc(zip_member)}" href="{site_href(gff3_url, 1)}"><strong>Study GFF3</strong><span>PMID {esc(pmid)} · {sum(int(row["record_count_number"]) for row in study_rows):,} endpoint records</span></a>')
+        for field, label, filename in (
+            ("gene_associations", "Gene associations", "gene associations TSV"),
+            ("condition_observations", "Condition observations", "condition observations TSV"),
+        ):
+            raw_value = next((row.get(field, "").strip() for row in study_rows if row.get(field, "").strip()), "")
+            if not raw_value:
+                continue
+            logical_path = (genome_dir / raw_value).as_posix()
+            if logical_path in seen_paths:
+                continue
+            link_url = get_asset_url(asset_map, logical_path, optional=True)
+            if link_url:
+                seen_paths.add(logical_path)
+                zip_member = "/".join(PurePosixPath(logical_path).parts[1:])
+                supplementary.append(f'<a class="download-card" data-package-file data-zip-path="{esc(zip_member)}" href="{site_href(link_url, 1)}"><strong>{esc(label)}</strong><span>{esc(filename)}</span></a>')
+        if not supplementary:
+            downloads_html = '<p class="muted">No downloadable endpoint file is published for this study.</p>'
+        else:
+            downloads_html = f'<div class="download-grid">{"".join(supplementary)}</div>'
+        source_cards.append(f'''<article class="study-card" id="study-{esc(pmid)}">
+  <header><div><p class="eyebrow">Study · PMID {esc(pmid)}</p><h3><a href="{esc(_publication_link(pmid))}" target="_blank" rel="noopener">{esc(title)}</a></h3></div><span class="study-count">{len(study_rows)} source record{'s' if len(study_rows) != 1 else ''}</span></header>
+  <div class="study-source-list">{''.join(source_lines)}</div><section class="study-downloads"><h4>Downloads</h4>{downloads_html}</section>
+</article>''')
+
+    all_source_rows = rows
+    unpublished_cards = []
+    for pmid, audit_rows in _group_studies([row for row in all_source_rows if not is_published_status(row.get("release_status"))]):
+        title = next((row.get("title", "") for row in audit_rows if row.get("title")), f"Study PMID {pmid}")
+        ids = ", ".join(row["source_id"] for row in audit_rows)
+        unpublished_cards.append(f'''<article class="study-card audit-card"><header><div><p class="eyebrow">Not in endpoint release · PMID {esc(pmid)}</p><h3>{esc(title)}</h3></div><span class="badge badge-review">Internal review</span></header><p>{esc(ids)} is retained in the source ledger for review. No endpoint download or browser track is provided.</p></article>''')
+
+    if jbrowse_config:
+        signal_intro = ("Endpoint features and experimental signal are separate tracks."
+                        if signal_sources else "Endpoint features are shown below. This genome has no experimental signal track.")
+        signal_key = '<span class="key-signal">Experimental signal</span>' if signal_sources else ''
+        browser_html = f'''<section class="browser-panel" id="genome-browser" data-genome-browser data-assembly="{esc(assembly)}">
+  <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>JBrowse</h2><p>{signal_intro}</p></div><label class="track-picker">Highlight a source below<select data-source-select>{''.join(source_options)}</select></label></div>
+  <p class="browser-key"><span class="key-endpoint">Endpoint features</span>{signal_key}</p>
+  <iframe data-browser-frame data-config="{esc(jbrowse_config)}" title="{esc(assembly)} genome browser" loading="lazy" referrerpolicy="no-referrer"></iframe>
+  <p class="browser-caption">Use JBrowse to pan or zoom. A signal track shows experimental measurements and is not itself an endpoint call.</p>
+</section>'''
+    else:
+        browser_html = '<section class="browser-panel browser-unavailable"><p class="eyebrow">Genome browser</p><h2>JBrowse is not available for this assembly</h2><p>Study downloads and evidence notes are available below.</p></section>'
+
+    metadata_link = f'<a class="button" data-package-file data-zip-path="{esc(assembly)}/metadata.tsv" href="{site_href(str(metadata_url), 1)}">Download genome metadata.tsv</a>'
+    content = f'''<main class="page-shell genome-page" data-genome-page data-assembly="{esc(assembly)}">
+<p class="breadcrumbs"><a href="../index.html">Genomes</a><span aria-hidden="true">/</span><span>{esc(assembly)}</span></p>
+<section class="genome-title"><div><p class="eyebrow">Reference genome</p><h1>{esc(species or assembly)}</h1><p class="assembly-id">{esc(assembly)}</p></div><div class="genome-title-actions"><button class="button primary" type="button" data-download-genome-package>Download genome package (.zip)</button>{metadata_link}<a class="button" href="https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/" target="_blank" rel="noopener">NCBI Assembly</a><p class="package-status" data-package-status role="status" aria-live="polite"></p></div></section>
+<section class="genome-summary" aria-label="Genome data summary"><div><strong>{len(studies)}</strong><span>published studies</span></div><div><strong>{len(published)}</strong><span>source records</span></div><div><strong>{total_records:,}</strong><span>endpoint records</span></div></section>
+{browser_html}
+<section class="evidence-intro"><h2>How to read the evidence</h2><p>Each study keeps its own coordinates and source identifiers. Experimental signal tracks show measured signal; GFF3 tracks show study-reported or curated endpoints. Endpoint records do not by themselves prove that a site functions as a terminator.</p></section>
+<section class="genome-studies"><div class="section-heading"><div><p class="eyebrow">Research and downloads</p><h2>Studies on this genome</h2></div><p>{len(studies)} published studies</p></div>{''.join(source_cards) if source_cards else '<p class="empty-state">No published study records are available for this genome.</p>'}{''.join(unpublished_cards)}</section>
+</main>'''
+    return content
+
+
+def redirect_html(title: str, *, destination: str, query_script: str) -> str:
+    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex"><title>{esc(title)} · BTED</title></head><body><p>This page moved to the genome view. <a href="{esc(destination)}">Continue to BTED</a>.</p><script>{query_script}</script></body></html>'''
+
+
+def _write(path: Path, value: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(value, encoding="utf-8", newline="\n")
+
+
+def build_site(
+    site_root: Path,
+    release_root: Path,
+    asset_map: dict[str, dict[str, object]],
+    browser_configs: dict[str, str],
+    track_ids: dict[str, str],
+) -> dict[str, object]:
+    release, files = read_release(release_root)
+    genomes = load_genomes(release_root, release, files)
+    for relative in files:
+        if relative not in asset_map:
+            raise SiteBuildError(f"Published release file is missing from the browser allowlist: {relative}")
+
+    site_root.mkdir(parents=True, exist_ok=True)
+    _write(site_root / "index.html", page("Genomes", index_content(genomes), current="home", scripts=("assets/genome-index.js",)))
+    genome_files = 0
+    for genome in genomes:
+        assembly = str(genome["assembly"])
+        config = browser_configs.get(assembly)
+        _write(
+            site_root / "genomes" / f"{assembly}.html",
+            page(
+                f"{next((row.get('species', '') for row in genome['metadata_rows'] if row.get('species')), assembly)} · {assembly}",
+                genome_content(genome, asset_map, track_ids, config),
+                scripts=("../assets/genome-page.js",),
+                depth=1,
+            ),
+        )
+        genome_files += 1
+
+    # Legacy entry points keep source and coordinate query parameters, then land
+    # on the matching genome page.
+    legacy_browser_script = '''
+const q = new URLSearchParams(location.search);
+const assembly = q.get("assembly") || q.get("accession") || q.get("genome") || "";
+const target = new URL(assembly ? `genomes/${encodeURIComponent(assembly)}.html` : "index.html", document.baseURI);
+["source_id", "loc", "session", "tracks", "highlight"].forEach((key) => { const value = q.get(key); if (value) target.searchParams.set(key, value); });
+location.replace(target.href);
+'''.strip()
+    source_redirect_script = '''
+const q = new URLSearchParams(location.search);
+const source = q.get("source_id") || "";
+const target = new URL("../index.html", document.baseURI);
+if (source) target.searchParams.set("source_id", source);
+location.replace(target.href);
+'''.strip()
+    _write(site_root / "browser.html", redirect_html("Genome browser", destination="index.html", query_script=legacy_browser_script))
+    _write(site_root / "sources.html", redirect_html("Genome directory", destination="index.html", query_script="""const q=new URLSearchParams(location.search);const assembly=q.get('assembly')||q.get('accession');const target=new URL(assembly?`genomes/${encodeURIComponent(assembly)}.html`:"index.html",document.baseURI);const search=q.get('search')||q.get('query')||q.get('accession');if(!assembly&&search)target.searchParams.set('search',search);location.replace(target.href);"""))
+    _write(site_root / "catalog.html", redirect_html("Downloads", destination="index.html", query_script="location.replace(new URL('index.html', document.baseURI).href);"))
+
+    old_assembly_root = site_root / "assemblies"
+    old_assembly_root.mkdir(parents=True, exist_ok=True)
+    for genome in genomes:
+        assembly = str(genome["assembly"])
+        script = f'''const q=new URLSearchParams(location.search);const target=new URL("../genomes/{quote(assembly)}.html",document.baseURI);["source_id","loc","session","tracks","highlight"].forEach(k=>{{const v=q.get(k);if(v)target.searchParams.set(k,v);}});location.replace(target.href);'''
+        _write(old_assembly_root / f"{assembly}.html", redirect_html("Genome page", destination=f"../genomes/{assembly}.html", query_script=script))
+
+    old_records = site_root / "records"
+    old_records.mkdir(parents=True, exist_ok=True)
+    source_to_assembly = {
+        row["source_id"]: str(genome["assembly"])
+        for genome in genomes
+        for row in genome["metadata_rows"]
+    }
+    for source_id, assembly in sorted(source_to_assembly.items()):
+        script = f'''const q=new URLSearchParams(location.search);const target=new URL("../genomes/{quote(assembly)}.html",document.baseURI);target.searchParams.set("source_id",{json.dumps(source_id)});["loc","session","tracks","highlight"].forEach(k=>{{const v=q.get(k);if(v)target.searchParams.set(k,v);}});location.replace(target.href);'''
+        _write(old_records / f"{source_id}.html", redirect_html("Genome page", destination=f"../genomes/{assembly}.html", query_script=script))
+
+    methodology = '''<main class="page-shell prose"><p class="breadcrumbs"><a href="index.html">Genomes</a><span aria-hidden="true">/</span><span>Data notes</span></p><div class="page-heading"><div><p class="eyebrow">BTED v0.4.0</p><h1>Data notes</h1></div></div>
+<section><h2>Genome-first release</h2><p>BTED v0.4.0 groups public study records by reference assembly. Each genome page combines study descriptions, evidence notes, downloadable GFF3 and TSV files, and the JBrowse view.</p></section>
+<section><h2>Coordinates and evidence</h2><p>Study GFF3 files preserve separate source observations and use 1-based coordinates. An endpoint reported in a paper is not automatically a functional validation of a terminator. BigWig tracks show experimental signal and are labelled separately from endpoint features.</p></section>
+<section><h2>Downloads</h2><p>Use the genome page to download <code>metadata.tsv</code>, per-study <code>endpoints.gff3.gz</code>, and available supplementary TSV files. The release manifest and checksum list support programmatic verification and are not user-facing data downloads.</p></section>
+</main>'''
+    _write(site_root / "methodology.html", page("Data notes", methodology))
+    _write(site_root / "about.html", redirect_html("Data notes", destination="methodology.html", query_script="location.replace(new URL('methodology.html', document.baseURI).href);"))
+    _write(site_root / "accession-range-demo.html", redirect_html(
+        "Genome search", destination="index.html",
+        query_script="""const params=new URLSearchParams(location.search);const value=params.get("accession")||params.get("search");const target=new URL("index.html",document.baseURI);if(value)target.searchParams.set("search",value);location.replace(target.href);""",
+    ))
+
+    return {
+        "release_version": RELEASE_VERSION,
+        "genome_count": len(genomes),
+        "genome_pages": genome_files,
+        "source_count": sum(len(genome["metadata_rows"]) for genome in genomes),
+        "endpoint_count": sum(
+            int(row["record_count_number"])
+            for genome in genomes for row in genome["metadata_rows"]
+            if is_published_status(row.get("release_status"))
+        ),
+        "release_files": len(files),
+    }
+
+
+def materialize_browser_tracks(release_root: Path, output_root: Path) -> list[dict[str, object]]:
+    """Split study GFF3 records by source_id into deterministic plain browser files."""
+    release, files = read_release(release_root)
+    genomes = load_genomes(release_root, release, files)
+    output_root.mkdir(parents=True, exist_ok=True)
+    object_root = output_root / RELEASE_VERSION
+    object_root.mkdir(parents=True, exist_ok=True)
+    rows: list[dict[str, object]] = []
+    for genome in genomes:
+        assembly = str(genome["assembly"])
+        metadata_dir = PurePosixPath(str(genome["metadata_path"])).parent
+        for source in genome["metadata_rows"]:
+            if not is_published_status(source.get("release_status")) or int(source["record_count_number"]) <= 0:
+                continue
+            source_id = source["source_id"]
+            relative_gff3 = (metadata_dir / safe_relative_path(source["study_gff3"], label="study GFF3")).as_posix()
+            source_path = release_file_path(release_root, relative_gff3, label="study GFF3")
+            record_count = 0
+            target_rel = PurePosixPath("tracks") / source_id / "endpoints.gff3"
+            target = object_root.joinpath(*target_rel.parts)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with gzip.open(source_path, "rt", encoding="utf-8", newline="") as handle, target.open("w", encoding="utf-8", newline="\n") as output:
+                for line in handle:
+                    if not line.strip():
+                        continue
+                    if line.startswith("#"):
+                        if line.startswith("##FASTA"):
+                            break
+                        if line.startswith("##sequence-region "):
+                            parts = line.rstrip("\r\n").split(" ")
+                            mapping = BROWSER_SEQID_MAPS.get(assembly, {})
+                            if len(parts) > 1 and parts[1] in mapping:
+                                parts[1] = mapping[parts[1]]
+                                line = " ".join(parts) + "\n"
+                        output.write(line if line.endswith("\n") else line + "\n")
+                        continue
+                    columns = line.rstrip("\r\n").split("\t")
+                    if len(columns) != 9:
+                        raise SiteBuildError(f"Malformed GFF3 feature in {relative_gff3}: expected 9 columns")
+                    if columns[1] != source_id:
+                        continue
+                    columns[0] = BROWSER_SEQID_MAPS.get(assembly, {}).get(columns[0], columns[0])
+                    line = "\t".join(columns) + "\n"
+                    output.write(line if line.endswith("\n") else line + "\n")
+                    record_count += 1
+            expected = int(source["record_count_number"])
+            if record_count != expected:
+                target.unlink(missing_ok=True)
+                raise SiteBuildError(f"{assembly}/{source_id}: filtered GFF3 has {record_count} records, expected {expected}")
+            logical_path = (PurePosixPath("tracks") / source_id / "endpoints.gff3").as_posix()
+            rows.append({
+                "logical_path": logical_path,
+                "local_path": (PurePosixPath(RELEASE_VERSION) / target_rel).as_posix(),
+                "byte_size": target.stat().st_size,
+                "sha256": sha256_file(target),
+                "asset_kind": "gff3",
+                "source_id": source_id,
+                "assembly": assembly,
+                "record_count": record_count,
+            })
+    rows.sort(key=lambda row: str(row["logical_path"]))
+    manifest = output_root / "browser_tracks.tsv"
+    with manifest.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=("logical_path", "local_path", "byte_size", "sha256", "asset_kind", "source_id", "assembly", "record_count"),
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+    return rows
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--release-root", type=Path, default=Path("data/public/v0.4.0"))
+    parser.add_argument("--output-root", type=Path, default=Path("dist/v04-browser-objects"))
+    args = parser.parse_args()
+    try:
+        rows = materialize_browser_tracks(args.release_root.resolve(), args.output_root.resolve())
+    except (SiteBuildError, OSError, EOFError, gzip.BadGzipFile, ValueError) as exc:
+        print(f"FAIL  {exc}", file=sys.stderr)
+        return 1
+    print(f"PASS  Materialized {len(rows)} source-specific browser GFF3 assets under {args.output_root}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

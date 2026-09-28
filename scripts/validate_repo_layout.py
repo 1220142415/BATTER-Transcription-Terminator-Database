@@ -25,22 +25,31 @@ ALLOWED_TOP_LEVEL = {
 REQUIRED_PATHS = {
     "README.md",
     "CONTRIBUTING.md",
-    "docs/releases/v0.3.0.md",
+    "docs/releases/v0.4.0.md",
     "docs/SOURCES.md",
-    "docs/v0.3/deployment.md",
-    "data/public/v0.3.0/studies/PMID_31594819/gene_associations.tsv.gz",
-    "data/public/v0.3.0/studies/PMID_37402717/condition_observations.tsv.gz",
-    "data/public/v0.3.0/release.json",
-    "data/public/v0.3.0/SHA256SUMS.txt",
+    "docs/deployment.md",
+    "data/public/v0.4.0/genomes/GCF_000006765.1/studies/PMID_31594819/gene_associations.tsv.gz",
+    "data/public/v0.4.0/genomes/GCF_000008685.2/studies/PMID_37402717/condition_observations.tsv.gz",
+    "data/public/v0.4.0/release.json",
+    "data/public/v0.4.0/SHA256SUMS.txt",
+    "data/registry/internal/v0.4.0/source_provenance.json",
+    "data/registry/browser_assets.v0.4.0.tsv",
+    "data/registry/browser_refs/GCF_000012525.1.ncbi.zip",
+    "data/registry/batter_s1_asset_redistribution.v0.3.tsv",
     "data/registry/internal/augmentation/README.md",
     "data/archive/BTED-v0.2.0.tar.gz",
     "data/archive/BTED-v0.2.0.tar.gz.sha256",
     "data/archive/BTED-v0.2.0.SHA256SUMS.txt",
+    "data/archive/BTED-v0.3.0.tar.gz",
+    "data/archive/BTED-v0.3.0.tar.gz.sha256",
+    "data/archive/BTED-v0.3.0.SHA256SUMS.txt",
+    "data/archive/BTED-external-intake-2026-08-10.tar.gz",
+    "data/archive/BTED-external-intake-2026-08-10.tar.gz.sha256",
 }
 ALLOWED_DOC_FILES = {
-    "docs/releases/v0.3.0.md",
+    "docs/releases/v0.4.0.md",
     "docs/SOURCES.md",
-    "docs/v0.3/deployment.md",
+    "docs/deployment.md",
 }
 REMOVED_ROOT_FILES = {
     "PROGRESS.md",
@@ -89,7 +98,7 @@ def main() -> int:
     legacy_endpoint_exports = {
         "endpoints.csv", "endpoints.tsv", "endpoints.tsv.gz", "endpoints.bed",
     }
-    for public_root in (ROOT / "data/public/v0.3.0", ROOT / "site"):
+    for public_root in (ROOT / "data/public/v0.4.0", ROOT / "site"):
         if not public_root.exists():
             continue
         legacy = sorted(
@@ -139,37 +148,24 @@ def main() -> int:
     if retired:
         errors.append(f"retired or generated paths remain in the source tree: {retired}")
 
-    if not (ROOT / "data/public/v0.3.0").is_dir():
-        errors.append("current public release directory is missing: data/public/v0.3.0")
+    if (ROOT / "data/public/v0.3.0").exists():
+        errors.append("v0.3.0 per-file tree remains after archival")
+    v04 = ROOT / "data/public/v0.4.0"
+    if not v04.is_dir():
+        errors.append("current public release directory is missing: data/public/v0.4.0")
     else:
-        root_names = {path.name for path in (ROOT / "data/public/v0.3.0").iterdir()}
-        expected_root_names = {"studies", "release.json", "SHA256SUMS.txt"}
-        if root_names != expected_root_names:
-            errors.append(f"v0.3.0 has unexpected root entries: {sorted(root_names - expected_root_names)}")
-    study_root = ROOT / "data/public/v0.3.0/studies"
-    study_dirs = sorted(path for path in study_root.iterdir() if path.is_dir()) if study_root.is_dir() else []
-    if len(study_dirs) != 13:
-        errors.append(f"expected 13 study folders in v0.3.0, found {len(study_dirs)}")
-    for study_dir in study_dirs:
-        names = {path.name for path in study_dir.iterdir()}
-        expected_names = {"endpoints.gff3.gz", "metadata.json", "metadata.tsv"}
-        if study_dir.name == "PMID_31594819":
-            expected_names.add("gene_associations.tsv.gz")
-        if study_dir.name == "PMID_37402717":
-            expected_names.add("condition_observations.tsv.gz")
-        if not study_dir.name.startswith("PMID_") or names != expected_names:
-            errors.append(f"study folder has unexpected name or files: {study_dir.relative_to(ROOT)}")
-    for retired_name in ("endpoints.gff3.gz", "sources.json", "gene_associations.tsv.gz", "condition_observations.tsv.gz"):
-        if (ROOT / "data/public/v0.3.0" / retired_name).exists():
-            errors.append(f"retired combined release file remains: {retired_name}")
-    if (ROOT / "data/public/v0.3.0/sources.tsv").exists():
-        errors.append("sources.tsv is a staging-only download and must not be stored in data/public/v0.3.0")
-    retired_jsonl = sorted(
-        path.relative_to(ROOT).as_posix()
-        for path in (ROOT / "data/public/v0.3.0").glob("*.jsonl.gz")
-    ) if (ROOT / "data/public/v0.3.0").is_dir() else []
-    if retired_jsonl:
-        errors.append(f"retired v0.3.0 JSONL release files remain: {retired_jsonl}")
+        root_names = {path.name for path in v04.iterdir()}
+        if root_names != {"genomes", "release.json", "SHA256SUMS.txt"}:
+            errors.append(f"v0.4.0 has unexpected root entries: {sorted(root_names)}")
+        genomes = sorted(path for path in (v04 / "genomes").iterdir() if path.is_dir()) if (v04 / "genomes").is_dir() else []
+        if len(genomes) != 21:
+            errors.append(f"expected 21 genome folders in v0.4.0, found {len(genomes)}")
+        for genome in genomes:
+            if not genome.name.startswith("GCF_") or not (genome / "metadata.tsv").is_file():
+                errors.append(f"invalid genome folder: {genome.relative_to(ROOT)}")
+            forbidden_json = list(genome.rglob("*.json"))
+            if forbidden_json:
+                errors.append(f"user-facing genome folder contains JSON: {genome.relative_to(ROOT)}")
 
     retired_augmentation_paths = [
         path for path in ("site/bted-augmentation.html", "site/data/augmentation")

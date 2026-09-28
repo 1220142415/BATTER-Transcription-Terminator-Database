@@ -1,2 +1,0 @@
-source_id	species	assembly	pmid	title	assay	record_count	evidence_class	release_status	article_license	redistribution_status	raw_data_accessions	known_limitations
-BATTER_S1_007	Streptomyces lividans TK24	GCF_000739105.1	31555254	The Transcription Unit Architecture of Streptomyces lividans TK24	Term-seq / dRNA-seq	1640	author_called_endpoint	published_standardized	CC BY	verified_redistributable	PRJEB31507	Lee 2019 Supplementary Dataset 3 imported independently: 1,640 author-called Term-seq TEPs on CP009124.1; termination and RNA processing are not distinguished.
