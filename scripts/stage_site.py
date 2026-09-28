@@ -64,10 +64,6 @@ def load_study_citations(path: Path = BTED_CITATIONS) -> dict[str, dict[str, str
     return citations
 
 
-def display_article_license(raw: str) -> str:
-    return "Article not openly licensed" if raw == "not_open_access_author_manuscript" else raw
-
-
 def install_bted_plugin(package_root: Path) -> None:
     if not BTED_PLUGIN_SOURCE.is_file():
         raise StageError("BTED JBrowse plugin is not built; run npm ci and npm run build in jbrowse-plugin/")
@@ -1017,7 +1013,7 @@ def _assembly_ref_assets(
     fai_path, fai_asset = fai
     local_fai = fai_asset.get("local_path")
     if not isinstance(local_fai, Path) or not local_fai.is_file():
-        raise StageError(f"Reference FAI is not available locally for {assembly}: {fai_path}")
+        local_fai = None
     gff3 = next(((path, item) for path, item in candidates.items() if item["asset_kind"] == "gff3"), None)
     tbi = next(((path, item) for path, item in candidates.items() if item["asset_kind"] == "tbi"), None)
     extra: dict[str, dict[str, object]] = {}
@@ -1033,21 +1029,52 @@ def _assembly_ref_assets(
     }, extra, local_fai
 
 
+def _reference_fai_file(
+    assembly: str, asset_map: dict[str, dict[str, object]], package_root: Path,
+    asset_paths: dict[str, dict[str, str]],
+) -> Path:
+    reference, _, local_fai = _assembly_ref_assets(assembly, asset_map)
+    if local_fai is not None:
+        return local_fai
+    logical = str(reference["fai_path"])
+    expected_sha = str(reference["fai"]["sha256"])
+    for bundle_path, entry in sorted(asset_paths.items()):
+        if entry.get("object_path") != logical:
+            continue
+        candidate = (package_root / bundle_path).resolve()
+        if candidate.is_file() and sha256_file(candidate) == expected_sha:
+            return candidate
+    raise StageError(f"Verified reference FAI is not available locally for {assembly}: {logical}")
+
+
+def _longest_fai_reference(fai_file: Path, assembly: str) -> tuple[str, int]:
+    records: list[tuple[str, int]] = []
+    with fai_file.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            columns = line.rstrip("\r\n").split("\t")
+            if len(columns) < 2 or not columns[0]:
+                raise StageError(f"Reference FAI is malformed for {assembly}")
+            try:
+                length = int(columns[1])
+            except ValueError as exc:
+                raise StageError(f"Reference FAI has an invalid length for {assembly}") from exc
+            if length < 1:
+                raise StageError(f"Reference FAI has an invalid length for {assembly}")
+            records.append((columns[0], length))
+    if not records:
+        raise StageError(f"Reference FAI has no sequences for {assembly}")
+    return sorted(records, key=lambda row: (-row[1], row[0]))[0]
+
+
 def _new_v04_assembly_config(
     assembly: str,
     species: str,
     asset_map: dict[str, dict[str, object]],
 ) -> dict[str, object]:
     reference, annotation, fai_file = _assembly_ref_assets(assembly, asset_map)
-    with fai_file.open("r", encoding="utf-8") as handle:
-        first = handle.readline().rstrip("\r\n").split("\t")
-    if len(first) < 2:
-        raise StageError(f"Reference FAI is malformed for {assembly}")
-    ref_name = first[0]
-    try:
-        ref_length = int(first[1])
-    except ValueError as exc:
-        raise StageError(f"Reference FAI has an invalid length for {assembly}") from exc
+    if fai_file is None:
+        raise StageError(f"Reference FAI is not available locally for {assembly}")
+    ref_name, ref_length = _longest_fai_reference(fai_file, assembly)
     assembly_name = re.sub(r"[^A-Za-z0-9_]", "_", f"BTED_{assembly}")
     reference_track = {
         "type": "ReferenceSequenceTrack",
@@ -1067,7 +1094,7 @@ def _new_v04_assembly_config(
         "configuration": {},
         "connections": [],
         "defaultSession": {
-            "name": f"BTED {assembly} · study evidence",
+            "name": f"BTED · {assembly}",
             "views": [{
                 "id": "bted_v04_genome_view",
                 "type": "LinearGenomeView",
@@ -1167,7 +1194,7 @@ def _endpoint_track_v04(
         "record_count": source["record_count_number"], "evidence": evidence_text,
         "explanation": "GFF3 rows are independent by source; same-coordinate studies are not merged.",
         "assembly": genome, "reference_name": reference_name,
-        "license": display_article_license(source["article_license"]), "limitations": source["known_limitations"],
+        "limitations": source["known_limitations"],
         "raw_data_accessions": source["raw_data_accessions"], "raw_data_url": raw_data_url,
         "gff3_url": _v04_jbrowse_uri(study_asset),
     }
@@ -1201,6 +1228,10 @@ def _endpoint_track_v04(
             "record_count": int(source["record_count_number"]),
             "evidence_class": evidence,
             "btedAbout": about,
+            "btedDownloads": [{
+                "kind": "endpoint", "label": "3′ end GFF3", "url": _v04_jbrowse_uri(asset),
+                "filename": f"{source_id}.endpoints.gff3", "source_id": source_id,
+            }],
         },
     }
 
@@ -1268,6 +1299,11 @@ def _default_signal_tracks(
                 "evidence_class": "observed_signal", "release_version": "v0.4.0",
                 "btedMirroredSignal": True,
                 "signal_display": "Mirrored for viewing; raw BigWig values are unchanged",
+                "btedDownloads": [{
+                    "kind": "bigwig", "label": f"{'+' if item['source'] == 'plus' else '−'} strand BigWig",
+                    "url": item["bigWigLocation"]["uri"],
+                    "filename": f"{source_match}.signal.{'forward' if item['source'] == 'plus' else 'reverse'}.bw",
+                } for item in subadapters],
                 "btedAbout": {
                     "kind": "signal", "source_id": source_match, "strand": "+ / −",
                     "title": citation.get("title", ""), "authors": citation.get("authors", ""),
@@ -1276,7 +1312,6 @@ def _default_signal_tracks(
                     "doi_url": f"https://doi.org/{quote(citation['doi'], safe='/')}" if citation.get("doi") else "",
                     "assay": source.get("assay", ""), "assembly": source.get("assembly", ""),
                     "raw_data_accessions": source.get("raw_data_accessions", ""),
-                    "license": "NCBI GEO data-use policy",
                     "limitations": source.get("known_limitations", ""),
                     "explanation": "Measured signal from the study. The graph mirrors + and − around zero; the original BigWig values are unchanged. This track does not mark called 3′ ends.",
                 },
@@ -1388,12 +1423,30 @@ def build_v04_jbrowse_configs(
 
         source_lookup = {row["source_id"]: row for row in published}
         _default_signal_tracks(config, source_lookup, citations)
-        reference_name = ""
-        views = config.get("defaultSession", {}).get("views", [])
-        if views and isinstance(views[0], dict):
-            regions = views[0].get("displayedRegions", [])
-            if regions and isinstance(regions[0], dict):
-                reference_name = str(regions[0].get("refName", ""))
+        fai_file = _reference_fai_file(assembly, assets, package_root, asset_paths)
+        reference_name, reference_length = _longest_fai_reference(fai_file, assembly)
+        first_site: int | None = None
+        for source in published:
+            local_track = assets[f"tracks/{source['source_id']}/endpoints.gff3"]["local_path"]
+            with local_track.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    if not line or line.startswith("#"):
+                        continue
+                    columns = line.split("\t", 5)
+                    if columns[0] == reference_name:
+                        position = int(columns[3])
+                        first_site = position if first_site is None else min(first_site, position)
+        start = max(0, first_site - 501) if first_site is not None else 0
+        end = min(reference_length, start + (1000 if first_site is not None else 10000))
+        session = config["defaultSession"]
+        session["name"] = f"BTED · {assembly}"
+        view = _session_view(config)
+        view["name"] = species or assembly
+        view["displayedRegions"] = [{
+            "refName": reference_name, "start": start, "end": end,
+            "reversed": False, "assemblyName": assembly_name,
+        }]
+        view["bpPerPx"] = max(0.001, (end - start) / 1000)
         for track in config.get("tracks", []):
             if not isinstance(track, dict) or not _is_reference_annotation(track):
                 continue
@@ -1402,6 +1455,11 @@ def build_v04_jbrowse_configs(
             annotation_hash = str(annotation_asset.get("sha256", "")) if annotation_asset else ""
             track["metadata"] = {
                 **(track.get("metadata", {}) if isinstance(track.get("metadata"), dict) else {}),
+                "btedDownloads": [{
+                    "kind": "reference", "label": "Reference annotation GFF3",
+                    "url": str(annotation_asset["url"]),
+                    "filename": f"{assembly}.genes.gff3.gz" if str(annotation_asset["url"]).endswith(".gz") else f"{assembly}.genes.gff3",
+                }] if annotation_asset else [],
                 "btedAbout": {
                     "kind": "reference", "assembly": assembly,
                     "reference": f"{species} · {assembly}", "reference_name": reference_name,

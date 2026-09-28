@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import mimetypes
 import re
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -18,12 +20,13 @@ HF_URL = re.compile(
 )
 
 
-def serve(root: Path, port: int, proxy: str) -> None:
+def serve(root: Path, port: int, proxy: str, release_asset_dir: Path | None = None, browser_objects_root: Path | None = None) -> None:
     root = root.resolve()
     manifest = json.loads((root / "assets/data-release.json").read_text(encoding="utf-8"))
     if manifest.get("releaseVersion") != "v0.4.0":
         raise ValueError("preview requires a staged v0.4.0 site")
     allowed: dict[str, str] = {}
+    local_assets: dict[str, Path] = {}
     replacements: dict[bytes, bytes] = {}
     for logical_path, item in manifest["assets"].items():
         url = item["url"]
@@ -34,6 +37,36 @@ def serve(root: Path, port: int, proxy: str) -> None:
         allowed[f"/hf/{version}/{logical_path}"] = url
         old_base = f"https://huggingface.co/datasets/liurulong/terminator/resolve/{revision}/{version}"
         replacements[old_base.encode()] = f"http://127.0.0.1:{port}/hf/{version}".encode()
+    if release_asset_dir is not None:
+        bundle = release_asset_dir.resolve()
+        inventory = json.loads((Path(__file__).resolve().parents[1] / "data/registry/jbrowse_assets.v0.2.0.json").read_text(encoding="utf-8"))
+        for row in inventory["rows"]:
+            logical = row["object_path"]
+            key = f"/hf/v0.3.0/{logical}"
+            expected = manifest["assets"].get(logical)
+            if key not in allowed or not expected or expected["sha256"] != row["sha256"]:
+                continue
+            candidate = (bundle / row["bundle_path"]).resolve()
+            if not candidate.is_relative_to(bundle) or not candidate.is_file():
+                continue
+            if candidate.stat().st_size != int(expected["byte_size"]) or hashlib.sha256(candidate.read_bytes()).hexdigest() != expected["sha256"]:
+                raise ValueError(f"local preview asset differs from pinned data: {logical}")
+            local_assets[key] = candidate
+    if browser_objects_root is not None:
+        repo = Path(__file__).resolve().parents[1]
+        local_roots = (repo / "data/public/v0.4.0", browser_objects_root.resolve() / "v0.4.0")
+        for logical, item in manifest["assets"].items():
+            key = f"/hf/v0.4.0/{logical}"
+            if key not in allowed:
+                continue
+            for local_root in local_roots:
+                candidate = (local_root / logical).resolve()
+                if not candidate.is_relative_to(local_root) or not candidate.is_file():
+                    continue
+                if candidate.stat().st_size != int(item["byte_size"]) or hashlib.sha256(candidate.read_bytes()).hexdigest() != item["sha256"]:
+                    raise ValueError(f"local preview asset differs from pinned data: {logical}")
+                local_assets[key] = candidate
+                break
     client = httpx.Client(proxy=proxy, trust_env=False, follow_redirects=True, timeout=120)
 
     class Handler(SimpleHTTPRequestHandler):
@@ -52,6 +85,35 @@ def serve(root: Path, port: int, proxy: str) -> None:
                 remote = allowed.get(requested)
                 if not remote:
                     self.send_error(404)
+                    return
+                local = local_assets.get(requested)
+                if local is not None:
+                    size = local.stat().st_size
+                    match = re.fullmatch(r"bytes=(\d+)-(\d*)", self.headers.get("Range", "")) if self.headers.get("Range") else None
+                    if self.headers.get("Range") and not match:
+                        self.send_response(416)
+                        self.send_header("Content-Range", f"bytes */{size}")
+                        self.end_headers()
+                        return
+                    start = int(match.group(1)) if match else 0
+                    end = min(size - 1, int(match.group(2))) if match and match.group(2) else size - 1
+                    if start >= size or end < start:
+                        self.send_response(416)
+                        self.send_header("Content-Range", f"bytes */{size}")
+                        self.end_headers()
+                        return
+                    self.send_response(206 if match else 200)
+                    self.send_header("Content-Type", mimetypes.guess_type(local.name)[0] or "application/octet-stream")
+                    self.send_header("Content-Length", str(end - start + 1))
+                    self.send_header("Accept-Ranges", "bytes")
+                    if match:
+                        self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.end_headers()
+                    if not head_only:
+                        with local.open("rb") as handle:
+                            handle.seek(start)
+                            self.wfile.write(handle.read(end - start + 1))
                     return
                 headers = {"Range": self.headers["Range"]} if self.headers.get("Range") else {}
                 try:
@@ -101,8 +163,10 @@ def main() -> int:
     parser.add_argument("--site", type=Path, required=True)
     parser.add_argument("--port", type=int, default=8769)
     parser.add_argument("--proxy", default="http://127.0.0.1:7897")
+    parser.add_argument("--release-asset-dir", type=Path, help="Verified unpacked v0.2 JBrowse package for local preview only")
+    parser.add_argument("--browser-objects-root", type=Path, help="Verified generated v0.4 browser objects for local preview only")
     args = parser.parse_args()
-    serve(args.site, args.port, args.proxy)
+    serve(args.site, args.port, args.proxy, args.release_asset_dir, args.browser_objects_root)
     return 0
 
 

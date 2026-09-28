@@ -47,11 +47,15 @@ python scripts/stage_site.py --data-version v0.4.0 --mode worker \
 
 python scripts/validate-site.py dist/pages-site
 python scripts/validate-site.py dist/worker-site
+mkdir -p dist/jbrowse-release/unpacked
+tar -xzf dist/jbrowse-release/BTED-v0.2.0-jbrowse-assets.tar.gz -C dist/jbrowse-release/unpacked
 python scripts/serve_v04_preview.py --site dist/pages-site --port 8769 \
-  --proxy http://127.0.0.1:7897
+  --proxy http://127.0.0.1:7897 \
+  --release-asset-dir dist/jbrowse-release/unpacked/BTED-v0.2.0-jbrowse \
+  --browser-objects-root dist/v04-browser-objects
 ```
 
-打开 `http://127.0.0.1:8769/`，搜索基因组并进入对应页面。预览程序只代理发布清单中列出的固定 Hugging Face 文件；基因组页同时有来源说明、下载和 JBrowse。原有四个来源各有一条正负链镜像信号轨道；其他来源明确写“暂无信号轨道”。镜像只改变显示方向，原始 BigWig 不变。`dist/` 是本地组装结果，不提交到 Git。
+打开 `http://127.0.0.1:8769/`，搜索基因组并进入对应页面。预览程序只读取发布清单中的文件；可从已校验的本地包读取相同字节，缺少时再走固定版本地址。基因组页可以分享当前位置与可见轨道，轨道菜单可下载完整文件，端点 GFF3 也可导出当前区段。原有四个来源各有一条正负链镜像信号轨道；镜像只改变显示方向，原始 BigWig 不变。`dist/` 是本地组装结果，不提交到 Git。
 
 ## 上传 Hugging Face 后固定版本
 

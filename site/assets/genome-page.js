@@ -8,6 +8,113 @@
   const assembly = root.dataset.assembly;
   let params = new URLSearchParams(window.location.search);
   const browserUrl = new URL("../jbrowse/index.html", document.baseURI);
+  const shareButton = document.querySelector("[data-share-view]");
+  const shareStatus = document.querySelector("[data-share-status]");
+  const shareManual = document.querySelector("[data-share-manual]");
+  const bridgeChannel = "bted-browser-v1";
+  let bridgeNonce = "";
+  let bridgeReady = false;
+  let requestNumber = 0;
+  const pending = new Map();
+
+  function shareMessage(message) {
+    frame.contentWindow?.postMessage({ channel: bridgeChannel, nonce: bridgeNonce, ...message }, window.location.origin);
+  }
+
+  function parseSharedView(query) {
+    if (!query.has("view")) return null;
+    const keys = ["view", "ref", "center", "zoom", "rev", "tracks"];
+    if (keys.some((key) => query.getAll(key).length !== 1) || query.get("view") !== "1") throw new Error("This shared view link is invalid.");
+    const ref = query.get("ref");
+    const center = Number(query.get("center"));
+    const zoom = Number(query.get("zoom"));
+    const rev = query.get("rev");
+    if (!ref || ref.length > 255 || !Number.isSafeInteger(center) || center < 1 ||
+        !Number.isFinite(zoom) || zoom <= 0 || !["0", "1"].includes(rev)) throw new Error("This shared view link is invalid.");
+    const tracks = query.get("tracks") ? query.get("tracks").split(",").map((entry) => {
+      const divider = entry.lastIndexOf(":");
+      const id = entry.slice(0, divider);
+      const height = Number(entry.slice(divider + 1));
+      if (divider < 1 || !/^[A-Za-z0-9_.-]{1,128}$/.test(id) || !Number.isFinite(height) || height < 20 || height > 1000) {
+        throw new Error("This shared view has an invalid track list.");
+      }
+      return { id, height };
+    }) : [];
+    if (tracks.length > 100 || new Set(tracks.map((track) => track.id)).size !== tracks.length) throw new Error("This shared view has an invalid track list.");
+    return { version: 1, ref, center, zoom, reversed: rev === "1", tracks };
+  }
+
+  function sharedUrl(state) {
+    const url = new URL(window.location.href);
+    ["view", "ref", "center", "zoom", "rev", "tracks", "session", "loc", "highlight"].forEach((key) => url.searchParams.delete(key));
+    url.searchParams.set("view", "1");
+    url.searchParams.set("ref", state.ref);
+    url.searchParams.set("center", String(state.center));
+    url.searchParams.set("zoom", String(state.zoom));
+    url.searchParams.set("rev", state.reversed ? "1" : "0");
+    url.searchParams.set("tracks", state.tracks.map((track) => `${track.id}:${track.height}`).join(","));
+    return url.href;
+  }
+
+  function setShareStatus(message) {
+    if (shareStatus) shareStatus.textContent = message;
+  }
+
+  window.addEventListener("message", async (event) => {
+    const message = event.data;
+    if (event.origin !== window.location.origin || event.source !== frame.contentWindow ||
+        message?.channel !== bridgeChannel || message.nonce !== bridgeNonce) return;
+    if (message.type === "ready") {
+      bridgeReady = true;
+      if (shareButton) shareButton.disabled = false;
+      try {
+        const state = parseSharedView(params);
+        if (state) {
+          const id = String(++requestNumber);
+          pending.set(id, "restore");
+          setShareStatus("Restoring shared view…");
+          shareMessage({ type: "restore", id, state });
+        } else setShareStatus("");
+      } catch (error) {
+        setShareStatus(`${error.message} Showing the default view.`);
+      }
+      return;
+    }
+    const action = pending.get(message.id);
+    if (!action) {
+      if (message.type === "error") setShareStatus(message.message || "Browser unavailable.");
+      return;
+    }
+    pending.delete(message.id);
+    if (message.type === "error") {
+      setShareStatus(`${message.message || "The browser view is unavailable."} Showing the default view.`);
+    } else if (action === "restore" && message.type === "restored") {
+      setShareStatus("Shared view restored.");
+    } else if (action === "capture" && message.type === "captured") {
+      const url = sharedUrl(message.state);
+      try {
+        await navigator.clipboard.writeText(url);
+        if (shareManual) shareManual.hidden = true;
+        setShareStatus("View link copied.");
+      } catch {
+        if (shareManual) {
+          shareManual.hidden = false;
+          shareManual.value = url;
+          shareManual.focus();
+          shareManual.select();
+        }
+        setShareStatus("Copy the link shown below.");
+      }
+    }
+  });
+
+  shareButton?.addEventListener("click", () => {
+    if (!bridgeReady) return;
+    const id = String(++requestNumber);
+    pending.set(id, "capture");
+    setShareStatus("Preparing view link…");
+    shareMessage({ type: "capture", id });
+  });
 
   function selectedSource() {
     return params.get("source_id") || "";
@@ -20,9 +127,16 @@
   }
 
   function loadBrowser() {
+    bridgeReady = false;
+    bridgeNonce = Math.random().toString(36).slice(2);
+    if (shareButton) shareButton.disabled = true;
+    if (shareManual) shareManual.hidden = true;
+    pending.clear();
     const frameParams = new URLSearchParams();
     frameParams.set("config", new URL(frame.dataset.config, browserUrl).href);
+    frameParams.set("bted_bridge", bridgeNonce);
     ["loc", "session", "tracks", "highlight"].forEach((key) => {
+      if (params.has("view")) return;
       const value = params.get(key);
       if (value) frameParams.set(key, value);
     });

@@ -27,6 +27,7 @@ const pluginManager = {
     if(name==='react')return {createElement(tag, props, ...children){return {tag:typeof tag==='string'?tag:'component',props,children};}};
     if(name==='@jbrowse/core/configuration')return {readConfObject(config){return config;},getConf(config,key){return config[key];},ConfigurationSchema(){return {};}};
     if(name==='@jbrowse/core/util')return {getContainingTrack(){return {};}};
+    if(name==='@jbrowse/core/ui')return {Dialog(){return null;}};
     if(name==='@jbrowse/core/pluggableElementTypes/renderers/FeatureRendererType')return {default:FeatureRendererType};
     throw Error(name);
   },
@@ -41,13 +42,18 @@ const about={kind:'endpoint',title:'Example paper',authors:'A; B',journal:'Test 
 const component=replaceAbout(original,{config:{metadata:{btedAbout:about}}});
 const tree=component({config:{metadata:{btedAbout:about}}});
 const text=JSON.stringify(tree);
+const region=mod.visibleGff3('##gff-version 3\nchr1\tS1\tterminator_endpoint\t10\t10\t.\t+\t.\tID=A%3B1\nchr1\tS1\tterminator_endpoint\t20\t20\t.\t-\t.\tID=B\nchr2\tS1\tterminator_endpoint\t10\t10\t.\t+\t.\tID=C\n',{ref:'chr1',start:9,end:10});
+const shareView={width:100,bpPerPx:2,displayedRegions:[{refName:'chr1'}],pxToBp(px){return {refName:'chr1',coord:1000+Math.round(px*2),reversed:true,oob:false};},tracks:[{configuration:'track_A',displays:[{height:44}]}]};
+const share=mod.sharedView(shareView,new Set(['track_A']));
+let rejectsUnknown=false;
+try{mod.validateSharedState({...share,tracks:[{id:'unknown',height:44}]},new Set(['track_A']));}catch{rejectsUnknown=true;}
 const rectangles=[];
 const ctx={fillStyle:'',clearRect(){},fillRect(x,y,w,h){rectangles.push({x,y,w,h,color:this.fillStyle});},beginPath(){},moveTo(){},lineTo(){},stroke(){},fillText(){}};
 const signal=(source,score,start)=>({get(key){return {source,score,start,end:start+1}[key];}});
 const maximum=mod.paintMirroredSignal(ctx,[signal('plus',10,20),signal('minus',5,20)],{start:0,end:100,reversed:false},1,100,180);
 const scaledMaximum=mod.paintMirroredSignal(ctx,[signal('plus',10,20)],{start:0,end:100,reversed:false},1,100,180,20);
 mod.paintMirroredSignal(ctx,[signal('minus',5,20)],{start:0,end:100,reversed:true},1,100,180,20);
-process.stdout.write(JSON.stringify({colors:['+', '-', '?', 1, -1].map(x=>colorFunction({get(){return x;}})),hasConfigure:typeof plugin.configure==='function',renderer:mirroredRenderer?.name,maximum,scaledMaximum,bars:rectangles.filter(r=>r.color==='#0f766e'||r.color==='#be123c'),keepsOriginal:replaceAbout(original,{config:{metadata:{}}})===original,content:text}));
+process.stdout.write(JSON.stringify({colors:['+', '-', '?', 1, -1].map(x=>colorFunction({get(){return x;}})),hasConfigure:typeof plugin.configure==='function',renderer:mirroredRenderer?.name,maximum,scaledMaximum,bars:rectangles.filter(r=>r.color==='#0f766e'||r.color==='#be123c'),keepsOriginal:replaceAbout(original,{config:{metadata:{}}})===original,content:text,region,share,rejectsUnknown}));
 """
 
 
@@ -69,8 +75,17 @@ class BtedJBrowsePluginTests(unittest.TestCase):
             ("#0f766e", 20, 14), ("#be123c", 20, 91), ("#0f766e", 20, 52), ("#be123c", 79, 91),
         ])
         self.assertTrue(data["keepsOriginal"])
-        for required in ("Study", "Endpoint evidence", "Source and use", "Example paper", "Test Journal", "S1", "CC BY", "Download study GFF3"):
+        for required in ("Study", "Endpoint evidence", "Example paper", "Test Journal", "S1"):
             self.assertIn(required, data["content"])
+        self.assertNotIn("CC BY", data["content"])
+        self.assertNotIn("License", data["content"])
+        self.assertIn("ID=A%3B1", data["region"])
+        self.assertNotIn("ID=B", data["region"])
+        self.assertNotIn("ID=C", data["region"])
+        self.assertEqual(data["share"]["center"], 1100)
+        self.assertTrue(data["share"]["reversed"])
+        self.assertEqual(data["share"]["tracks"], [{"id": "track_A", "height": 44}])
+        self.assertTrue(data["rejectsUnknown"])
         self.assertNotIn("schema_version", data["content"])
 
 

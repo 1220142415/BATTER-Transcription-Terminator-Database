@@ -4,6 +4,7 @@ const MINUS = '#be123c';
 const UNKNOWN = '#64748b';
 const MIRROR_HEIGHT = 180;
 const MIRROR_RENDERER = 'BTEDMirroredSignalRenderer';
+const BRIDGE_CHANNEL = 'bted-browser-v1';
 
 function signalValue(feature) {
   const raw = feature.get('summary') ? feature.get('maxScore') : feature.get('score');
@@ -76,6 +77,67 @@ function metadataFor(config, readConfObject, getConf) {
   return null;
 }
 
+export function visibleGff3(text, region) {
+  const rows = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (!line || line.startsWith('#')) continue;
+    const fields = line.split('\t');
+    if (fields.length !== 9) throw new Error('The source GFF3 has a malformed feature row.');
+    const start = Number(fields[3]);
+    const end = Number(fields[4]);
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end)) throw new Error('The source GFF3 has an invalid coordinate.');
+    if (fields[0] === region.ref && start <= region.end && end >= region.start) rows.push(line);
+  }
+  return `##gff-version 3\n##sequence-region ${region.ref} ${region.start} ${region.end}\n${rows.join('\n')}${rows.length ? '\n' : ''}`;
+}
+
+function configId(track) {
+  return typeof track?.configuration === 'string'
+    ? track.configuration : track?.configuration?.trackId || track?.trackId || '';
+}
+
+export function sharedView(view, allowed) {
+  if (!view || !Number.isFinite(view.width) || view.width <= 0 ||
+      !Number.isFinite(view.bpPerPx) || view.bpPerPx <= 0 || view.displayedRegions?.length !== 1) {
+    throw new Error('Open one reference sequence before sharing this view.');
+  }
+  const left = view.pxToBp(0);
+  const center = view.pxToBp(view.width / 2);
+  const right = view.pxToBp(view.width);
+  if (center.oob || !Number.isSafeInteger(center.coord) || center.coord < 1 ||
+      left.refName !== center.refName || right.refName !== center.refName) {
+    throw new Error('The current view crosses reference sequences and cannot be shared.');
+  }
+  const tracks = view.tracks.map((track) => ({
+    id: configId(track), height: track.displays?.[0]?.height ?? track.displays?.[0]?.heightPreConfig,
+  })).filter((track) => allowed.has(track.id));
+  if (tracks.some((track) => !Number.isFinite(track.height) || track.height < 20 || track.height > 1000)) {
+    throw new Error('A visible track has an invalid height.');
+  }
+  return {
+    version: 1, ref: center.refName, center: center.coord,
+    zoom: view.bpPerPx, reversed: center.reversed === true, tracks,
+  };
+}
+
+export function validateSharedState(state, allowed) {
+  if (!state || state.version !== 1 || typeof state.ref !== 'string' || !state.ref || state.ref.length > 255 ||
+      !Number.isSafeInteger(state.center) || state.center < 1 ||
+      !Number.isFinite(state.zoom) || state.zoom <= 0 || typeof state.reversed !== 'boolean' ||
+      !Array.isArray(state.tracks) || state.tracks.length > allowed.size) {
+    throw new Error('The shared browser link is invalid.');
+  }
+  const seen = new Set();
+  for (const track of state.tracks) {
+    if (!track || !allowed.has(track.id) || seen.has(track.id) ||
+        !Number.isFinite(track.height) || track.height < 20 || track.height > 1000) {
+      throw new Error('The shared browser link contains an unavailable track.');
+    }
+    seen.add(track.id);
+  }
+  return state;
+}
+
 export default class BTEDTrackPlugin {
   name = 'BTEDTrackPlugin';
   version = '1.0.0';
@@ -87,7 +149,8 @@ export default class BTEDTrackPlugin {
     pluginManager.jexl.addFunction('btedStrandColor', strandColor);
     const React = pluginManager.jbrequire('react');
     const { readConfObject, getConf, ConfigurationSchema } = pluginManager.jbrequire('@jbrowse/core/configuration');
-    const { getContainingTrack } = pluginManager.jbrequire('@jbrowse/core/util');
+    const { getContainingTrack, getContainingView, getSession } = pluginManager.jbrequire('@jbrowse/core/util');
+    const { Dialog } = pluginManager.jbrequire('@jbrowse/core/ui');
     const FeatureRendererType = pluginManager.jbrequire('@jbrowse/core/pluggableElementTypes/renderers/FeatureRendererType').default;
     const h = React.createElement;
 
@@ -157,6 +220,13 @@ export default class BTEDTrackPlugin {
       pluginManager: pm,
     }));
     pluginManager.addToExtensionPoint('Core-extendPluggableElement', (element) => {
+      if (element.name === 'LinearBasicDisplay') {
+        element.stateModel = element.stateModel.extend((self) => {
+          const originalMenu = self.trackMenuItems;
+          return { views: { trackMenuItems() { return withDownloadMenu(self, originalMenu()); } } };
+        });
+        return element;
+      }
       if (element.name !== 'MultiLinearWiggleDisplay') return element;
       const native = { xyplot: 'MultiXYPlotRenderer', multirowxy: 'MultiRowXYPlotRenderer',
         multirowdensity: 'MultiDensityRenderer', multiline: 'MultiLineRenderer', multirowline: 'MultiRowLineRenderer' };
@@ -168,9 +238,9 @@ export default class BTEDTrackPlugin {
           },
           trackMenuItems() {
             const items = originalMenu();
-            if (!isMirrored(self)) return items;
+            if (!isMirrored(self)) return withDownloadMenu(self, items);
             const hidden = new Set(['Score', 'Renderer type', 'Edit colors/arrangement...', 'Fill mode', 'Show sidebar']);
-            return items.filter((item) => !hidden.has(item.label));
+            return withDownloadMenu(self, items.filter((item) => !hidden.has(item.label)));
           },
         } };
       });
@@ -216,15 +286,13 @@ export default class BTEDTrackPlugin {
           ['Reference assembly', about.assembly], ['Reference sequence', about.reference_name],
         ]),
       ]);
-      const provenance = section(kind === 'reference' ? 'Reference and annotation' : 'Source and use', [
+      const provenance = section(kind === 'reference' ? 'Reference and annotation' : 'Source data', [
         facts([
           ['Reference', about.reference],
-          [value(about.annotation_version).startsWith('GFF3 SHA-256') ? 'Annotation file fingerprint' : 'Annotation version', about.annotation_version],
-          ['License', about.license], ['Limitations', about.limitations],
+          ['Reference sequence', kind === 'reference' ? about.reference_name : ''],
           ['Raw data accession', about.raw_data_accessions],
         ]),
         links([
-          ['Download study GFF3', about.gff3_url],
           ['Open raw data', about.raw_data_url],
           ['Open NCBI assembly', about.reference_url],
         ]),
@@ -237,5 +305,154 @@ export default class BTEDTrackPlugin {
 
     pluginManager.addToExtensionPoint('Core-replaceAbout', (Original, props) =>
       metadataFor(props?.config, readConfObject, getConf) ? BTEDAbout : Original);
+
+    if (typeof window !== 'undefined' && window.parent && window.parent !== window &&
+        typeof window.addEventListener === 'function') {
+      const nonce = new URLSearchParams(window.location.search).get('bted_bridge');
+      const root = () => pluginManager.rootModel;
+      const view = () => root()?.session?.views?.find((item) => item.type === 'LinearGenomeView');
+      const viewReady = () => { try { return view()?.width > 0; } catch { return false; } };
+      const allowed = () => new Set((root()?.jbrowse?.tracks || [])
+        .filter((track) => metadataFor(track, readConfObject, getConf))
+        .map(configId).filter(Boolean));
+      const reply = (type, id, details) => window.parent.postMessage(
+        { channel: BRIDGE_CHANNEL, nonce, type, id, ...details }, window.location.origin);
+      window.addEventListener('message', async (event) => {
+        const message = event.data;
+        if (event.origin !== window.location.origin || event.source !== window.parent ||
+            message?.channel !== BRIDGE_CHANNEL || message.nonce !== nonce ||
+            !['capture', 'restore'].includes(message.type)) return;
+        try {
+          const current = view();
+          if (!current) throw new Error('The genome browser is still loading.');
+          const available = allowed();
+          if (message.type === 'capture') {
+            reply('captured', message.id, { state: sharedView(current, available) });
+          } else {
+            const state = validateSharedState(message.state, available);
+            const assemblyName = current.assemblyNames?.[0];
+            const assembly = await root().session.assemblyManager.waitForAssembly(assemblyName);
+            const reference = assembly?.regions?.find((item) => item.refName === state.ref);
+            if (!reference || state.center > reference.end) throw new Error('The shared reference position is unavailable.');
+            await current.navToLocString(`${state.ref}:${state.center}${state.reversed ? '[rev]' : ''}`, assemblyName);
+            current.zoomTo(state.zoom, current.width / 2);
+            const selected = new Set(state.tracks.map((track) => track.id));
+            for (const track of [...current.tracks]) {
+              const id = configId(track);
+              if (available.has(id) && !selected.has(id)) current.hideTrack(id);
+            }
+            for (const track of state.tracks) {
+              const opened = current.showTrack(track.id);
+              opened.displays?.[0]?.setHeight?.(track.height);
+            }
+            for (const track of [...state.tracks].reverse()) {
+              const opened = current.tracks.find((item) => configId(item) === track.id);
+              if (opened) current.moveTrackToTop(opened.id);
+            }
+            reply('restored', message.id, {});
+          }
+        } catch (error) {
+          reply('error', message.id, { message: error?.message || 'The browser view could not be shared.' });
+        }
+      });
+      let attempts = 0;
+      const ready = window.setInterval(() => {
+        if (viewReady()) {
+          window.clearInterval(ready);
+          reply('ready', '', {});
+        } else if (++attempts >= 80) {
+          window.clearInterval(ready);
+          reply('error', '', { message: 'The genome browser did not finish loading.' });
+        }
+      }, 250);
+    }
+
+    function currentRegion(display) {
+      try {
+        const view = getContainingView(display);
+        if (view.displayedRegions?.length !== 1 || !view.width) return null;
+        const left = view.pxToBp(0);
+        const right = view.pxToBp(view.width);
+        if (!left.refName || left.refName !== right.refName) return null;
+        const start = Math.max(1, Math.floor(Math.min(left.coord, right.coord)));
+        const end = Math.max(start, Math.ceil(Math.max(left.coord, right.coord)) - 1);
+        return { ref: left.refName, start, end };
+      } catch { return null; }
+    }
+
+    function downloadUrl(raw) {
+      const url = safeLink(raw);
+      if (!url) return '';
+      const parsed = new URL(url);
+      if (parsed.origin === window.location.origin) return url;
+      if (parsed.hostname === 'huggingface.co' &&
+          /^\/datasets\/liurulong\/terminator\/resolve\/[0-9a-f]{40}\/v0\.[34]\.0\//.test(parsed.pathname)) return url;
+      return '';
+    }
+
+    function DownloadDialog({ handleClose, downloads, region }) {
+      const [status, setStatus] = React.useState('');
+      const [busy, setBusy] = React.useState(false);
+      async function download(item, scope) {
+        const url = downloadUrl(item.url);
+        if (!url) { setStatus('This track has no approved download address.'); return; }
+        setBusy(true);
+        setStatus('Preparing download…');
+        let objectUrl;
+        try {
+          const response = await fetch(url, { credentials: 'omit' });
+          if (!response.ok) throw new Error(`Download failed (${response.status}).`);
+          const isRegion = scope === 'visible';
+          const blob = isRegion
+            ? new Blob([visibleGff3(await response.text(), region)], { type: 'text/plain;charset=utf-8' })
+            : await response.blob();
+          objectUrl = URL.createObjectURL(blob);
+          const base = value(item.filename).replace(/[^A-Za-z0-9_.-]/g, '_') || 'BTED-track';
+          const filename = isRegion
+            ? `${base.replace(/\.gff3(?:\.gz)?$/i, '')}.${region.ref.replace(/[^A-Za-z0-9_.-]/g, '_')}.${region.start}-${region.end}.gff3`
+            : base;
+          const anchor = document.createElement('a');
+          anchor.href = objectUrl;
+          anchor.download = filename;
+          anchor.style.display = 'none';
+          document.body.append(anchor);
+          anchor.click();
+          anchor.remove();
+          window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+          handleClose();
+        } catch (error) {
+          if (objectUrl) URL.revokeObjectURL(objectUrl);
+          setStatus(error?.message || 'Track data could not be downloaded.');
+          setBusy(false);
+        }
+      }
+      return h(Dialog, { open: true, onClose: handleClose, title: 'Download track data', maxWidth: 'sm', fullWidth: true },
+        h('div', { className: 'bted-download-dialog' },
+          h('style', null, '.bted-download-dialog{padding:0 22px 20px;color:#20342f;font:13px/1.5 Arial,sans-serif}.bted-download-dialog p{margin:0 0 14px;color:#50665d}.bted-download-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid #e0e9e5}.bted-download-row strong{font-size:13px}.bted-download-actions{display:flex;flex-wrap:wrap;gap:7px}.bted-download-actions button{min-height:34px;padding:6px 10px;border:1px solid #0f766e;border-radius:4px;background:#0f766e;color:white;font:700 12px Arial,sans-serif;cursor:pointer}.bted-download-actions button:disabled{opacity:.45;cursor:not-allowed}.bted-download-status{min-height:18px;color:#9b273f!important}@media(max-width:600px){.bted-download-dialog{padding:0 14px 16px}}'),
+          h('p', null, 'Download the published file for this track. A visible-region GFF3 keeps the original feature fields.'),
+          downloads.map((item, index) => h('div', { className: 'bted-download-row', key: `${item.kind}-${index}` },
+            h('strong', null, item.label),
+            h('div', { className: 'bted-download-actions' },
+              item.kind === 'endpoint' ? h('button', { type: 'button', disabled: busy || !region,
+                title: region ? `${region.ref}:${region.start}-${region.end}` : 'Available only when one reference sequence is visible',
+                onClick: () => download(item, 'visible') }, 'Visible region GFF3') : null,
+              h('button', { type: 'button', disabled: busy, onClick: () => download(item, 'whole') }, 'Whole file')))),
+          h('p', { className: 'bted-download-status', role: 'status' }, status)));
+    }
+
+    function withDownloadMenu(display, items) {
+      let downloads;
+      try {
+        downloads = getConf(getContainingTrack(display), 'metadata')?.btedDownloads;
+      } catch { return items; }
+      if (!Array.isArray(downloads) || !downloads.length) return items;
+      const approved = downloads.filter((item) => item && ['endpoint', 'bigwig', 'reference'].includes(item.kind) && value(item.label) && value(item.filename));
+      if (!approved.length) return items;
+      return [...items, { label: 'Download track data', priority: 50, onClick: () => {
+        const session = getSession(display);
+        const region = currentRegion(display);
+        session.queueDialog((done) => [DownloadDialog, { handleClose: done, downloads: approved, region }]);
+      } }];
+    }
   }
 }

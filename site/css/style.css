@@ -583,63 +583,48 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-height: calc(100v
 .genome-summary strong { color: #0f6158; font-size: 17px; font-variant-numeric: tabular-nums; }
 .genome-summary span { color: var(--muted); font-size: 12px; }
 .browser-panel { margin: 0 0 24px; overflow: hidden; background: var(--white); border: 1px solid #d4e1dd; border-radius: 7px; }
-.browser-panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 18px 20px 11px; }
+.browser-panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 18px 20px; }
 .browser-panel-heading h2 { margin: 2px 0 4px; color: var(--navy); font-size: 20px; }
 .browser-panel-heading p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; }
-.browser-open { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 34px; padding: 6px 11px; color: #0f6158; background: #edf6f2; border: 1px solid #b9d8cd; border-radius: 4px; font-size: 12px; font-weight: 750; text-decoration: none; }
+.browser-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.browser-open { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 34px; padding: 6px 11px; color: #0f6158; background: #edf6f2; border: 1px solid #b9d8cd; border-radius: 4px; font: 750 12px Arial,sans-serif; text-decoration: none; cursor: pointer; }
 .browser-open:hover { background: #dff0e9; }
 .browser-open:focus-visible { outline: 3px solid #8acabd; outline-offset: 2px; }
-.track-picker { display: grid; gap: 5px; min-width: 220px; color: var(--muted); font-size: 11px; font-weight: 700; }
-.track-picker select { width: 100%; min-height: 36px; padding: 6px 9px; color: var(--ink); background: var(--white); border: 1px solid #aebbc6; border-radius: 3px; font: inherit; font-size: 12px; }
-.browser-key { display: flex; flex-wrap: wrap; gap: 7px; margin: 0; padding: 0 20px 14px; }
-.browser-key span { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; border: 1px solid #dce8e4; border-radius: 16px; background: #f8fbfa; color: #365047; font-size: 11px; font-weight: 700; }
-.key-endpoint { border-color: #b9d8cd!important; }
-.browser-key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
-.strand-plus { background: #0f766e; }
-.strand-minus { background: #be123c; }
+.browser-open:disabled { opacity: .55; cursor: wait; }
+.browser-share-status { margin: 0; padding: 0 20px; color: #0f6158; font-size: 12px; }
+.browser-share-status:not(:empty) { padding-bottom: 10px; }
+.browser-share-manual { display: block; width: calc(100% - 40px); margin: 0 20px 12px; padding: 8px; border: 1px solid #b9d8cd; border-radius: 4px; font: 12px Arial,sans-serif; }
+.browser-share-manual[hidden] { display: none; }
 .browser-panel iframe { display: block; width: 100%; height: 520px; border: 0; border-top: 1px solid #dce8e4; background: #fff; }
-.browser-caption { margin: 0; padding: 9px 14px; color: var(--muted); background: #f8fbfa; border-top: 1px solid #dce8e4; font-size: 11px; }
 .browser-unavailable { padding: 20px; }
 .browser-unavailable h2 { margin: 2px 0 5px; }
 .browser-unavailable p:last-child { margin-bottom: 0; color: var(--muted); }
-.evidence-intro { max-width: 920px; margin: 0 0 28px; padding: 15px 18px; color: #40505d; background: #eef5fa; border-left: 4px solid #77a9c9; }
-.evidence-intro h2 { margin: 0 0 5px; color: var(--navy); font-size: 17px; }
-.evidence-intro p { margin: 0; font-size: 13px; line-height: 1.55; }
 .genome-studies > .section-heading { margin-bottom: 13px; }
 .genome-studies > .section-heading h2 { margin: 2px 0; color: var(--navy); font-size: 22px; }
 .genome-studies > .section-heading > p { margin: 0 0 3px; color: var(--muted); font-size: 12px; }
-.study-card { margin: 12px 0; padding: 19px 20px; background: var(--white); border: 1px solid var(--line); border-radius: 6px; }
-.study-card > header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.study-card { margin: 11px 0; padding: 17px 19px; background: var(--white); border: 1px solid var(--line); border-radius: 6px; }
+.study-card > header { padding-bottom: 10px; }
 .study-card > header h3 { max-width: 860px; margin: 2px 0 0; color: var(--navy); font-size: 17px; line-height: 1.4; }
 .study-card > header h3 a { color: inherit; text-decoration: none; }
 .study-card > header h3 a:hover { text-decoration: underline; }
-.study-count { flex: 0 0 auto; padding: 4px 8px; color: var(--muted); background: var(--soft); border-radius: 12px; font-size: 11px; }
-.study-source-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 10px; padding-top: 12px; }
-.source-evidence { min-width: 0; padding: 13px; background: #fbfcfd; border: 1px solid var(--line); scroll-margin-top: 20px; }
-.source-evidence.source-highlight { outline: 2px solid #5d91b4; outline-offset: 1px; background: #f1f7fb; }
+.study-source-list { display: grid; gap: 0; }
+.source-evidence { min-width: 0; padding: 10px 0; border-top: 1px solid var(--line); scroll-margin-top: 20px; }
+.source-evidence.source-highlight { outline: 2px solid #5d91b4; outline-offset: 2px; background: #f1f7fb; }
 .source-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .source-heading h4 { margin: 0; color: var(--navy); font-size: 14px; }
-.source-heading p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+.source-heading strong { color: #0f6158; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.source-summary { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+.source-caveat { margin: 7px 0 0; color: #5a4a28; font-size: 12px; line-height: 1.45; }
+.source-links { display: flex; flex-wrap: wrap; gap: 12px; margin: 6px 0 0; color: var(--muted); font-size: 11px; }
+.source-links:empty { display: none; }
+.signal-present { color: #0f6158; font-weight: 700; }
 .badge { display: inline-flex; align-items: center; padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: 750; white-space: nowrap; }
 .badge-published { color: var(--green); background: var(--green-bg); }
 .badge-review { color: #78510c; background: #fff2d7; }
-.source-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; margin: 12px 0 0; }
-.source-facts div { min-width: 0; }
-.source-facts dt { color: var(--muted); font-size: 10px; font-weight: 700; }
-.source-facts dd { margin: 2px 0 0; overflow-wrap: anywhere; font-size: 12px; line-height: 1.4; }
-.source-facts dd a { font-weight: 650; }
-.evidence-explanation { margin: 11px 0 0; color: #43515d; font-size: 12px; line-height: 1.5; }
-.limitation { margin: 8px 0 0; padding: 8px 10px; color: #594917; background: #fff9e9; border-left: 3px solid #d8b75a; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
-.signal-state { margin: 10px 0 0; font-size: 11px; font-weight: 750; }
-.signal-present { color: #145c43; }
-.signal-missing { color: #59636d; }
-.study-downloads { margin-top: 14px; }
-.study-downloads h4 { margin: 0 0 8px; color: var(--navy); font-size: 12px; }
-.study-downloads .download-grid { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
-.study-downloads .download-card { min-width: 0; padding: 10px 11px; }
-.study-downloads .download-card strong { color: var(--navy); font-size: 12px; }
-.study-downloads .download-card span { overflow-wrap: anywhere; font-size: 10px; }
-.download-card.featured { border-left: 4px solid #2b847b; background: #eff7f5; }
+.study-downloads { margin-top: 3px; }
+.study-downloads .download-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.study-downloads .download-card { display: inline-flex; align-items: center; min-height: 32px; width: auto; padding: 6px 10px; border: 1px solid #b9d8cd; border-radius: 4px; background: #f4faf7; color: #0f6158; font-size: 11px; font-weight: 750; text-decoration: none; box-shadow: none; }
+.study-downloads .download-card:hover { background: #e7f5ed; }
 .audit-card { background: #fbfaf6; border-left: 3px solid #d0aa55; box-shadow: none; }
 .audit-card > p { margin: 12px 0 0; color: #57534b; font-size: 12px; }
 .muted, .empty-state { color: var(--muted); }
@@ -678,12 +663,10 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-height: calc(100v
   .genome-summary strong { font-size: 15px; }
   .genome-summary span { font-size: 10px; }
   .browser-panel-heading { align-items: stretch; flex-direction: column; padding: 15px 13px 9px; }
-  .browser-open { align-self: flex-start; }
-  .track-picker { min-width: 0; }
-  .browser-key { padding: 0 13px 10px; }
+  .browser-actions { justify-content: flex-start; }
+  .browser-share-status { padding-inline: 13px; }
+  .browser-share-manual { width: calc(100% - 26px); margin-inline: 13px; }
   .browser-panel iframe { height: 480px; }
   .study-card { padding: 15px 12px; }
-  .study-card > header { flex-direction: column; }
-  .source-facts { grid-template-columns: 1fr 1fr; }
-  .study-downloads .download-grid { grid-template-columns: 1fr; }
+  .study-downloads .download-card { min-height: 36px; }
 }

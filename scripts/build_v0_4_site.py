@@ -187,15 +187,21 @@ def evidence_label(value: str) -> str:
     return labels.get(value, value.replace("_", " ").strip().capitalize() or "Evidence not specified")
 
 
-def evidence_note(value: str) -> str:
-    notes = {
-        "observed_signal": "Signal values show an experiment's measured read signal. They are not called endpoints.",
-        "author_called_endpoint": "The study authors reported these transcript 3′ ends. A reported endpoint is not automatically a functional terminator validation.",
-        "curated_record": "Positions were curated from study evidence. The evidence label does not imply a separate functional test for every position.",
-        "experimentally_supported_endpoint": "Records are supported by experimental evidence as described in the source metadata.",
-        "predicted_candidate": "This is a computational candidate and should not be read as an experimental endpoint.",
-    }
-    return notes.get(value, "See the study citation and limitations for how these positions were produced.")
+SOURCE_PAGE_CAVEATS = {
+    "BATTER_S1_004": "The coordinates use CP001340.1; an unrelated GEO reference label was excluded.",
+    "BATTER_S1_006": "Multiple gene rows can share one genomic position; the study rows were retained.",
+    "BATTER_S1_007": "The paper does not distinguish termination from RNA processing at every site.",
+    "BATTER_S1_008": "The separate gene association table is not part of the 3′ end count.",
+    "BATTER_S1_009": "Prediction-only sites are excluded from the published 3′ ends.",
+    "BATTER_S1_015": "This study stays separate from the later study on the same reference.",
+    "BATTER_S1_016": "The paper and current NCBI assembly use different species names; the reference sequence matches.",
+    "BATTER_S1_017": "This study stays separate from the earlier study on the same reference.",
+    "BATTER_S1_020": "Prediction-only and mixed-evidence tables are excluded from the published 3′ ends.",
+    "BATTER_S1_021": "Some condition annotations disagree; the original observations remain in the supplementary table.",
+    "BATTER_S1_022": "Prediction-only sites are excluded from the published 3′ ends.",
+    **{f"BTED_EXT_2026_{number}": "Only the study's defined ends are included; uncertain peaks remain under review."
+       for number in (102, 103, 104)},
+}
 
 
 def raw_data_links(raw: str) -> str:
@@ -261,13 +267,6 @@ def page(title: str, content: str, *, current: str = "", scripts: tuple[str, ...
 
 def _publication_link(pmid: str) -> str:
     return f"https://pubmed.ncbi.nlm.nih.gov/{quote(pmid)}/"
-
-
-def _status_badge(row: dict[str, str]) -> str:
-    status = row.get("release_status", "")
-    if is_published_status(status):
-        return '<span class="badge badge-published">Available in BTED</span>'
-    return '<span class="badge badge-review">No endpoint file</span>'
 
 
 def _asset_exists(asset_map: dict[str, dict[str, object]], predicate) -> bool:
@@ -420,30 +419,25 @@ def genome_content(
             record_count = int(row["record_count_number"])
             evidence = row.get("evidence_class", "")
             source_has_signal = source_id in signal_sources
-            if source_has_signal:
-                signal_text = '<span class="signal-present">Experimental signal track available</span>'
-            else:
-                signal_text = '<span class="signal-missing">No signal track</span>'
-            raw_links = raw_data_links(row.get("raw_data_accessions", ""))
-            limitation = row.get("known_limitations", "").strip()
-            limitation_html = f'<p class="limitation"><strong>Known limitations:</strong> {esc(limitation)}</p>' if limitation else ""
-            article_license = row.get("article_license", "")
-            if article_license == "not_open_access_author_manuscript":
-                article_license = "Article not openly licensed"
+            raw_accessions = row.get("raw_data_accessions", "").strip()
+            raw_link = f'<span class="source-raw">Raw data: {raw_data_links(raw_accessions)}</span>' if raw_accessions else ""
+            caveat = SOURCE_PAGE_CAVEATS.get(source_id, "")
+            caveat_html = f'<p class="source-caveat">{esc(caveat)}</p>' if caveat else ""
+            signal_html = '<span class="signal-present">Experimental signal</span>' if source_has_signal else ""
             source_lines.append(f'''<div class="source-evidence" id="source-{esc(source_id)}" data-source-card="{esc(source_id)}">
-  <div class="source-heading"><div><h4>{esc(source_id)}</h4><p>{esc(row.get('assay', ''))}</p></div>{_status_badge(row)}</div>
-  <dl class="source-facts"><div><dt>Evidence</dt><dd>{esc(evidence_label(evidence))}</dd></div><div><dt>Endpoint records</dt><dd>{record_count:,}</dd></div><div><dt>Article licence</dt><dd>{esc(article_license or 'Not specified')}</dd></div><div><dt>Raw data</dt><dd>{raw_links}</dd></div></dl>
-  <p class="evidence-explanation">{esc(evidence_note(evidence))}</p>{limitation_html}<p class="signal-state">{signal_text}</p>
+  <div class="source-heading"><h4>{esc(source_id)}</h4><strong>{record_count:,} 3′ ends</strong></div>
+  <p class="source-summary">{esc(row.get('assay', ''))} · {esc(evidence_label(evidence))}</p>
+  {caveat_html}<p class="source-links">{raw_link}{signal_html}</p>
 </div>''')
         supplementary: list[str] = []
         seen_paths: set[str] = set()
         if gff3_path and gff3_url:
             seen_paths.add(gff3_path)
             zip_member = "/".join(PurePosixPath(gff3_path).parts[1:])
-            supplementary.append(f'<a class="download-card featured" data-package-file data-zip-path="{esc(zip_member)}" href="{site_href(gff3_url, 1)}"><strong>Study GFF3</strong><span>PMID {esc(pmid)} · {sum(int(row["record_count_number"]) for row in study_rows):,} endpoint records</span></a>')
-        for field, label, filename in (
-            ("gene_associations", "Gene associations", "gene associations TSV"),
-            ("condition_observations", "Condition observations", "condition observations TSV"),
+            supplementary.append(f'<a class="download-card featured" data-package-file data-zip-path="{esc(zip_member)}" href="{site_href(gff3_url, 1)}">Study GFF3</a>')
+        for field, label in (
+            ("gene_associations", "Gene associations"),
+            ("condition_observations", "Condition observations"),
         ):
             raw_value = next((row.get(field, "").strip() for row in study_rows if row.get(field, "").strip()), "")
             if not raw_value:
@@ -455,14 +449,14 @@ def genome_content(
             if link_url:
                 seen_paths.add(logical_path)
                 zip_member = "/".join(PurePosixPath(logical_path).parts[1:])
-                supplementary.append(f'<a class="download-card" data-package-file data-zip-path="{esc(zip_member)}" href="{site_href(link_url, 1)}"><strong>{esc(label)}</strong><span>{esc(filename)}</span></a>')
+                supplementary.append(f'<a class="download-card" data-package-file data-zip-path="{esc(zip_member)}" href="{site_href(link_url, 1)}">{esc(label)} TSV</a>')
         if not supplementary:
             downloads_html = '<p class="muted">No downloadable endpoint file is published for this study.</p>'
         else:
             downloads_html = f'<div class="download-grid">{"".join(supplementary)}</div>'
         source_cards.append(f'''<article class="study-card" id="study-{esc(pmid)}">
-  <header><div><p class="eyebrow">Study · PMID {esc(pmid)}</p><h3><a href="{esc(_publication_link(pmid))}" target="_blank" rel="noopener">{esc(title)}</a></h3></div><span class="study-count">{len(study_rows)} source record{'s' if len(study_rows) != 1 else ''}</span></header>
-  <div class="study-source-list">{''.join(source_lines)}</div><section class="study-downloads"><h4>Downloads</h4>{downloads_html}</section>
+  <header><div><p class="eyebrow">PMID {esc(pmid)}</p><h3><a href="{esc(_publication_link(pmid))}" target="_blank" rel="noopener">{esc(title)}</a></h3></div></header>
+  <div class="study-source-list">{''.join(source_lines)}</div><div class="study-downloads">{downloads_html}</div>
 </article>''')
 
     all_source_rows = rows
@@ -473,15 +467,12 @@ def genome_content(
         unpublished_cards.append(f'''<article class="study-card audit-card"><header><div><p class="eyebrow">Study PMID {esc(pmid)}</p><h3>{esc(title)}</h3></div><span class="badge badge-review">No endpoint file</span></header><p>{esc(ids)} is listed so its source can be checked. Its observations are not included in the downloadable endpoint release or JBrowse tracks.</p></article>''')
 
     if jbrowse_config:
-        signal_intro = ("3′ ends and experimental signal share this browser. Open a track’s menu for study details."
-                        if signal_sources else "3′ ends are shown below. This genome has no experimental signal track.")
-        signal_key = ('<span class="key-signal"><i class="strand-plus" aria-hidden="true"></i> + signal above zero</span>'
-                      '<span class="key-signal"><i class="strand-minus" aria-hidden="true"></i> − signal below zero</span>') if signal_sources else ''
+        signal_intro = ("Open a track menu for study details and downloads."
+                        if signal_sources else "Open a track menu for study details and downloads. No experimental signal is available for this genome.")
         browser_html = f'''<section class="browser-panel" id="genome-browser" data-genome-browser data-assembly="{esc(assembly)}">
-  <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>Explore this genome</h2><p>{signal_intro}</p></div><a class="browser-open" href="../jbrowse/index.html?config={quote(jbrowse_config, safe='')}">Open full browser ↗</a></div>
-  <p class="browser-key"><span class="key-endpoint">Study 3′ ends</span>{signal_key}</p>
+  <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>Explore this genome</h2><p>{signal_intro}</p></div><div class="browser-actions"><button class="browser-open" type="button" data-share-view disabled>Share view</button><a class="browser-open" href="../jbrowse/index.html?config={quote(jbrowse_config, safe='')}">Open full browser ↗</a></div></div>
+  <p class="browser-share-status" data-share-status role="status" aria-live="polite"></p><input class="browser-share-manual" data-share-manual aria-label="Share link" readonly hidden>
   <iframe data-browser-frame data-config="{esc(jbrowse_config)}" title="{esc(assembly)} genome browser" loading="lazy" referrerpolicy="no-referrer"></iframe>
-  <p class="browser-caption">The signal track shows experimental measurements; the 3′ end track shows reported positions. Both BigWig files keep their original values.</p>
 </section>'''
     else:
         browser_html = '<section class="browser-panel browser-unavailable"><p class="eyebrow">Genome browser</p><h2>JBrowse is not available for this assembly</h2><p>Study downloads and evidence notes are available below.</p></section>'
@@ -492,7 +483,7 @@ def genome_content(
 <section class="genome-title"><div><p class="eyebrow">Reference genome</p><h1>{esc(species or assembly)}</h1><p class="assembly-id">{esc(assembly)}</p></div><div class="genome-title-actions"><button class="button primary" type="button" data-download-genome-package>Download genome package (.zip)</button>{metadata_link}<a class="button" href="https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/" target="_blank" rel="noopener">NCBI Assembly</a><p class="package-status" data-package-status role="status" aria-live="polite"></p></div></section>
 <section class="genome-summary" aria-label="Genome data summary"><div><strong>{len(studies)}</strong><span>published {'study' if len(studies) == 1 else 'studies'}</span></div><div><strong>{len(published)}</strong><span>source {'record' if len(published) == 1 else 'records'}</span></div><div><strong>{total_records:,}</strong><span>3′ end records</span></div></section>
 {browser_html}
-<section class="genome-studies"><div class="section-heading"><div><p class="eyebrow">Research and downloads</p><h2>Studies on this genome</h2></div><p>{len(studies)} published {'study' if len(studies) == 1 else 'studies'}</p></div>{''.join(source_cards) if source_cards else '<p class="empty-state">No published study records are available for this genome.</p>'}{''.join(unpublished_cards)}</section>
+<section class="genome-studies"><div class="section-heading"><div><p class="eyebrow">Research and downloads</p><h2>Studies on this genome</h2></div></div>{''.join(source_cards) if source_cards else '<p class="empty-state">No published study records are available for this genome.</p>'}{''.join(unpublished_cards)}</section>
 </main>'''
     return content
 

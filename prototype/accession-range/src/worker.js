@@ -17,9 +17,9 @@ const MINUS_STRAND_COLOR = "#be123c";
 function trackCitation(track) {
   try {
     const metadata = JSON.parse(track.metadata_json || "{}");
-    return { citation: metadata.citation || {}, license: metadata.article_license || "", limitations: metadata.known_limitations || "" };
+    return { citation: metadata.citation || {}, limitations: metadata.known_limitations || "" };
   } catch {
-    return { citation: {}, license: "", limitations: "" };
+    return { citation: {}, limitations: "" };
   }
 }
 
@@ -559,18 +559,18 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
   const browserGff = assemblyAssets.find((asset) => asset.asset_kind === "gff3"
     && asset.logical_path === `browser/${accession}/annotation.gff3`
     && Number(asset.is_public) === 1);
-  const contig = await env.BTED_DB.prepare("SELECT contig_accession, length_bp FROM contigs WHERE release_version = ? AND assembly_accession = ? ORDER BY contig_accession LIMIT 1").bind(release.release_version, accession).first();
-  const firstEndpoint = await env.BTED_DB.prepare("SELECT reference_name, biological_coordinate_1based FROM endpoints WHERE release_version = ? AND reference_assembly = ? AND source_id = ? ORDER BY biological_coordinate_1based, end_id LIMIT 1").bind(release.release_version, accession, publicTracks[0].source.source_id).first();
-  const contigName = firstEndpoint?.reference_name || contig?.contig_accession;
-  const center = Number(firstEndpoint?.biological_coordinate_1based || 1);
-  const length = Number(contig?.length_bp || center + 1000);
-  const regionStart = Math.max(0, center - 501);
-  const regionEnd = Math.min(length, center + 500);
+  const contig = await env.BTED_DB.prepare("SELECT contig_accession, length_bp FROM contigs WHERE release_version = ? AND assembly_accession = ? ORDER BY length_bp DESC, contig_accession ASC LIMIT 1").bind(release.release_version, accession).first();
+  if (!contig) return json({ error: "jbrowse_unavailable", reason: "reference sequences are not registered for this assembly" }, 404);
+  const contigName = contig.contig_accession;
+  const firstEndpoint = await env.BTED_DB.prepare("SELECT biological_coordinate_1based FROM endpoints WHERE release_version = ? AND reference_assembly = ? AND reference_name = ? ORDER BY biological_coordinate_1based, end_id LIMIT 1").bind(release.release_version, accession, contigName).first();
+  const length = Number(contig.length_bp);
+  const regionStart = firstEndpoint ? Math.max(0, Number(firstEndpoint.biological_coordinate_1based) - 501) : 0;
+  const regionEnd = Math.min(length, regionStart + (firstEndpoint ? 1000 : 10000));
   const tracksConfig = [];
   const endpointTracks = new Map();
   for (const { track, source, sourceAssets, endpointGff3 } of publicTracks) {
     const rawAccessions = JSON.parse(track.raw_accessions_json || "[]");
-    const { citation, license, limitations } = trackCitation(track);
+    const { citation, limitations } = trackCitation(track);
     let endpointGff3Url = null;
     try {
       if (endpointGff3) {
@@ -604,7 +604,6 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
         evidence: source.evidence_class === "author_called_endpoint"
           ? "Paper-reported transcript 3′ end; not proof of terminator function."
           : "Literature-curated 3′ end; BTED did not re-call this position from reads.",
-        license: license === "not_open_access_author_manuscript" ? "Article not openly licensed" : license,
         limitations,
         raw_data_accessions: rawAccessions.map((item) => item.accession).join(", "),
         raw_data_url: rawAccessions.map((item) => item.external_url).find(Boolean) || "",
@@ -632,9 +631,13 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
         assemblyNames: [assemblyName],
         metadata: {
           ...metadata, signal_values: "Raw BigWig values; mirrored only for display", strand: "+ / −", btedMirroredSignal: true,
+          btedDownloads: [
+            { kind: "bigwig", label: "+ strand BigWig", url: assetUrl(request, signalPlus.asset_key), filename: `${source.source_id}.signal.forward.bw` },
+            { kind: "bigwig", label: "− strand BigWig", url: assetUrl(request, signalMinus.asset_key), filename: `${source.source_id}.signal.reverse.bw` },
+          ],
           btedAbout: {
             ...metadata.btedAbout, kind: "signal", strand: "+ / −",
-            license: "NCBI GEO data-use policy", record_count: "",
+            record_count: "",
             explanation: "Measured signal from the study. The graph mirrors + and − around zero; the original BigWig values are unchanged. This track does not mark called 3′ ends.",
           },
         },
@@ -666,6 +669,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       release_version: release.release_version,
       logical_path: logicalPath,
       btedAbout: { ...first.about, record_count: studyTracks.reduce((sum, { source: item }) => sum + Number(item.record_count || 0), 0), gff3_url: dataAssetUrl(dataManifest, first.source.record_root, request) },
+      btedDownloads: [{ kind: "endpoint", label: "3′ end GFF3", url: first.endpointGff3Url, filename: `${sourceIds[0]}.endpoints.gff3`, source_id: sourceIds[0] }],
     };
     tracksConfig.push({
       type: "FeatureTrack",
@@ -692,6 +696,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       assemblyNames: [assemblyName],
       metadata: {
         release_version: release.release_version, gff3_sha256: gff.sha256, tbi_sha256: tbi.sha256,
+        btedDownloads: [{ kind: "reference", label: "Reference annotation GFF3", url: assetUrl(request, gff.asset_key), filename: `${accession}.genes.gff3.gz` }],
         btedAbout: {
           kind: "reference", assembly: accession,
           reference: `${assembly.display_name || assembly.organism_name} · ${accession}`,
@@ -712,6 +717,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       assemblyNames: [assemblyName],
       metadata: {
         release_version: release.release_version, gff3_sha256: browserGff.sha256,
+        btedDownloads: [{ kind: "reference", label: "Reference annotation GFF3", url: assetUrl(request, browserGff.asset_key), filename: `${accession}.genes.gff3` }],
         btedAbout: {
           kind: "reference", assembly: accession,
           reference: `${assembly.display_name || assembly.organism_name} · ${accession}`,
@@ -740,7 +746,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL("/jbrowse/plugins/bted-track-plugin.js", request.url).href }],
     assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", trackId: `${assemblyName}_refseq`, adapter: { type: "IndexedFastaAdapter", fastaLocation: { uri: assetUrl(request, fasta.asset_key), locationType: "UriLocation" }, faiLocation: { uri: assetUrl(request, fai.asset_key), locationType: "UriLocation" } } } }],
     tracks: configTracks,
-    defaultSession: { name: `${accession} BTED catalogue`, views: [{ id: "bted_linear_genome_view", type: "LinearGenomeView", offsetPx: 0, bpPerPx: 10.001, displayedRegions: [{ refName: contigName, start: regionStart, end: regionEnd, reversed: false, assemblyName }], tracks: sessionTracks }] },
+    defaultSession: { name: `BTED · ${accession}`, views: [{ id: "bted_linear_genome_view", type: "LinearGenomeView", name: assembly.organism_name || accession, offsetPx: 0, bpPerPx: Math.max(0.001, (regionEnd - regionStart) / 1000), displayedRegions: [{ refName: contigName, start: regionStart, end: regionEnd, reversed: false, assemblyName }], tracks: sessionTracks }] },
     metadata: { release_version: release.release_version, assembly_accession: accession, source_ids: publicTracks.map(({ source }) => source.source_id), browser_asset_origin: release.asset_origin_status },
   });
 }

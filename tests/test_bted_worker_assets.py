@@ -107,6 +107,11 @@ const browserAssets = [
   {{ ...asset, asset_key: "v0.3.0--assembly-GCF_000009045.1--tbi", asset_kind: "tbi", logical_path: "assemblies/GCF_000009045.1/reference/genes.gff3.gz.tbi", byte_size: 400, sha256: "f".repeat(64) }},
   studyGff,
 ];
+const browserContigs = [
+  {{ contig_accession: "plasmid_small", length_bp: 12000 }},
+  {{ contig_accession: "NC_000964.3", length_bp: 4215606 }},
+  {{ contig_accession: "plasmid_equal_a", length_bp: 12000 }},
+];
 const signalAssets = ["forward", "reverse"].map((strand) => ({{
   ...asset,
   asset_key: `v0.3.0--BATTER_S1_003--signal-${{strand}}`,
@@ -120,7 +125,7 @@ const db = {{
     if (sql.startsWith("SELECT * FROM assemblies WHERE")) return {{ bind() {{ return {{ first: async () => browserAssembly }}; }} }};
     if (sql.startsWith("SELECT * FROM tracks WHERE")) return {{ bind() {{ return {{ all: async () => ({{ results: browserTracks }}) }}; }} }};
     if (sql.startsWith("SELECT * FROM sources WHERE")) return {{ bind() {{ return {{ first: async () => browserSource }}; }} }};
-    if (sql.startsWith("SELECT contig_accession, length_bp")) return {{ bind() {{ return {{ first: async () => ({{ contig_accession: "NC_000964.3", length_bp: 4215606 }}) }}; }} }};
+    if (sql.startsWith("SELECT contig_accession, length_bp")) return {{ bind() {{ return {{ first: async () => browserContigs.sort((a,b) => b.length_bp-a.length_bp || a.contig_accession.localeCompare(b.contig_accession))[0] }}; }} }};
     if (sql.startsWith("SELECT reference_name, biological_coordinate_1based")) return {{ bind() {{ return {{ first: async () => ({{ reference_name: "NC_000964.3", biological_coordinate_1based: 19000 }}) }}; }} }};
     if (sql.includes("FROM assets")) return {{ bind(...params) {{ return {{ first: async () => params[0] === asset.asset_key && params[1] === asset.release_version ? asset : null, all: async () => ({{ results: params[1] === browserAssembly.accession ? browserAssets : params[1] === browserSource.source_id ? signalAssets : [] }}) }}; }} }};
     if (sql.includes("SELECT release_status")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ release_status: "published_standardized", total: 24 }}, {{ release_status: "audit_only", total: 1 }}] }}) }}; }} }};
@@ -279,6 +284,8 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(payload["status"], 200)
         config = payload["body"]
         self.assertEqual(config["metadata"]["release_version"], "v0.4.0")
+        self.assertEqual(config["defaultSession"]["views"][0]["displayedRegions"][0]["refName"], "NC_000964.3")
+        self.assertEqual(config["defaultSession"]["name"], "BTED · GCF_000009045.1")
         self.assertEqual(config["plugins"][0]["name"], "BTEDTrackPlugin")
         self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js")
         endpoint_track = next(track for track in config["tracks"] if track["trackId"].startswith("source_"))
@@ -288,7 +295,8 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(endpoint_track["metadata"]["GFF3_download"], expected_gff3)
         self.assertEqual(endpoint_track["metadata"]["source_ids"], ["BATTER_S1_003"])
         self.assertEqual(endpoint_track["metadata"]["btedAbout"]["authors"], "A Researcher; B Researcher")
-        self.assertEqual(endpoint_track["metadata"]["btedAbout"]["license"], "CC BY 4.0")
+        self.assertNotIn("license", endpoint_track["metadata"]["btedAbout"])
+        self.assertEqual(endpoint_track["metadata"]["btedDownloads"][0]["kind"], "endpoint")
         self.assertEqual(endpoint_track["displays"][0]["renderer"]["color1"], "jexl:btedStrandColor(feature)")
         signal_track = next(track for track in config["tracks"] if track["type"] == "MultiQuantitativeTrack")
         self.assertTrue(signal_track["metadata"]["btedMirroredSignal"])
