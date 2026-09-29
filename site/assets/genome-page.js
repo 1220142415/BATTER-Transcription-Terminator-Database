@@ -60,6 +60,12 @@
     if (shareStatus) shareStatus.textContent = message;
   }
 
+  function fitDefaultView() {
+    const id = String(++requestNumber);
+    pending.set(id, "fit");
+    shareMessage({ type: "fit-default", id });
+  }
+
   window.addEventListener("message", async (event) => {
     const message = event.data;
     if (event.origin !== window.location.origin || event.source !== frame.contentWindow ||
@@ -74,9 +80,17 @@
           pending.set(id, "restore");
           setShareStatus("Restoring shared view…");
           shareMessage({ type: "restore", id, state });
+        } else if (params.has("loc")) {
+          const id = String(++requestNumber);
+          pending.set(id, "navigate");
+          shareMessage({ type: "navigate", id, location: params.get("loc") });
+        } else if (!["loc", "session", "tracks", "highlight"].some((key) => params.has(key))) {
+          setShareStatus("");
+          fitDefaultView();
         } else setShareStatus("");
       } catch (error) {
         setShareStatus(`${error.message} Showing the default view.`);
+        fitDefaultView();
       }
       return;
     }
@@ -88,6 +102,7 @@
     pending.delete(message.id);
     if (message.type === "error") {
       setShareStatus(`${message.message || "The browser view is unavailable."} Showing the default view.`);
+      if (action === "navigate") fitDefaultView();
     } else if (action === "restore" && message.type === "restored") {
       setShareStatus("Shared view restored.");
     } else if (action === "capture" && message.type === "captured") {
@@ -135,7 +150,7 @@
     const frameParams = new URLSearchParams();
     frameParams.set("config", new URL(frame.dataset.config, browserUrl).href);
     frameParams.set("bted_bridge", bridgeNonce);
-    ["loc", "session", "tracks", "highlight"].forEach((key) => {
+    ["session", "tracks", "highlight"].forEach((key) => {
       if (params.has("view")) return;
       const value = params.get(key);
       if (value) frameParams.set(key, value);

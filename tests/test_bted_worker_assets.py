@@ -284,7 +284,12 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(payload["status"], 200)
         config = payload["body"]
         self.assertEqual(config["metadata"]["release_version"], "v0.4.0")
-        self.assertEqual(config["defaultSession"]["views"][0]["displayedRegions"][0]["refName"], "NC_000964.3")
+        default_view = config["defaultSession"]["views"][0]
+        self.assertEqual(default_view["displayedRegions"][0], {
+            "refName": "NC_000964.3", "start": 0, "end": 4215606,
+            "reversed": False, "assemblyName": "BTED_GCF_000009045_1",
+        })
+        self.assertAlmostEqual(default_view["bpPerPx"], 4215606 / 1000)
         self.assertEqual(config["defaultSession"]["name"], "BTED · GCF_000009045.1")
         self.assertEqual(config["plugins"][0]["name"], "BTEDTrackPlugin")
         self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js")

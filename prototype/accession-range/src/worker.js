@@ -562,10 +562,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
   const contig = await env.BTED_DB.prepare("SELECT contig_accession, length_bp FROM contigs WHERE release_version = ? AND assembly_accession = ? ORDER BY length_bp DESC, contig_accession ASC LIMIT 1").bind(release.release_version, accession).first();
   if (!contig) return json({ error: "jbrowse_unavailable", reason: "reference sequences are not registered for this assembly" }, 404);
   const contigName = contig.contig_accession;
-  const firstEndpoint = await env.BTED_DB.prepare("SELECT biological_coordinate_1based FROM endpoints WHERE release_version = ? AND reference_assembly = ? AND reference_name = ? ORDER BY biological_coordinate_1based, end_id LIMIT 1").bind(release.release_version, accession, contigName).first();
   const length = Number(contig.length_bp);
-  const regionStart = firstEndpoint ? Math.max(0, Number(firstEndpoint.biological_coordinate_1based) - 501) : 0;
-  const regionEnd = Math.min(length, regionStart + (firstEndpoint ? 1000 : 10000));
   const tracksConfig = [];
   const endpointTracks = new Map();
   for (const { track, source, sourceAssets, endpointGff3 } of publicTracks) {
@@ -748,7 +745,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL("/jbrowse/plugins/bted-track-plugin.js", request.url).href }],
     assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", trackId: `${assemblyName}_refseq`, adapter: { type: "IndexedFastaAdapter", fastaLocation: { uri: assetUrl(request, fasta.asset_key), locationType: "UriLocation" }, faiLocation: { uri: assetUrl(request, fai.asset_key), locationType: "UriLocation" } } } }],
     tracks: configTracks,
-    defaultSession: { name: `BTED · ${accession}`, views: [{ id: "bted_linear_genome_view", type: "LinearGenomeView", name: assembly.organism_name || accession, offsetPx: 0, bpPerPx: Math.max(0.001, (regionEnd - regionStart) / 1000), displayedRegions: [{ refName: contigName, start: regionStart, end: regionEnd, reversed: false, assemblyName }], tracks: sessionTracks }] },
+    defaultSession: { name: `BTED · ${accession}`, views: [{ id: "bted_linear_genome_view", type: "LinearGenomeView", name: assembly.organism_name || accession, offsetPx: 0, bpPerPx: Math.max(0.001, length / 1000), displayedRegions: [{ refName: contigName, start: 0, end: length, reversed: false, assemblyName }], tracks: sessionTracks }] },
     metadata: { release_version: release.release_version, assembly_accession: accession, source_ids: publicTracks.map(({ source }) => source.source_id), browser_asset_origin: release.asset_origin_status },
   });
 }

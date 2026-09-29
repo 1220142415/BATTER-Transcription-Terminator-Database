@@ -138,6 +138,19 @@ export function validateSharedState(state, allowed) {
   return state;
 }
 
+export async function fitFullReference(view, assembly, assemblyName) {
+  const refName = view?.displayedRegions?.[0]?.refName;
+  const reference = assembly?.regions?.find((region) => region.refName === refName);
+  const start = Number(reference?.start ?? 0);
+  const end = Number(reference?.end);
+  if (!reference || !Number.isFinite(start) || !Number.isFinite(end) || end <= start ||
+      !Number.isFinite(view.width) || view.width <= 0) {
+    throw new Error('The reference sequence is unavailable.');
+  }
+  await view.navToLocString(`${refName}:${start + 1}..${end}`, assemblyName);
+  view.zoomTo(Math.max(0.001, (end - start) * 1.02 / view.width), view.width / 2);
+}
+
 export default class BTEDTrackPlugin {
   name = 'BTEDTrackPlugin';
   version = '1.0.0';
@@ -328,12 +341,22 @@ export default class BTEDTrackPlugin {
         const message = event.data;
         if (event.origin !== window.location.origin || event.source !== window.parent ||
             message?.channel !== BRIDGE_CHANNEL || message.nonce !== nonce ||
-            !['capture', 'restore'].includes(message.type)) return;
+            !['capture', 'restore', 'fit-default', 'navigate'].includes(message.type)) return;
         try {
           const current = view();
           if (!current) throw new Error('The genome browser is still loading.');
           const available = allowed();
-          if (message.type === 'capture') {
+          if (message.type === 'fit-default') {
+            const assemblyName = current.assemblyNames?.[0];
+            const assembly = await root().session.assemblyManager.waitForAssembly(assemblyName);
+            await fitFullReference(current, assembly, assemblyName);
+            reply('fitted', message.id, {});
+          } else if (message.type === 'navigate') {
+            if (typeof message.location !== 'string' || message.location.length > 255 ||
+                /[\u0000-\u001f]/.test(message.location)) throw new Error('The reference location is invalid.');
+            await current.navToLocString(message.location, current.assemblyNames?.[0]);
+            reply('navigated', message.id, {});
+          } else if (message.type === 'capture') {
             reply('captured', message.id, { state: sharedView(current, available) });
           } else {
             const state = validateSharedState(message.state, available);
@@ -370,6 +393,28 @@ export default class BTEDTrackPlugin {
         } else if (++attempts >= 80) {
           window.clearInterval(ready);
           reply('error', '', { message: 'The genome browser did not finish loading.' });
+        }
+      }, 250);
+    }
+
+    if (typeof window !== 'undefined' && window.parent === window &&
+        new URLSearchParams(window.location.search).get('bted_fit') === '1') {
+      let attempts = 0;
+      const ready = window.setInterval(async () => {
+        const root = pluginManager.rootModel;
+        const current = root?.session?.views?.find((item) => item.type === 'LinearGenomeView');
+        if (current?.width > 0) {
+          window.clearInterval(ready);
+          try {
+            const assemblyName = current.assemblyNames?.[0];
+            const assembly = await root.session.assemblyManager.waitForAssembly(assemblyName);
+            await fitFullReference(current, assembly, assemblyName);
+            const url = new URL(window.location.href);
+            url.searchParams.delete('bted_fit');
+            window.history.replaceState(window.history.state, '', url);
+          } catch { /* The full-length default session remains available. */ }
+        } else if (++attempts >= 80) {
+          window.clearInterval(ready);
         }
       }, 250);
     }

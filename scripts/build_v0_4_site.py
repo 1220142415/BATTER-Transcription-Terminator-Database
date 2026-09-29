@@ -499,11 +499,12 @@ def genome_content(
         unpublished_cards.append(f'''<article class="study-card audit-card"><header><div><p class="eyebrow">Study PMID {esc(pmid)}</p><h3>{esc(title)}</h3></div><span class="badge badge-review">No endpoint file</span></header><p>{esc(ids)} is listed so its source can be checked. Its observations are not included in the downloadable endpoint release or JBrowse tracks.</p></article>''')
 
     if jbrowse_config:
-        signal_intro = ("Open a track menu for study details and downloads."
-                        if signal_sources else "Open a track menu for study details and downloads. No experimental signal is available for this genome.")
+        signal_intro = "The full reference sequence is shown first. Zoom in to see genes and 3′ ends; use track menus for study details and downloads."
+        if not signal_sources:
+            signal_intro += " No experimental signal is available for this genome."
         frame_height = min(1050, 330 + 65 * len(published) + 190 * len(signal_sources))
         browser_html = f'''<section class="browser-panel" id="genome-browser" data-genome-browser data-assembly="{esc(assembly)}" style="--browser-frame-height:{frame_height}px">
-  <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>Explore this genome</h2><p>{signal_intro}</p></div><div class="browser-actions"><button class="browser-open" type="button" data-share-view disabled>Share view</button><a class="browser-open" href="../jbrowse/index.html?config={quote(jbrowse_config, safe='')}">Open full browser ↗</a></div></div>
+  <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>Explore this genome</h2><p>{signal_intro}</p></div><div class="browser-actions"><button class="browser-open" type="button" data-share-view disabled>Share view</button><a class="browser-open" href="../jbrowse/index.html?config={quote(jbrowse_config, safe='')}&amp;bted_fit=1">Open full browser ↗</a></div></div>
   <p class="browser-share-status" data-share-status role="status" aria-live="polite"></p><input class="browser-share-manual" data-share-manual aria-label="Share link" readonly hidden>
   <iframe data-browser-frame data-config="{esc(jbrowse_config)}" title="{esc(assembly)} genome browser" loading="lazy" referrerpolicy="no-referrer"></iframe>
 </section>'''

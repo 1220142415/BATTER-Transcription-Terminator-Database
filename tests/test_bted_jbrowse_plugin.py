@@ -45,6 +45,11 @@ const text=JSON.stringify(tree);
 const region=mod.visibleGff3('##gff-version 3\nchr1\tS1\tterminator_endpoint\t10\t10\t.\t+\t.\tID=A%3B1\nchr1\tS1\tterminator_endpoint\t20\t20\t.\t-\t.\tID=B\nchr2\tS1\tterminator_endpoint\t10\t10\t.\t+\t.\tID=C\n',{ref:'chr1',start:9,end:10});
 const shareView={width:100,bpPerPx:2,displayedRegions:[{refName:'chr1'}],pxToBp(px){return {refName:'chr1',coord:1000+Math.round(px*2),reversed:true,oob:false};},tracks:[{configuration:'track_A',displays:[{height:44}]}]};
 const share=mod.sharedView(shareView,new Set(['track_A']));
+const fitCalls=[];
+const fitView={width:800,displayedRegions:[{refName:'chr1'}],
+  async navToLocString(location,assembly){fitCalls.push(['navigate',location,assembly]);},
+  zoomTo(scale,center){fitCalls.push(['zoom',scale,center]);}};
+await mod.fitFullReference(fitView,{regions:[{refName:'chr1',start:0,end:3573470}]},'BTED_TEST');
 let rejectsUnknown=false;
 try{mod.validateSharedState({...share,tracks:[{id:'unknown',height:44}]},new Set(['track_A']));}catch{rejectsUnknown=true;}
 const rectangles=[];
@@ -53,7 +58,7 @@ const signal=(source,score,start)=>({get(key){return {source,score,start,end:sta
 const maximum=mod.paintMirroredSignal(ctx,[signal('plus',10,20),signal('minus',5,20)],{start:0,end:100,reversed:false},1,100,180);
 const scaledMaximum=mod.paintMirroredSignal(ctx,[signal('plus',10,20)],{start:0,end:100,reversed:false},1,100,180,20);
 mod.paintMirroredSignal(ctx,[signal('minus',5,20)],{start:0,end:100,reversed:true},1,100,180,20);
-process.stdout.write(JSON.stringify({colors:['+', '-', '?', 1, -1].map(x=>colorFunction({get(){return x;}})),hasConfigure:typeof plugin.configure==='function',renderer:mirroredRenderer?.name,maximum,scaledMaximum,bars:rectangles.filter(r=>r.color==='#0f766e'||r.color==='#be123c'),keepsOriginal:replaceAbout(original,{config:{metadata:{}}})===original,content:text,region,share,rejectsUnknown}));
+process.stdout.write(JSON.stringify({colors:['+', '-', '?', 1, -1].map(x=>colorFunction({get(){return x;}})),hasConfigure:typeof plugin.configure==='function',renderer:mirroredRenderer?.name,maximum,scaledMaximum,bars:rectangles.filter(r=>r.color==='#0f766e'||r.color==='#be123c'),keepsOriginal:replaceAbout(original,{config:{metadata:{}}})===original,content:text,region,share,fitCalls,rejectsUnknown}));
 """
 
 
@@ -85,6 +90,10 @@ class BtedJBrowsePluginTests(unittest.TestCase):
         self.assertEqual(data["share"]["center"], 1100)
         self.assertTrue(data["share"]["reversed"])
         self.assertEqual(data["share"]["tracks"], [{"id": "track_A", "height": 44}])
+        self.assertEqual(data["fitCalls"][0], ["navigate", "chr1:1..3573470", "BTED_TEST"])
+        self.assertEqual(data["fitCalls"][1][0], "zoom")
+        self.assertAlmostEqual(data["fitCalls"][1][1], 3573470 * 1.02 / 800)
+        self.assertEqual(data["fitCalls"][1][2], 400)
         self.assertTrue(data["rejectsUnknown"])
         self.assertNotIn("schema_version", data["content"])
 

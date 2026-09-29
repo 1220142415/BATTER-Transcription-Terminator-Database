@@ -1425,28 +1425,15 @@ def build_v04_jbrowse_configs(
         _default_signal_tracks(config, source_lookup, citations)
         fai_file = _reference_fai_file(assembly, assets, package_root, asset_paths)
         reference_name, reference_length = _longest_fai_reference(fai_file, assembly)
-        first_site: int | None = None
-        for source in published:
-            local_track = assets[f"tracks/{source['source_id']}/endpoints.gff3"]["local_path"]
-            with local_track.open("r", encoding="utf-8") as handle:
-                for line in handle:
-                    if not line or line.startswith("#"):
-                        continue
-                    columns = line.split("\t", 5)
-                    if columns[0] == reference_name:
-                        position = int(columns[3])
-                        first_site = position if first_site is None else min(first_site, position)
-        start = max(0, first_site - 501) if first_site is not None else 0
-        end = min(reference_length, start + (1000 if first_site is not None else 10000))
         session = config["defaultSession"]
         session["name"] = f"BTED · {assembly}"
         view = _session_view(config)
         view["name"] = species or assembly
         view["displayedRegions"] = [{
-            "refName": reference_name, "start": start, "end": end,
+            "refName": reference_name, "start": 0, "end": reference_length,
             "reversed": False, "assemblyName": assembly_name,
         }]
-        view["bpPerPx"] = max(0.001, (end - start) / 1000)
+        view["bpPerPx"] = max(0.001, reference_length / 1000)
         for track in config.get("tracks", []):
             if not isinstance(track, dict) or not _is_reference_annotation(track):
                 continue
