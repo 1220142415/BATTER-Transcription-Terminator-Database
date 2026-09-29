@@ -311,6 +311,8 @@ process.stdout.write(JSON.stringify({{
         self.assertIsNone(payload["fetchedUrl"])
         reference_track = next(track for track in config["tracks"] if track["trackId"].endswith("_genes"))
         self.assertEqual(reference_track["adapter"]["gffGzLocation"]["uri"], "https://preview.example.test/api/assets/v0.3.0--assembly-GCF_000009045.1--gff3")
+        self.assertEqual(reference_track["displays"][0]["renderer"]["color1"], "jexl:btedStrandColor(feature)")
+        self.assertEqual(reference_track["displays"][0]["renderer"]["color2"], "jexl:btedStrandColor(feature)")
 
     def test_stats_keeps_release_and_source_status_counts(self):
         payload = self.run_worker(request_path="/api/stats")

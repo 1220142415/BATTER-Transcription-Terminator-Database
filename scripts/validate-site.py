@@ -312,6 +312,12 @@ def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: 
                 renderer = display.get("renderer", {}) if isinstance(display, dict) else {}
                 if renderer.get("color1") != "jexl:btedStrandColor(feature)":
                     problems.append(f"{config_path.relative_to(site_dir).as_posix()} 端点轨道未按链着色")
+            if kind == "reference":
+                display = (track.get("displays") or [{}])[0]
+                renderer = display.get("renderer", {}) if isinstance(display, dict) else {}
+                if (renderer.get("color1") != "jexl:btedStrandColor(feature)"
+                        or renderer.get("color2") != "jexl:btedStrandColor(feature)"):
+                    problems.append(f"{config_path.relative_to(site_dir).as_posix()} 基因注释轨道未按链着色")
             if kind == "signal":
                 display = (track.get("displays") or [{}])[0]
                 subadapters = track.get("adapter", {}).get("subadapters", [])

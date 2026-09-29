@@ -175,6 +175,8 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertNotIn("Article licence", genome)
             self.assertNotIn("data-source-select", genome)
             self.assertIn("data-download-genome-package", genome)
+            self.assertNotIn("genome-title-actions", genome)
+            self.assertLess(genome.index('class="genome-studies"'), genome.index('class="genome-downloads"'))
             self.assertIn('data-zip-path="GCF_000012525.1/metadata.tsv"', genome)
             self.assertIn('data-zip-path="GCF_000012525.1/studies/PMID_42148773/endpoints.gff3.gz"', genome)
             self.assertIn('data-zip-path="GCF_000012525.1/studies/PMID_42148773/gene_associations.tsv.gz"', genome)

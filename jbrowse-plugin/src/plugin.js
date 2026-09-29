@@ -309,6 +309,13 @@ export default class BTEDTrackPlugin {
     if (typeof window !== 'undefined' && window.parent && window.parent !== window &&
         typeof window.addEventListener === 'function') {
       const nonce = new URLSearchParams(window.location.search).get('bted_bridge');
+      if (nonce) {
+        // JBrowse 4.3.0 leaves a 300px empty drop area after the last view.
+        // The genome page embeds one view and sizes its frame to the tracks.
+        const compactEmbed = document.createElement('style');
+        compactEmbed.textContent = '[data-testid^="view-container-"] + .css-vycneo{display:none!important}';
+        document.head.append(compactEmbed);
+      }
       const root = () => pluginManager.rootModel;
       const view = () => root()?.session?.views?.find((item) => item.type === 'LinearGenomeView');
       const viewReady = () => { try { return view()?.width > 0; } catch { return false; } };

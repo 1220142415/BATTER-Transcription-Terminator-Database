@@ -692,6 +692,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       trackId: `${assemblyName}_genes`,
       name: "Reference gene annotation",
       adapter: { type: "Gff3TabixAdapter", gffGzLocation: { uri: assetUrl(request, gff.asset_key), locationType: "UriLocation" }, index: { location: { uri: assetUrl(request, tbi.asset_key), locationType: "UriLocation" }, indexType: "TBI" } },
+      displays: [{ type: "LinearBasicDisplay", displayId: `${assemblyName}_genes-LinearBasicDisplay`, renderer: { type: "SvgFeatureRenderer", color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)" } }],
       category: ["Reference annotation"],
       assemblyNames: [assemblyName],
       metadata: {
@@ -713,6 +714,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       trackId: `${assemblyName}_genes`,
       name: "Reference gene annotation",
       adapter: { type: "Gff3Adapter", gffLocation: { uri: assetUrl(request, browserGff.asset_key), locationType: "UriLocation" } },
+      displays: [{ type: "LinearBasicDisplay", displayId: `${assemblyName}_genes-LinearBasicDisplay`, renderer: { type: "SvgFeatureRenderer", color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)" } }],
       category: ["Reference annotation"],
       assemblyNames: [assemblyName],
       metadata: {

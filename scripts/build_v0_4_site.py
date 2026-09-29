@@ -469,7 +469,8 @@ def genome_content(
     if jbrowse_config:
         signal_intro = ("Open a track menu for study details and downloads."
                         if signal_sources else "Open a track menu for study details and downloads. No experimental signal is available for this genome.")
-        browser_html = f'''<section class="browser-panel" id="genome-browser" data-genome-browser data-assembly="{esc(assembly)}">
+        frame_height = min(900, 273 + 55 * len(published) + 190 * len(signal_sources))
+        browser_html = f'''<section class="browser-panel" id="genome-browser" data-genome-browser data-assembly="{esc(assembly)}" style="--browser-frame-height:{frame_height}px">
   <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>Explore this genome</h2><p>{signal_intro}</p></div><div class="browser-actions"><button class="browser-open" type="button" data-share-view disabled>Share view</button><a class="browser-open" href="../jbrowse/index.html?config={quote(jbrowse_config, safe='')}">Open full browser ↗</a></div></div>
   <p class="browser-share-status" data-share-status role="status" aria-live="polite"></p><input class="browser-share-manual" data-share-manual aria-label="Share link" readonly hidden>
   <iframe data-browser-frame data-config="{esc(jbrowse_config)}" title="{esc(assembly)} genome browser" loading="lazy" referrerpolicy="no-referrer"></iframe>
@@ -477,13 +478,15 @@ def genome_content(
     else:
         browser_html = '<section class="browser-panel browser-unavailable"><p class="eyebrow">Genome browser</p><h2>JBrowse is not available for this assembly</h2><p>Study downloads and evidence notes are available below.</p></section>'
 
-    metadata_link = f'<a class="button" data-package-file data-zip-path="{esc(assembly)}/metadata.tsv" href="{site_href(str(metadata_url), 1)}">Download genome metadata.tsv</a>'
+    metadata_link = f'<a class="button" data-package-file data-zip-path="{esc(assembly)}/metadata.tsv" href="{site_href(str(metadata_url), 1)}">Genome metadata.tsv</a>'
+    genome_downloads = f'''<section class="genome-downloads" aria-labelledby="genome-downloads-title"><div><p class="eyebrow">Genome files</p><h2 id="genome-downloads-title">Download this genome</h2><p>The ZIP contains the study files and genome metadata listed on this page.</p></div><div class="genome-download-actions"><button class="button primary" type="button" data-download-genome-package>Download genome ZIP</button>{metadata_link}<a class="button" href="https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/" target="_blank" rel="noopener">NCBI reference</a><p class="package-status" data-package-status role="status" aria-live="polite"></p></div></section>'''
     content = f'''<main class="page-shell genome-page" data-genome-page data-assembly="{esc(assembly)}">
 <p class="breadcrumbs"><a href="../index.html">Genomes</a><span aria-hidden="true">/</span><span>{esc(assembly)}</span></p>
-<section class="genome-title"><div><p class="eyebrow">Reference genome</p><h1>{esc(species or assembly)}</h1><p class="assembly-id">{esc(assembly)}</p></div><div class="genome-title-actions"><button class="button primary" type="button" data-download-genome-package>Download genome package (.zip)</button>{metadata_link}<a class="button" href="https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/" target="_blank" rel="noopener">NCBI Assembly</a><p class="package-status" data-package-status role="status" aria-live="polite"></p></div></section>
+<section class="genome-title"><div><p class="eyebrow">Reference genome</p><h1>{esc(species or assembly)}</h1><p class="assembly-id">{esc(assembly)}</p></div></section>
 <section class="genome-summary" aria-label="Genome data summary"><div><strong>{len(studies)}</strong><span>published {'study' if len(studies) == 1 else 'studies'}</span></div><div><strong>{len(published)}</strong><span>source {'record' if len(published) == 1 else 'records'}</span></div><div><strong>{total_records:,}</strong><span>3′ end records</span></div></section>
 {browser_html}
 <section class="genome-studies"><div class="section-heading"><div><p class="eyebrow">Research and downloads</p><h2>Studies on this genome</h2></div></div>{''.join(source_cards) if source_cards else '<p class="empty-state">No published study records are available for this genome.</p>'}{''.join(unpublished_cards)}</section>
+{genome_downloads}
 </main>'''
     return content
 

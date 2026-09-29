@@ -1450,6 +1450,16 @@ def build_v04_jbrowse_configs(
         for track in config.get("tracks", []):
             if not isinstance(track, dict) or not _is_reference_annotation(track):
                 continue
+            track_id = str(track["trackId"])
+            track["displays"] = [{
+                "type": "LinearBasicDisplay",
+                "displayId": f"{track_id}-LinearBasicDisplay",
+                "renderer": {
+                    "type": "SvgFeatureRenderer",
+                    "color1": "jexl:btedStrandColor(feature)",
+                    "color2": "jexl:btedStrandColor(feature)",
+                },
+            }]
             uris = _all_config_uris(track)
             annotation_asset = next((item for item in assets.values() if item.get("url") in uris and item.get("asset_kind") == "gff3"), None)
             annotation_hash = str(annotation_asset.get("sha256", "")) if annotation_asset else ""
