@@ -298,6 +298,7 @@ process.stdout.write(JSON.stringify({{
         self.assertNotIn("license", endpoint_track["metadata"]["btedAbout"])
         self.assertEqual(endpoint_track["metadata"]["btedDownloads"][0]["kind"], "endpoint")
         self.assertEqual(endpoint_track["displays"][0]["renderer"]["color1"], "jexl:btedStrandColor(feature)")
+        self.assertGreaterEqual(endpoint_track["displays"][0]["height"], 60)
         signal_track = next(track for track in config["tracks"] if track["type"] == "MultiQuantitativeTrack")
         self.assertTrue(signal_track["metadata"]["btedMirroredSignal"])
         self.assertEqual(signal_track["adapter"]["type"], "MultiWiggleAdapter")
@@ -313,6 +314,7 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(reference_track["adapter"]["gffGzLocation"]["uri"], "https://preview.example.test/api/assets/v0.3.0--assembly-GCF_000009045.1--gff3")
         self.assertEqual(reference_track["displays"][0]["renderer"]["color1"], "jexl:btedStrandColor(feature)")
         self.assertEqual(reference_track["displays"][0]["renderer"]["color2"], "jexl:btedStrandColor(feature)")
+        self.assertGreater(reference_track["displays"][0]["height"], endpoint_track["displays"][0]["height"])
 
     def test_stats_keeps_release_and_source_status_counts(self):
         payload = self.run_worker(request_path="/api/stats")

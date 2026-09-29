@@ -347,20 +347,19 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
     )
     assay_options = "".join(f'<option value="{esc(assay)}">{esc(assay)}</option>' for assay in sorted(assays))
     content = f'''<main>
-<section class="hero hero-compact"><div class="page-shell hero-inner"><p class="eyebrow">BTED v0.4.0</p><h1>Find bacterial transcript 3′ ends by genome.</h1><p>Search a reference assembly to read study evidence, open endpoint and signal tracks, and download GFF3 or TSV files from one page.</p>
-  <form class="genome-search" role="search" data-genome-search-form><label for="genome-search-input">Genome, species, study or accession</label><div><input id="genome-search-input" type="search" placeholder="e.g. GCF_000005845.1 or Escherichia coli" autocomplete="off" data-genome-search><button class="button primary" type="submit">Search</button></div></form>
-</div></section>
+<section class="hero hero-compact"><div class="page-shell hero-inner"><p class="eyebrow">BTED v0.4.0</p><h1>Find bacterial transcript 3′ ends by genome.</h1><p>Search a reference assembly to read study evidence, open endpoint and signal tracks, and download GFF3 or TSV files from one page.</p></div></section>
 <section class="page-shell home-summary" aria-label="Release summary"><div><strong>{count}</strong><span>reference genomes</span></div><div><strong>{total_sources}</strong><span>source records</span></div><div><strong>{total_records:,}</strong><span>published endpoints</span></div></section>
 <section class="page-shell genome-results"><div class="section-heading"><div><p class="eyebrow">Genome directory</p><h2>Browse reference genomes</h2></div></div>
-  <div class="genome-filter-bar" aria-label="Filter genomes">
+  <div class="genome-directory-panel"><form class="genome-filter-bar" role="search" aria-label="Search and filter genomes" data-genome-search-form>
+    <label class="genome-filter-search"><span>Search genomes</span><span class="genome-filter-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input type="search" placeholder="Assembly, species, study or PMID" autocomplete="off" data-genome-search></span></label>
     <label>Study<select data-filter-study><option value="">All studies</option>{study_options}</select></label>
     <label>Method<select data-filter-assay><option value="">All methods</option>{assay_options}</select></label>
     <label>Evidence<select data-filter-evidence><option value="">All evidence</option><option value="author_called_endpoint">Paper-reported 3′ ends</option><option value="curated_record">Literature-curated records</option><option value="audit_only">Review record only</option></select></label>
     <label>Experimental signal<select data-filter-signal><option value="">Any availability</option><option value="yes">Signal available</option><option value="no">No signal file</option></select></label>
     <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Assembly</option><option value="organism">Organism</option><option value="studies">Studies</option><option value="endpoints">Endpoints</option><option value="signal">Signal</option></select></label>
     <button class="mobile-sort-direction" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
-    <button class="text-button" type="button" data-clear-filters>Clear filters</button>
-  </div>
+    <button class="genome-filter-reset" type="button" data-clear-filters aria-label="Clear filters" title="Clear filters"><span aria-hidden="true">↺</span></button>
+  </form>
   <div class="genome-result-count" role="status"><span data-visible-count>{count}</span> of {count} genomes</div>
   <div class="genome-table-scroll"><table class="genome-directory-table"><thead><tr>
     <th aria-sort="none"><button type="button" data-sort="organism">Organism</button></th>
@@ -371,7 +370,7 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
     <th aria-sort="none"><button type="button" data-sort="signal">Signal</button></th>
     <th>Open</th>
   </tr></thead><tbody data-genome-results>{''.join(table_rows)}</tbody></table></div>
-  <p class="search-empty" data-empty hidden>No genomes match these filters. Clear filters to see all genomes.</p>
+  <p class="search-empty" data-empty hidden>No genomes match these filters. Clear filters to see all genomes.</p></div>
 </section>
 </main>'''
     return content
@@ -469,7 +468,7 @@ def genome_content(
     if jbrowse_config:
         signal_intro = ("Open a track menu for study details and downloads."
                         if signal_sources else "Open a track menu for study details and downloads. No experimental signal is available for this genome.")
-        frame_height = min(900, 273 + 55 * len(published) + 190 * len(signal_sources))
+        frame_height = min(1050, 330 + 65 * len(published) + 190 * len(signal_sources))
         browser_html = f'''<section class="browser-panel" id="genome-browser" data-genome-browser data-assembly="{esc(assembly)}" style="--browser-frame-height:{frame_height}px">
   <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>Explore this genome</h2><p>{signal_intro}</p></div><div class="browser-actions"><button class="browser-open" type="button" data-share-view disabled>Share view</button><a class="browser-open" href="../jbrowse/index.html?config={quote(jbrowse_config, safe='')}">Open full browser ↗</a></div></div>
   <p class="browser-share-status" data-share-status role="status" aria-live="polite"></p><input class="browser-share-manual" data-share-manual aria-label="Share link" readonly hidden>

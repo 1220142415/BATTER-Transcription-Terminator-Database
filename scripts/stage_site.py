@@ -1217,7 +1217,7 @@ def _endpoint_track_v04(
                 "height": 14,
             },
             "showLabels": False,
-            "height": 44,
+            "height": 64,
         }],
         "category": ["BTED v0.4.0", "Endpoint features", str(source["pmid"])],
         "assemblyNames": [assembly_name],
@@ -1454,6 +1454,7 @@ def build_v04_jbrowse_configs(
             track["displays"] = [{
                 "type": "LinearBasicDisplay",
                 "displayId": f"{track_id}-LinearBasicDisplay",
+                "height": 130,
                 "renderer": {
                     "type": "SvgFeatureRenderer",
                     "color1": "jexl:btedStrandColor(feature)",
