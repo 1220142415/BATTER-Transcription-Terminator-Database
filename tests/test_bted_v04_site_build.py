@@ -147,12 +147,19 @@ class V04SiteBuildTests(unittest.TestCase):
                 for path, item in release_files.items()
             }
             site = temp / "site"
+            taxonomy = temp / "taxonomy.tsv"
+            taxonomy.write_text(
+                "assembly\tphylum\tclass\tgenus\n"
+                "GCF_000012525.1\tCyanobacteria\tCyanophyceae\tCyanobacterium\n",
+                encoding="utf-8",
+            )
             build_v0_4_site.build_site(
                 site,
                 release_root,
                 asset_map,
                 {"GCF_000012525.1": "assemblies/GCF_000012525.1.config.json"},
                 {row["source_id"]: f"bted_v04_{row['source_id'].lower()}_endpoints" for row in rows},
+                taxonomy_path=taxonomy,
             )
 
             home = (site / "index.html").read_text(encoding="utf-8")
@@ -161,6 +168,11 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn("3</strong><span>published endpoints", home)
             self.assertIn('class="genome-directory-table"', home)
             self.assertIn('data-filter-study', home)
+            self.assertIn('data-filter-taxonomy', home)
+            self.assertIn('value="phylum:Cyanobacteria"', home)
+            self.assertIn('value="class:Cyanophyceae"', home)
+            self.assertIn('data-taxonomy-genus="Cyanobacterium"', home)
+            self.assertIn('<td data-label="Phylum">Cyanobacteria</td>', home)
             self.assertIn('data-filter-assay', home)
             self.assertIn('data-filter-evidence', home)
             self.assertIn('data-filter-signal', home)
@@ -194,6 +206,15 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn('"source_id","loc","session","tracks","highlight"', old_assembly)
             self.assertIn('target.searchParams.set(k,v)', old_assembly)
             self.assertIn('"loc"', old_assembly)
+
+    def test_taxonomy_requires_an_entry_for_each_genome(self) -> None:
+        with temporary_directory() as temp:
+            taxonomy = temp / "taxonomy.tsv"
+            taxonomy.write_text("assembly\tphylum\tgenus\n", encoding="utf-8")
+            with self.assertRaisesRegex(build_v0_4_site.SiteBuildError, "missing assemblies"):
+                build_v0_4_site.load_genome_taxonomy(
+                    taxonomy, [{"assembly": "GCF_000012525.1"}],
+                )
 
     def test_browser_tracks_are_source_filtered_and_reference_ids_are_mapped(self) -> None:
         with temporary_directory() as temp:

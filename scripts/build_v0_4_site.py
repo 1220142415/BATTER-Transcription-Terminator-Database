@@ -17,6 +17,8 @@ from urllib.parse import quote
 
 
 RELEASE_VERSION = "v0.4.0"
+TAXONOMY_REGISTRY = Path(__file__).resolve().parents[1] / "data/registry/genome_taxonomy.tsv"
+TAXONOMY_RANKS = ("phylum", "class", "order", "family", "genus")
 REQUIRED_METADATA_COLUMNS = (
     "source_id", "pmid", "species", "assembly", "title", "assay", "record_count",
     "evidence_class", "release_status", "article_license", "redistribution_status",
@@ -114,6 +116,19 @@ def read_tsv(path: Path, required: Iterable[str] = ()) -> list[dict[str, str]]:
             return [{str(k): (v or "") for k, v in row.items() if k is not None} for row in reader]
     except OSError as exc:
         raise SiteBuildError(f"Could not read TSV: {path}") from exc
+
+
+def load_genome_taxonomy(path: Path, genomes: list[dict[str, object]]) -> dict[str, dict[str, str]]:
+    taxonomy: dict[str, dict[str, str]] = {}
+    for row in read_tsv(path, ("assembly", "phylum", "genus")):
+        assembly = row["assembly"].strip()
+        if not ASSEMBLY_RE.fullmatch(assembly) or assembly in taxonomy:
+            raise SiteBuildError(f"Invalid or duplicate taxonomy assembly: {assembly!r}")
+        taxonomy[assembly] = {rank: row.get(rank, "").strip() for rank in TAXONOMY_RANKS}
+    missing = sorted(str(genome["assembly"]) for genome in genomes if str(genome["assembly"]) not in taxonomy)
+    if missing:
+        raise SiteBuildError(f"Genome taxonomy is missing assemblies: {', '.join(missing)}")
+    return taxonomy
 
 
 def load_genomes(release_root: Path, release: dict[str, object], files: dict[str, dict[str, object]]) -> list[dict[str, object]]:
@@ -280,7 +295,7 @@ def _search_blob(assembly: str, rows: list[dict[str, str]]) -> str:
     return " ".join(values).casefold()
 
 
-def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[str, object]]) -> str:
+def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[str, object]], taxonomy: dict[str, dict[str, str]]) -> str:
     count = len(genomes)
     total_sources = sum(
         1
@@ -297,8 +312,13 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
     table_rows: list[str] = []
     studies: dict[str, str] = {}
     assays: set[str] = set()
+    taxa: dict[str, set[str]] = {rank: set() for rank in TAXONOMY_RANKS}
     for genome in genomes:
         assembly = str(genome["assembly"])
+        genome_taxonomy = taxonomy[assembly]
+        for rank, value in genome_taxonomy.items():
+            if value:
+                taxa[rank].add(value)
         rows = genome["metadata_rows"]
         published = [row for row in rows if is_published_status(row.get("release_status"))]
         species = next((row.get("species", "") for row in rows if row.get("species")), "")
@@ -328,13 +348,18 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
         methods = sorted({row.get("assay", "") for row in published if row.get("assay")})
         method_text = methods[0] if len(methods) == 1 else f"{methods[0]} +{len(methods) - 1}" if methods else "—"
         signal_text = f"{signal_count} source{'s' if signal_count != 1 else ''}" if signal_count else "No signal"
-        genome_search = f"{assembly} {species}".casefold()
+        genome_search = " ".join((assembly, species, *genome_taxonomy.values())).casefold()
+        taxonomy_attributes = " ".join(
+            f'data-taxonomy-{rank}="{esc(value)}"' for rank, value in genome_taxonomy.items()
+        )
         href = f"genomes/{quote(assembly)}.html"
         table_rows.append(f'''<tr data-genome-row data-genome-search="{esc(genome_search)}"
+  {taxonomy_attributes}
   data-sort-accession="{esc(assembly.casefold())}" data-sort-organism="{esc(species.casefold())}"
   data-sort-studies="{study_count}" data-sort-endpoints="{endpoint_count}" data-sort-signal="{signal_count}">
   <td data-label="Organism"><a class="genome-table-name" href="{href}">{esc(species or assembly)}</a></td>
   <td data-label="Assembly"><code>{esc(assembly)}</code></td>
+  <td data-label="Phylum">{esc(genome_taxonomy['phylum'] or 'Not assigned')}</td>
   <td data-label="Studies">{study_count}</td>
   <td data-label="Methods">{esc(method_text)}</td>
   <td data-label="Endpoints" class="number">{endpoint_count:,}</td>
@@ -346,12 +371,19 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
         for pmid, title in sorted(studies.items())
     )
     assay_options = "".join(f'<option value="{esc(assay)}">{esc(assay)}</option>' for assay in sorted(assays))
+    taxonomy_options = "".join(
+        f'<optgroup label="{rank.capitalize()}">'
+        + "".join(f'<option value="{esc(rank + ":" + value)}">{esc(value)}</option>' for value in sorted(taxa[rank]))
+        + '</optgroup>'
+        for rank in TAXONOMY_RANKS if taxa[rank]
+    )
     content = f'''<main>
 <section class="hero hero-compact"><div class="page-shell hero-inner"><p class="eyebrow">BTED v0.4.0</p><h1>Find bacterial transcript 3′ ends by genome.</h1><p>Search a reference assembly to read study evidence, open endpoint and signal tracks, and download GFF3 or TSV files from one page.</p></div></section>
 <section class="page-shell home-summary" aria-label="Release summary"><div><strong>{count}</strong><span>reference genomes</span></div><div><strong>{total_sources}</strong><span>source records</span></div><div><strong>{total_records:,}</strong><span>published endpoints</span></div></section>
 <section class="page-shell genome-results"><div class="section-heading"><div><p class="eyebrow">Genome directory</p><h2>Browse reference genomes</h2></div></div>
   <div class="genome-directory-panel"><form class="genome-filter-bar" role="search" aria-label="Search and filter genomes" data-genome-search-form>
-    <label class="genome-filter-search"><span>Search genomes</span><span class="genome-filter-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input type="search" placeholder="Assembly, species, study or PMID" autocomplete="off" data-genome-search></span></label>
+    <label class="genome-filter-search"><span>Search genomes</span><span class="genome-filter-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input type="search" placeholder="Assembly or species" title="Also searches study titles and PMID" autocomplete="off" data-genome-search></span></label>
+    <label>Taxonomy<select data-filter-taxonomy><option value="">All taxa</option>{taxonomy_options}</select></label>
     <label>Study<select data-filter-study><option value="">All studies</option>{study_options}</select></label>
     <label>Method<select data-filter-assay><option value="">All methods</option>{assay_options}</select></label>
     <label>Evidence<select data-filter-evidence><option value="">All evidence</option><option value="author_called_endpoint">Paper-reported 3′ ends</option><option value="curated_record">Literature-curated records</option><option value="audit_only">Review record only</option></select></label>
@@ -364,6 +396,7 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
   <div class="genome-table-scroll"><table class="genome-directory-table"><thead><tr>
     <th aria-sort="none"><button type="button" data-sort="organism">Organism</button></th>
     <th aria-sort="ascending"><button type="button" data-sort="accession">Assembly</button></th>
+    <th>Phylum</th>
     <th aria-sort="none"><button type="button" data-sort="studies">Studies</button></th>
     <th>Methods</th>
     <th aria-sort="none"><button type="button" data-sort="endpoints">Endpoints</button></th>
@@ -505,15 +538,17 @@ def build_site(
     asset_map: dict[str, dict[str, object]],
     browser_configs: dict[str, str],
     track_ids: dict[str, str],
+    taxonomy_path: Path = TAXONOMY_REGISTRY,
 ) -> dict[str, object]:
     release, files = read_release(release_root)
     genomes = load_genomes(release_root, release, files)
+    taxonomy = load_genome_taxonomy(taxonomy_path, genomes)
     for relative in files:
         if relative not in asset_map:
             raise SiteBuildError(f"Published release file is missing from the browser allowlist: {relative}")
 
     site_root.mkdir(parents=True, exist_ok=True)
-    _write(site_root / "index.html", page("Genomes", index_content(genomes, asset_map), current="home", scripts=("assets/genome-index.js",)))
+    _write(site_root / "index.html", page("Genomes", index_content(genomes, asset_map, taxonomy), current="home", scripts=("assets/genome-index.js",)))
     genome_files = 0
     for genome in genomes:
         assembly = str(genome["assembly"])

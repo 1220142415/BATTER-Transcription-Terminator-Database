@@ -35,6 +35,7 @@ REQUIRED_PATHS = {
     "data/public/v0.4.0/SHA256SUMS.txt",
     "data/registry/internal/v0.4.0/source_provenance.json",
     "data/registry/browser_assets.v0.4.0.tsv",
+    "data/registry/genome_taxonomy.tsv",
     "data/registry/browser_refs/GCF_000012525.1.ncbi.zip",
     "data/registry/study_citations.v0.4.0.tsv",
     "jbrowse-plugin/package.json",

@@ -7,6 +7,7 @@
   const count = document.querySelector("[data-visible-count]");
   const empty = document.querySelector("[data-empty]");
   const clear = document.querySelector("[data-clear-filters]");
+  const taxonomy = document.querySelector("[data-filter-taxonomy]");
   const filters = {
     study: document.querySelector("[data-filter-study]"),
     assay: document.querySelector("[data-filter-assay]"),
@@ -36,6 +37,7 @@
     Object.entries(filters).forEach(([key, select]) => {
       if (select) select.value = validOption(select, params.get(key) || "");
     });
+    if (taxonomy) taxonomy.value = validOption(taxonomy, params.get("taxon") || "");
     sortField = sortFields.has(params.get("sort")) ? params.get("sort") : "accession";
     direction = params.get("order") === "desc" ? "desc" : "asc";
     if (mobileSort) mobileSort.value = sortField;
@@ -43,9 +45,10 @@
 
   function updateUrl() {
     const url = new URL(window.location.href);
-    ["q", "search", "query", "accession", "assembly", "study", "assay", "evidence", "signal", "sort", "order"]
+    ["q", "search", "query", "accession", "assembly", "taxon", "study", "assay", "evidence", "signal", "sort", "order"]
       .forEach((key) => url.searchParams.delete(key));
     if (search.value.trim()) url.searchParams.set("q", search.value.trim());
+    if (taxonomy?.value) url.searchParams.set("taxon", taxonomy.value);
     Object.entries(filters).forEach(([key, select]) => {
       if (select && select.value) url.searchParams.set(key, select.value);
     });
@@ -55,6 +58,13 @@
   }
 
   function sourceMatches(row, query) {
+    if (taxonomy?.value) {
+      const separator = taxonomy.value.indexOf(":");
+      const rank = taxonomy.value.slice(0, separator);
+      const value = taxonomy.value.slice(separator + 1);
+      const key = `taxonomy${rank[0].toUpperCase()}${rank.slice(1)}`;
+      if (row.dataset[key] !== value) return false;
+    }
     const genomeMatch = row.dataset.genomeSearch.includes(query);
     return Array.from(row.querySelectorAll("[data-source-filter]")).some((source) => {
       if (query && !genomeMatch && !source.dataset.search.includes(query)) return false;
@@ -97,6 +107,7 @@
   search.addEventListener("input", changed);
   form.addEventListener("submit", (event) => { event.preventDefault(); changed(); });
   Object.values(filters).forEach((select) => select?.addEventListener("change", changed));
+  taxonomy?.addEventListener("change", changed);
   sortButtons.forEach((button) => button.addEventListener("click", () => {
     const next = button.dataset.sort;
     if (!sortFields.has(next)) return;
@@ -116,6 +127,7 @@
   });
   clear?.addEventListener("click", () => {
     search.value = "";
+    if (taxonomy) taxonomy.value = "";
     Object.values(filters).forEach((select) => { if (select) select.value = ""; });
     sortField = "accession";
     direction = "asc";
