@@ -60,10 +60,10 @@
     if (shareStatus) shareStatus.textContent = message;
   }
 
-  function fitDefaultView() {
+  function showDefaultView() {
     const id = String(++requestNumber);
-    pending.set(id, "fit");
-    shareMessage({ type: "fit-default", id });
+    pending.set(id, "default");
+    shareMessage({ type: "show-default", id });
   }
 
   window.addEventListener("message", async (event) => {
@@ -86,11 +86,11 @@
           shareMessage({ type: "navigate", id, location: params.get("loc") });
         } else if (!["loc", "session", "tracks", "highlight"].some((key) => params.has(key))) {
           setShareStatus("");
-          fitDefaultView();
+          showDefaultView();
         } else setShareStatus("");
       } catch (error) {
         setShareStatus(`${error.message} Showing the default view.`);
-        fitDefaultView();
+        showDefaultView();
       }
       return;
     }
@@ -102,7 +102,7 @@
     pending.delete(message.id);
     if (message.type === "error") {
       setShareStatus(`${message.message || "The browser view is unavailable."} Showing the default view.`);
-      if (action === "navigate") fitDefaultView();
+      if (action === "navigate") showDefaultView();
     } else if (action === "restore" && message.type === "restored") {
       setShareStatus("Shared view restored.");
     } else if (action === "capture" && message.type === "captured") {

@@ -46,10 +46,10 @@ const region=mod.visibleGff3('##gff-version 3\nchr1\tS1\tterminator_endpoint\t10
 const shareView={width:100,bpPerPx:2,displayedRegions:[{refName:'chr1'}],pxToBp(px){return {refName:'chr1',coord:1000+Math.round(px*2),reversed:true,oob:false};},tracks:[{configuration:'track_A',displays:[{height:44}]}]};
 const share=mod.sharedView(shareView,new Set(['track_A']));
 const fitCalls=[];
-const fitView={width:800,displayedRegions:[{refName:'chr1'}],
+const fitView={width:800,offsetPx:1795,bpPerPx:1,displayedRegions:[{refName:'chr1'}],
   async navToLocString(location,assembly){fitCalls.push(['navigate',location,assembly]);},
   zoomTo(scale,center){fitCalls.push(['zoom',scale,center]);}};
-await mod.fitFullReference(fitView,{regions:[{refName:'chr1',start:0,end:3573470}]},'BTED_TEST');
+await mod.showDefaultLocalReference(fitView,{regions:[{refName:'chr1',start:0,end:3573470}]},'BTED_TEST');
 let rejectsUnknown=false;
 try{mod.validateSharedState({...share,tracks:[{id:'unknown',height:44}]},new Set(['track_A']));}catch{rejectsUnknown=true;}
 const rectangles=[];
@@ -90,9 +90,9 @@ class BtedJBrowsePluginTests(unittest.TestCase):
         self.assertEqual(data["share"]["center"], 1100)
         self.assertTrue(data["share"]["reversed"])
         self.assertEqual(data["share"]["tracks"], [{"id": "track_A", "height": 44}])
-        self.assertEqual(data["fitCalls"][0], ["navigate", "chr1:1..3573470", "BTED_TEST"])
+        self.assertEqual(data["fitCalls"][0], ["navigate", "chr1:2295", "BTED_TEST"])
         self.assertEqual(data["fitCalls"][1][0], "zoom")
-        self.assertAlmostEqual(data["fitCalls"][1][1], 3573470 * 1.02 / 800)
+        self.assertAlmostEqual(data["fitCalls"][1][1], 1000 / 800)
         self.assertEqual(data["fitCalls"][1][2], 400)
         self.assertTrue(data["rejectsUnknown"])
         self.assertNotIn("schema_version", data["content"])

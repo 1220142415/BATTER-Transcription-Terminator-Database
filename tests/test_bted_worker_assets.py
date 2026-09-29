@@ -126,6 +126,7 @@ const db = {{
     if (sql.startsWith("SELECT * FROM tracks WHERE")) return {{ bind() {{ return {{ all: async () => ({{ results: browserTracks }}) }}; }} }};
     if (sql.startsWith("SELECT * FROM sources WHERE")) return {{ bind() {{ return {{ first: async () => browserSource }}; }} }};
     if (sql.startsWith("SELECT contig_accession, length_bp")) return {{ bind() {{ return {{ first: async () => browserContigs.sort((a,b) => b.length_bp-a.length_bp || a.contig_accession.localeCompare(b.contig_accession))[0] }}; }} }};
+    if (sql.startsWith("SELECT biological_coordinate_1based FROM endpoints WHERE")) return {{ bind() {{ return {{ first: async () => ({{ biological_coordinate_1based: 19000 }}) }}; }} }};
     if (sql.startsWith("SELECT reference_name, biological_coordinate_1based")) return {{ bind() {{ return {{ first: async () => ({{ reference_name: "NC_000964.3", biological_coordinate_1based: 19000 }}) }}; }} }};
     if (sql.includes("FROM assets")) return {{ bind(...params) {{ return {{ first: async () => params[0] === asset.asset_key && params[1] === asset.release_version ? asset : null, all: async () => ({{ results: params[1] === browserAssembly.accession ? browserAssets : params[1] === browserSource.source_id ? signalAssets : [] }}) }}; }} }};
     if (sql.includes("SELECT release_status")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ release_status: "published_standardized", total: 24 }}, {{ release_status: "audit_only", total: 1 }}] }}) }}; }} }};
@@ -289,7 +290,8 @@ process.stdout.write(JSON.stringify({{
             "refName": "NC_000964.3", "start": 0, "end": 4215606,
             "reversed": False, "assemblyName": "BTED_GCF_000009045_1",
         })
-        self.assertAlmostEqual(default_view["bpPerPx"], 4215606 / 1000)
+        self.assertEqual(default_view["bpPerPx"], 1)
+        self.assertEqual(default_view["offsetPx"], 18499)
         self.assertEqual(config["defaultSession"]["name"], "BTED · GCF_000009045.1")
         self.assertEqual(config["plugins"][0]["name"], "BTEDTrackPlugin")
         self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js")

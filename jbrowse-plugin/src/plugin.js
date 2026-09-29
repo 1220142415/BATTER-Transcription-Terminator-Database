@@ -138,17 +138,22 @@ export function validateSharedState(state, allowed) {
   return state;
 }
 
-export async function fitFullReference(view, assembly, assemblyName) {
+export async function showDefaultLocalReference(view, assembly, assemblyName) {
   const refName = view?.displayedRegions?.[0]?.refName;
   const reference = assembly?.regions?.find((region) => region.refName === refName);
   const start = Number(reference?.start ?? 0);
   const end = Number(reference?.end);
   if (!reference || !Number.isFinite(start) || !Number.isFinite(end) || end <= start ||
-      !Number.isFinite(view.width) || view.width <= 0) {
+      !Number.isFinite(view.width) || view.width <= 0 ||
+      !Number.isFinite(view.bpPerPx) || view.bpPerPx <= 0 ||
+      !Number.isFinite(view.offsetPx)) {
     throw new Error('The reference sequence is unavailable.');
   }
-  await view.navToLocString(`${refName}:${start + 1}..${end}`, assemblyName);
-  view.zoomTo(Math.max(0.001, (end - start) * 1.02 / view.width), view.width / 2);
+  const initialSpan = view.bpPerPx * 1000;
+  const center = Math.min(end, Math.max(start + 1,
+    Math.round(start + (view.offsetPx + 500) * view.bpPerPx)));
+  await view.navToLocString(`${refName}:${center}`, assemblyName);
+  view.zoomTo(Math.max(0.001, initialSpan / view.width), view.width / 2);
 }
 
 export default class BTEDTrackPlugin {
@@ -341,16 +346,16 @@ export default class BTEDTrackPlugin {
         const message = event.data;
         if (event.origin !== window.location.origin || event.source !== window.parent ||
             message?.channel !== BRIDGE_CHANNEL || message.nonce !== nonce ||
-            !['capture', 'restore', 'fit-default', 'navigate'].includes(message.type)) return;
+            !['capture', 'restore', 'show-default', 'navigate'].includes(message.type)) return;
         try {
           const current = view();
           if (!current) throw new Error('The genome browser is still loading.');
           const available = allowed();
-          if (message.type === 'fit-default') {
+          if (message.type === 'show-default') {
             const assemblyName = current.assemblyNames?.[0];
             const assembly = await root().session.assemblyManager.waitForAssembly(assemblyName);
-            await fitFullReference(current, assembly, assemblyName);
-            reply('fitted', message.id, {});
+            await showDefaultLocalReference(current, assembly, assemblyName);
+            reply('default-shown', message.id, {});
           } else if (message.type === 'navigate') {
             if (typeof message.location !== 'string' || message.location.length > 255 ||
                 /[\u0000-\u001f]/.test(message.location)) throw new Error('The reference location is invalid.');
@@ -398,7 +403,7 @@ export default class BTEDTrackPlugin {
     }
 
     if (typeof window !== 'undefined' && window.parent === window &&
-        new URLSearchParams(window.location.search).get('bted_fit') === '1') {
+        new URLSearchParams(window.location.search).get('bted_default') === '1') {
       let attempts = 0;
       const ready = window.setInterval(async () => {
         const root = pluginManager.rootModel;
@@ -408,9 +413,9 @@ export default class BTEDTrackPlugin {
           try {
             const assemblyName = current.assemblyNames?.[0];
             const assembly = await root.session.assemblyManager.waitForAssembly(assemblyName);
-            await fitFullReference(current, assembly, assemblyName);
+            await showDefaultLocalReference(current, assembly, assemblyName);
             const url = new URL(window.location.href);
-            url.searchParams.delete('bted_fit');
+            url.searchParams.delete('bted_default');
             window.history.replaceState(window.history.state, '', url);
           } catch { /* The full-length default session remains available. */ }
         } else if (++attempts >= 80) {
