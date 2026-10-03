@@ -74,6 +74,28 @@ def install_bted_plugin(package_root: Path) -> None:
     shutil.copyfile(BTED_PLUGIN_SOURCE, destination)
     if destination.stat().st_size > 100_000:
         raise StageError("BTED JBrowse plugin is unexpectedly large")
+    # JBrowse 4.3.0 hardcodes its sequence-letter threshold; keep its native
+    # coordinates and translation, changing only visibility and DNA font size.
+    js_root = package_root / "static/js"
+    sequence = js_root / "8772.2bc45db6.chunk.js"
+    source = sequence.read_text(encoding="utf-8")
+    if hashlib.sha256(source.encode()).hexdigest() != "2d406efc51f78a66ecad302b6fbeb15efc48f094737c6ce373f7c5ac88579892":
+        raise StageError("Unexpected JBrowse sequence renderer; review the zoom patch")
+    for original, replacement in {
+        "1/r>=12": "1/r>=6",
+        "1/h>=12": "1/h>=6",
+        'font-size="${h-2}"': 'font-size="${Math.min(h-2,$*1.25)}"',
+    }.items():
+        if source.count(original) != 1:
+            raise StageError("JBrowse sequence zoom patch no longer matches")
+        source = source.replace(original, replacement)
+    chunk_hash = hashlib.sha256(source.encode()).hexdigest()[:8]
+    sequence.with_name(f"8772.{chunk_hash}.chunk.js").write_text(source, encoding="utf-8")
+    sequence.unlink()
+    for runtime in js_root.glob("*.js"):
+        source = runtime.read_text(encoding="utf-8")
+        if '8772:"2bc45db6"' in source:
+            runtime.write_text(source.replace('8772:"2bc45db6"', f'8772:"{chunk_hash}"'), encoding="utf-8")
 
 
 class _LinkCollector(HTMLParser):
@@ -922,7 +944,7 @@ def _add_default_track(config: dict[str, object], track_id: str, track_type: str
             "type": display_type,
             "configuration": f"{track_id}-{display_type}",
             **({"showSidebar": False} if display_type == "MultiLinearWiggleDisplay" else {}),
-            **({"showTranslation": False, "heightPreConfig": 80} if display_type == "LinearReferenceSequenceDisplay" else {}),
+            **({"showTranslation": True, "heightPreConfig": 120} if display_type == "LinearReferenceSequenceDisplay" else {}),
         }],
     })
 

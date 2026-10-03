@@ -752,7 +752,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
   }));
   sessionTracks.unshift({
     id: "bted_reference_track", type: "ReferenceSequenceTrack", configuration: `${assemblyName}_refseq`, minimized: false,
-    displays: [{ id: "bted_reference_display", type: "LinearReferenceSequenceDisplay", configuration: `${assemblyName}_refseq-LinearReferenceSequenceDisplay`, showTranslation: false, heightPreConfig: 80 }],
+    displays: [{ id: "bted_reference_display", type: "LinearReferenceSequenceDisplay", configuration: `${assemblyName}_refseq-LinearReferenceSequenceDisplay`, showTranslation: true, heightPreConfig: 120 }],
   });
   return json({
     plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL("/jbrowse/plugins/bted-track-plugin.js", request.url).href }],

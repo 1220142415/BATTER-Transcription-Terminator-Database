@@ -513,7 +513,7 @@ def genome_content(
         signal_intro = "Explore endpoints and signal tracks. Track menus provide study details and downloads."
         if not signal_sources:
             signal_intro += " No experimental signal is available for this genome."
-        frame_height = min(1050, 420 + 65 * len(published) + 190 * len(signal_sources))
+        frame_height = min(1050, 510 + 65 * len(published) + 190 * len(signal_sources))
         browser_html = f'''<section class="browser-panel" id="genome-browser" data-genome-browser data-assembly="{esc(assembly)}" style="--browser-frame-height:{frame_height}px">
   <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>Explore this genome</h2><p>{signal_intro}</p></div><div class="browser-actions"><button class="browser-open" type="button" data-share-view disabled>Share view</button><button class="browser-open" type="button" data-retry-browser>Reload</button><a class="browser-open" href="../jbrowse/index.html?config={quote(jbrowse_config, safe='')}&amp;bted_default=1">Open full browser ↗</a></div></div>
   <p class="browser-share-status" data-browser-status role="status" aria-live="polite">Loading browser…</p>
