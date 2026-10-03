@@ -261,15 +261,16 @@ def get_asset_url(asset_map: dict[str, dict[str, object]], logical_path: str, *,
 
 def nav(current: str = "home", depth: int = 0) -> str:
     active_home = ' aria-current="page"' if current == "home" else ""
+    active_notes = ' aria-current="page"' if current == "notes" else ""
     prefix = "../" * depth
     return f'''<header class="site-header"><div class="header-inner">
   <a class="brand" href="{prefix}index.html"><span class="brand-mark">BTED</span><span class="brand-name">Bacterial Transcript 3′ End Database</span></a>
-  <nav class="site-nav" aria-label="Primary navigation"><a href="{prefix}index.html"{active_home}>Genomes</a><a href="{prefix}methodology.html">Data notes</a></nav>
+  <nav class="site-nav" aria-label="Primary navigation"><a href="{prefix}index.html"{active_home}>Genomes</a><a href="{prefix}methodology.html"{active_notes}>Data notes</a></nav>
 </div></header>'''
 
 
 def page(title: str, content: str, *, current: str = "", scripts: tuple[str, ...] = (), depth: int = 0) -> str:
-    version_counts = "BTED v0.4.0 · genome-first experimental endpoint data"
+    version_counts = "BTED v0.4.0 · Bacterial transcript 3′ ends"
     prefix = "../" * depth
     script_tags = "".join(f'<script src="{esc(src)}" defer></script>' for src in scripts)
     return f'''<!doctype html>
@@ -378,9 +379,9 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
         for rank in TAXONOMY_RANKS if taxa[rank]
     )
     content = f'''<main>
-<section class="hero hero-compact"><div class="page-shell hero-inner"><p class="eyebrow">BTED v0.4.0</p><h1>Find bacterial transcript 3′ ends by genome.</h1><p>Search a reference assembly to read study evidence, open endpoint and signal tracks, and download GFF3 or TSV files from one page.</p></div></section>
+<section class="hero hero-compact"><div class="page-shell hero-inner"><div class="hero-copy"><p class="eyebrow">BTED <span class="release-label">v0.4.0</span></p><h1>Bacterial transcript<br>3′-end database</h1><p>Browse genomes, explore experimental evidence, and download study data.</p><div class="hero-actions"><a class="button primary" href="#genome-directory">Browse genomes <span aria-hidden="true">↓</span></a><a class="button" href="methodology.html">Data notes</a></div></div><div class="hero-diagram"><svg viewBox="0 0 440 210" role="img" aria-labelledby="track-diagram-title"><title id="track-diagram-title">Schematic of a gene, experimental signal and transcript 3′ ends</title><text x="24" y="29">Reference gene</text><path class="diagram-baseline" d="M24 64H416"/><path class="diagram-gene" d="M54 52H280L297 64L280 76H54Z"/><text x="24" y="108">Experimental signal</text><path class="diagram-baseline" d="M24 151H416"/><path class="diagram-signal" d="M24 151H68V147H92V141H117V145H144V138H170V143H194V132H218V138H243V125H265V132H288V98H298V130H314V144H340V149H416"/><text x="24" y="187">Transcript 3′ ends</text><path class="diagram-endpoint" d="M293 172V202M308 178V202M329 184V202"/></svg><p>Schematic · not measured data</p></div></div></section>
 <section class="page-shell home-summary" aria-label="Release summary"><div><strong>{count}</strong><span>reference genomes</span></div><div><strong>{total_sources}</strong><span>source records</span></div><div><strong>{total_records:,}</strong><span>published endpoints</span></div></section>
-<section class="page-shell genome-results"><div class="section-heading"><div><p class="eyebrow">Genome directory</p><h2>Browse reference genomes</h2></div></div>
+<section class="page-shell genome-results" id="genome-directory"><div class="section-heading"><div><p class="eyebrow">Genome directory</p><h2>Browse genomes</h2></div></div>
   <div class="genome-directory-panel"><form class="genome-filter-bar" role="search" aria-label="Search and filter genomes" data-genome-search-form>
     <label class="genome-filter-search"><span>Search genomes</span><span class="genome-filter-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input type="search" placeholder="Assembly or species" title="Also searches study titles and PMID" autocomplete="off" data-genome-search></span></label>
     <label>Taxonomy<select data-filter-taxonomy><option value="">All taxa</option>{taxonomy_options}</select></label>
@@ -499,7 +500,7 @@ def genome_content(
         unpublished_cards.append(f'''<article class="study-card audit-card"><header><div><p class="eyebrow">Study PMID {esc(pmid)}</p><h3>{esc(title)}</h3></div><span class="badge badge-review">No endpoint file</span></header><p>{esc(ids)} is listed so its source can be checked. Its observations are not included in the downloadable endpoint release or JBrowse tracks.</p></article>''')
 
     if jbrowse_config:
-        signal_intro = "The overview shows the full reference sequence. The main view opens at a close-up; use track menus for study details and downloads."
+        signal_intro = "Explore endpoints and signal tracks. Track menus provide study details and downloads."
         if not signal_sources:
             signal_intro += " No experimental signal is available for this genome."
         frame_height = min(1050, 330 + 65 * len(published) + 190 * len(signal_sources))
@@ -512,7 +513,7 @@ def genome_content(
         browser_html = '<section class="browser-panel browser-unavailable"><p class="eyebrow">Genome browser</p><h2>JBrowse is not available for this assembly</h2><p>Study downloads and evidence notes are available below.</p></section>'
 
     metadata_link = f'<a class="button" data-package-file data-zip-path="{esc(assembly)}/metadata.tsv" href="{site_href(str(metadata_url), 1)}">Genome metadata.tsv</a>'
-    genome_downloads = f'''<section class="genome-downloads" aria-labelledby="genome-downloads-title"><div><p class="eyebrow">Genome files</p><h2 id="genome-downloads-title">Download this genome</h2><p>The ZIP contains the study files and genome metadata listed on this page.</p></div><div class="genome-download-actions"><button class="button primary" type="button" data-download-genome-package>Download genome ZIP</button>{metadata_link}<a class="button" href="https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/" target="_blank" rel="noopener">NCBI reference</a><p class="package-status" data-package-status role="status" aria-live="polite"></p></div></section>'''
+    genome_downloads = f'''<section class="genome-downloads" aria-labelledby="genome-downloads-title"><div><p class="eyebrow">Genome files</p><h2 id="genome-downloads-title">Download this genome</h2><p>Study files and genome metadata in one ZIP.</p></div><div class="genome-download-actions"><button class="button primary" type="button" data-download-genome-package>Download genome ZIP</button>{metadata_link}<a class="button" href="https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/" target="_blank" rel="noopener">NCBI reference</a><p class="package-status" data-package-status role="status" aria-live="polite"></p></div></section>'''
     content = f'''<main class="page-shell genome-page" data-genome-page data-assembly="{esc(assembly)}">
 <p class="breadcrumbs"><a href="../index.html">Genomes</a><span aria-hidden="true">/</span><span>{esc(assembly)}</span></p>
 <section class="genome-title"><div><p class="eyebrow">Reference genome</p><h1>{esc(species or assembly)}</h1><p class="assembly-id">{esc(assembly)}</p></div></section>
@@ -559,6 +560,7 @@ def build_site(
             page(
                 f"{next((row.get('species', '') for row in genome['metadata_rows'] if row.get('species')), assembly)} · {assembly}",
                 genome_content(genome, asset_map, track_ids, config),
+                current="home",
                 scripts=("../assets/genome-page.js",),
                 depth=1,
             ),
@@ -608,7 +610,7 @@ location.replace(target.href);
 <section><h2>Coordinates and evidence</h2><p>Study GFF3 files preserve separate source observations and use 1-based coordinates. An endpoint reported in a paper is not automatically a functional validation of a terminator. BigWig tracks show experimental signal and are labelled separately from endpoint features.</p></section>
 <section><h2>Downloads</h2><p>Use the genome page to download <code>metadata.tsv</code>, per-study <code>endpoints.gff3.gz</code>, and available supplementary TSV files. The release manifest and checksum list support programmatic verification and are not user-facing data downloads.</p></section>
 </main>'''
-    _write(site_root / "methodology.html", page("Data notes", methodology))
+    _write(site_root / "methodology.html", page("Data notes", methodology, current="notes"))
     _write(site_root / "about.html", redirect_html("Data notes", destination="methodology.html", query_script="location.replace(new URL('methodology.html', document.baseURI).href);"))
     _write(site_root / "accession-range-demo.html", redirect_html(
         "Genome search", destination="index.html",

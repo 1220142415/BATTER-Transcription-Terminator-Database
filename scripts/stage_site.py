@@ -1688,6 +1688,16 @@ def assemble_v04(
         install_bted_plugin(package_root)
         for config_path in (package_root / "assemblies").glob("*.config.json"):
             config = _read_config(config_path)
+            config.setdefault("configuration", {})["theme"] = {
+                "palette": {
+                    "primary": {"main": "#343674"},
+                    "secondary": {"main": "#6660a9"},
+                    "tertiary": {"main": "#eeedf9"},
+                },
+                "typography": {
+                    "fontFamily": '"Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif',
+                },
+            }
             config["plugins"] = [{
                 "name": "BTEDTrackPlugin",
                 "esmUrl": "plugins/bted-track-plugin.js",
