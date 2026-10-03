@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS sources (
   source_note TEXT,
   decision_note TEXT,
   known_limitations TEXT,
+  metadata_json TEXT CHECK (metadata_json IS NULL OR (json_valid(metadata_json) AND json_type(metadata_json) = 'object')),
   UNIQUE (release_version, source_id),
   FOREIGN KEY (release_version, assembly_accession)
     REFERENCES assemblies (release_version, accession),

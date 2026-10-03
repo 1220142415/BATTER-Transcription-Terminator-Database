@@ -23,6 +23,11 @@ function trackCitation(track) {
   }
 }
 
+function publicSourceMetadata(source) {
+  const { used_for_batter_augmentation: _unused, metadata_json, ...fields } = source;
+  return { ...fields, metadata: JSON.parse(metadata_json || "null") };
+}
+
 const RESPONSE_HEADERS = [
   "accept-ranges",
   "cache-control",
@@ -308,7 +313,7 @@ async function sourcePayload(request, env, release, sourceId) {
   const visibleAssets = studyGff3 && !assets.some((asset) => asset.asset_key === studyGff3.asset_key)
     ? [...assets, studyGff3]
     : assets;
-  const { used_for_batter_augmentation: _unusedAugmentationFlag, ...publicSource } = source;
+  const publicSource = publicSourceMetadata(source);
   const links = {
     bted_record: `/genomes/${encodeURIComponent(source.assembly_accession)}.html?source_id=${encodeURIComponent(sourceId)}`,
   };
@@ -363,7 +368,7 @@ async function sourcesList(request, env, release, url) {
   const count = await env.BTED_DB.prepare(`SELECT COUNT(*) AS total FROM sources s LEFT JOIN publications p ON p.pmid = s.publication_pmid WHERE s.release_version = ?${where}`).bind(...params).first();
   const rows = await env.BTED_DB.prepare(`SELECT s.*, p.paper_title, p.published_year, p.doi FROM sources s LEFT JOIN publications p ON p.pmid = s.publication_pmid WHERE s.release_version = ?${where} ORDER BY s.source_id LIMIT ? OFFSET ?`).bind(...params, pageSize, offset).all();
   const data = (rows.results || []).map((row) => {
-    const { used_for_batter_augmentation: _unusedAugmentationFlag, ...publicRow } = row;
+    const publicRow = publicSourceMetadata(row);
     return {
       ...publicRow,
       links: { detail: `/api/sources/${encodeURIComponent(row.source_id)}` },

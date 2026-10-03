@@ -1,8 +1,10 @@
 import json
+import sqlite3
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 
@@ -79,6 +81,7 @@ class BtedD1CatalogueGeneratorTests(unittest.TestCase):
             "source_note": "test",
             "decision_note": "test",
             "known_limitations": "none",
+            "metadata_json": {"title": "Author's 3′ ends", "article_license": "CC BY 4.0", "future_field": "新增字段", "empty": ""},
         }])
         write_jsonl(root / "source_accessions.jsonl", [{
             "source_id_ref": "BATTER_S1_TEST",
@@ -181,6 +184,13 @@ class BtedD1CatalogueGeneratorTests(unittest.TestCase):
             self.assertNotIn("CREATE TABLE IF NOT EXISTS genes", schema)
             self.assertNotIn("CREATE TABLE IF NOT EXISTS source_annotations", schema)
             self.assertIn('"preview_status": "preview"', result.stdout)
+            with closing(sqlite3.connect(":memory:")) as database:
+                database.executescript(schema)
+                for path in sorted(output.glob("[0-9]*.sql")):
+                    database.executescript(path.read_text(encoding="utf-8"))
+                metadata = json.loads(database.execute("SELECT metadata_json FROM sources").fetchone()[0])
+                self.assertEqual(metadata, {"title": "Author's 3′ ends", "article_license": "CC BY 4.0", "future_field": "新增字段", "empty": ""})
+                self.assertEqual(database.execute("PRAGMA foreign_key_check").fetchall(), [])
 
     def test_static_source_tracks_keep_license_gate_without_bed_assets(self):
         for redistribution_status, expected_public in (

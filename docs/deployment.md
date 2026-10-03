@@ -65,9 +65,18 @@ python scripts/serve_v04_preview.py --site dist/pages-site --port 8769 \
 
 ## Worker 与 D1
 
+当前部署目标是 `1052596411@qq.com` 的 Cloudflare 账号（`406a94b19dd8bd8d9e851f8c5ed3a569`）。Worker 名称是 `bted`，D1 名称是 `bted-catalog`，数据库 ID 为 `c304fae8-cce6-4fc1-922d-e3bbc1c9b995`。这些标识不是密钥；登录凭据保存在本机 Wrangler 配置中，不提交到仓库。
+
+2026-10-03 首次发布地址：[bted.1052596411.workers.dev](https://bted.1052596411.workers.dev/)。线上健康、来源元数据原文比对、基因组与端点查询、JBrowse 配置、资产读取及 `206` Range 检查通过。D1 的发布状态仍标为 `preview`，便于在后续数据整理后再正式发布。
+
+Pages 主要提供静态网页，也能通过 Pages Functions 接入 D1。这里采用 Worker Static Assets：一个 Worker 提供网页、JBrowse 程序和 `/api/*`，并通过 `BTED_DB` 查询 D1。二者都不需要传统容器。大文件仍由固定版本的 Hugging Face 地址提供。基因组目录页面由发布文件生成，当前没有改成每次打开都查询 D1。
+
+`sources.metadata_json` 完整保留每个来源的原始 `metadata.tsv` 字段，包括文章许可、限制和补充文件路径；标准列负责筛选和关联。`/api/sources` 和来源详情以 `metadata` 对象返回这些字段。当前是新数据库的首次导入；已有旧表的数据库需先添加此列，不能只靠 `CREATE TABLE IF NOT EXISTS` 更新表结构。
+
 Worker 使用 `BTED_DB` 绑定和 `prototype/accession-range/wrangler.jsonc`。先从发布 GFF3、内部来源清单及已核查的远端资产清单生成本地 bundle；远端对象的大小、SHA-256 与 Range 检查完成后才标记 `--origin-verified`。
 
 ```bash
+python scripts/audit_v04_remote_assets.py --output dist/v04-remote-audit.json
 python scripts/import_bted_v03.py materialize-v04 \
   --output-dir dist/v04-d1-bundle --origin-verified
 python scripts/generate_bted_d1.py \
@@ -75,5 +84,16 @@ python scripts/generate_bted_d1.py \
 ```
 
 将 `dist/v04-d1-sql/` 中的 schema 和编号 SQL 文件依次导入本地 D1，再用 Wrangler 本地启动 Worker。检查 `/api/health` 的 `release_version=v0.4.0`、基因组和来源查询、端点数量、资产代理的 `206` Range 响应。API 返回 JSON 供程序读取；网页不会把原始 JSON 当作用户页面。
+
+远端首次导入前确认数据库为空，并在本地 SQLite 核对完整性、外键、端点数量和原始 metadata 字段。依次执行 schema 与编号 SQL（不要使用原型 `seed.sql`）；也可将它们按相同顺序合并成 `dist/v04-d1-import.sql`，再运行：
+
+```bash
+npx wrangler d1 execute bted-catalog --remote \
+  --config prototype/accession-range/wrangler.jsonc --file dist/v04-d1-import.sql --yes
+npx wrangler deploy --dry-run --config prototype/accession-range/wrangler.jsonc
+npx wrangler deploy --config prototype/accession-range/wrangler.jsonc
+```
+
+当前 D1 投影包括 14 篇论文、21 个基因组、48 条 contig、25 个来源、35 个外部 accession、157 个资产登记和 29,460 条端点。25 个来源中 1 个仅保留审计信息，不包含公开端点。数据增强及全基因组预测尚未导入；基因关联和条件观测仍保存在发布补充文件中。
 
 若 JBrowse 空白，先检查该组装的配置和参考 FASTA/FAI 是否在固定地址上可读，再查 GFF3/BigWig 的 Range 请求。某研究没有 BigWig 时只应缺少信号轨道，端点轨道仍可正常显示。旧 v0.2.0、v0.3.0 的数据可从 `data/archive/` 校验归档还原。

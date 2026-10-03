@@ -1,17 +1,19 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "bted-catalogue-v03-preview",
+  "name": "bted",
+  "account_id": "406a94b19dd8bd8d9e851f8c5ed3a569",
   "main": "src/worker.js",
   "compatibility_date": "2026-08-22",
   "assets": {
     "directory": "../../dist/worker-site",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
   },
   "d1_databases": [
     {
       "binding": "BTED_DB",
-      "database_name": "bted-catalogue-v03-preview",
-      "database_id": "fed55acc-5093-44e7-b672-f1e0a347ba5d"
+      "database_name": "bted-catalog",
+      "database_id": "c304fae8-cce6-4fc1-922d-e3bbc1c9b995"
     }
   ],
   "vars": {

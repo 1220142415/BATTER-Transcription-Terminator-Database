@@ -181,7 +181,7 @@ def main() -> int:
             "species", "phylum", "assay_family", "evidence_class", "release_status",
             "record_count", "used_for_batter_augmentation", "has_jbrowse", "accessibility_status",
             "coordinate_status", "processing_status", "redistribution_status", "manifest_path",
-            "manifest_sha256", "record_root", "source_note", "decision_note", "known_limitations",
+            "manifest_sha256", "record_root", "source_note", "decision_note", "known_limitations", "metadata_json",
         ),
         (
             (
@@ -192,7 +192,7 @@ def main() -> int:
                 row.get("has_jbrowse", False), row.get("accessibility_status"), row.get("coordinate_status"),
                 row.get("processing_status"), row.get("redistribution_status"), row.get("manifest_path"),
                 row.get("manifest_sha256"), row.get("record_root"), row.get("source_note"),
-                row.get("decision_note"), row.get("known_limitations"),
+                row.get("decision_note"), row.get("known_limitations"), json_value(row.get("metadata_json")),
             )
             for row in sources
         ),
