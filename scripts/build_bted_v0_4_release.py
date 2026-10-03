@@ -701,6 +701,23 @@ def build_release(root: Path = ROOT, *, retire_v03: bool = False) -> dict[str, A
                     raise ValueError(f"Duplicate v0.3.0 source ID: {source_id}")
                 sources[source_id] = copy.deepcopy(source)
 
+        # A release hold is independent of the author's supplementary-data license.
+        trs = sources["BATTER_S1_002"]
+        trs["license_status"].update({
+            "redistribution_status": "verified_redistributable",
+            "license_source": "https://www.nature.com/articles/s41467-023-43534-2#rightslink",
+            "note": "2026-10-03: Author Supplementary Data 3 and its standardized derivatives may be redistributed under CC BY 4.0 with attribution, license link and change notices. No separate rights restriction was found in the workbook. The evidence/provenance release hold remains audit_only.",
+            "redistribution_review": {
+                "checked_on": "2026-10-03",
+                "previous_status": "audit_only",
+                "asset_scope": "author_supplementary_data_3_and_standardized_derivatives",
+                "license": "CC BY 4.0",
+                "supplementary_url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41467-023-43534-2/MediaObjects/41467_2023_43534_MOESM6_ESM.xlsx",
+                "supplementary_sha256": "4ec2c23364ab94768875181cb28aec388a9c6380b1aba8adbac4eea8291ff1c4",
+            },
+        })
+        trs["publication_status"]["redistribution_status"] = "verified_redistributable"
+
         intake_path, intake_bytes, intake_header, intake_rows = _external_intake(root)
         intake_by_id = {row["source_id"]: row for row in intake_rows}
         cascino_sources: dict[str, dict[str, Any]] = {}
@@ -812,6 +829,13 @@ def build_release(root: Path = ROOT, *, retire_v03: bool = False) -> dict[str, A
         if stage.exists():
             raise FileExistsError(f"Refusing to reuse release staging directory: {stage}")
         stage.mkdir()
+        # Preserve published bytes when only metadata changes across zlib versions.
+        for relative, packed in payloads.items():
+            previous = root / V04_REL / relative
+            if relative.endswith(".gz") and previous.is_file():
+                old_bytes = previous.read_bytes()
+                if gzip.decompress(old_bytes) == gzip.decompress(packed):
+                    payloads[relative] = old_bytes
         file_entries = _write_payload_files(stage, payloads)
         checksum_lines = [f"{entry['sha256']}  {entry['path']}\n" for entry in file_entries]
         sums_payload = "".join(checksum_lines).encode("utf-8")

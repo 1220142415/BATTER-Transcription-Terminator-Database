@@ -65,9 +65,10 @@
       const key = `taxonomy${rank[0].toUpperCase()}${rank.slice(1)}`;
       if (row.dataset[key] !== value) return false;
     }
-    const genomeMatch = row.dataset.genomeSearch.includes(query);
+    const tokens = query.normalize("NFKC").split(/[^\p{L}\p{N}_.-]+/u).filter(Boolean);
     return Array.from(row.querySelectorAll("[data-source-filter]")).some((source) => {
-      if (query && !genomeMatch && !source.dataset.search.includes(query)) return false;
+      const text = `${row.dataset.genomeSearch} ${source.dataset.search}`.normalize("NFKC");
+      if (!tokens.every((token) => text.includes(token))) return false;
       return Object.entries(filters).every(([key, select]) => !select || !select.value || source.dataset[key] === select.value);
     });
   }

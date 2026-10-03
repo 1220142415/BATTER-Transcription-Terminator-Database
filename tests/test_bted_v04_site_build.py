@@ -132,6 +132,17 @@ def create_release(root: Path, *, mismatched_count: bool = False) -> tuple[Path,
 
 
 class V04SiteBuildTests(unittest.TestCase):
+    def test_home_counts_distinguish_registered_papers_from_published_sources(self) -> None:
+        content = build_v0_4_site.home_content([{"metadata_rows": [
+            {"pmid": "1", "release_status": "published_standardized", "record_count_number": 3},
+            {"pmid": "1", "release_status": "published_standardized", "record_count_number": 4},
+            {"pmid": "2", "release_status": "audit_only", "record_count_number": 100},
+        ]}])
+        self.assertIn("2</strong><span>Source publications", content)
+        self.assertIn("2</strong><span>Published sources", content)
+        self.assertIn("7</strong><span>3′ end records", content)
+        self.assertNotIn("107</strong>", content)
+
     def test_genome_site_combines_evidence_browser_downloads_and_legacy_redirects(self) -> None:
         with temporary_directory() as temp:
             release_root, rows = create_release(temp / "release")
@@ -162,10 +173,17 @@ class V04SiteBuildTests(unittest.TestCase):
                 taxonomy_path=taxonomy,
             )
 
-            home = (site / "index.html").read_text(encoding="utf-8")
+            landing = (site / "index.html").read_text(encoding="utf-8")
+            home = (site / "genomes.html").read_text(encoding="utf-8")
             genome = (site / "genomes/GCF_000012525.1.html").read_text(encoding="utf-8")
             self.assertIn("GCF_000012525.1", home)
-            self.assertIn("3</strong><span>published endpoints", home)
+            self.assertIn("3</strong><span>3′ end records", landing)
+            self.assertIn("1</strong><span>Source publications", landing)
+            self.assertIn("2</strong><span>Published sources", landing)
+            self.assertIn("https://doi.org/10.1186/s40168-026-02454-1", landing)
+            self.assertIn("https://github.com/xu-research-lab/BATTER", landing)
+            self.assertNotIn("data-genome-search-form", landing)
+            self.assertIn('href="genomes.html"', landing)
             self.assertIn('class="genome-directory-table"', home)
             self.assertIn('data-filter-study', home)
             self.assertIn('data-filter-taxonomy', home)

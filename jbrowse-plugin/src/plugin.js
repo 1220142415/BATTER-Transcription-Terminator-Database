@@ -6,6 +6,47 @@ const MIRROR_HEIGHT = 180;
 const MIRROR_RENDERER = 'BTEDMirroredSignalRenderer';
 const BRIDGE_CHANNEL = 'bted-browser-v1';
 
+// Keep direct HF reads first; use the registered same-origin copy only after a
+// network/CORS failure. Runs in both JBrowse's page and adapter workers.
+const nativeFetch = globalThis.fetch.bind(globalThis);
+const backupAssets = new Set();
+let releaseManifest;
+export async function fetchBtedAsset(input, init = {}) {
+  const url = input instanceof Request ? input.url : String(input);
+  const method = init.method || (input instanceof Request ? input.method : 'GET');
+  const match = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/[0-9a-f]{40}\/v0\.[34]\.0\/(.+)$/.exec(url);
+  if (!match || !['GET', 'HEAD'].includes(method)) return nativeFetch(input, init);
+  const signal = init.signal || (input instanceof Request ? input.signal : undefined);
+  let originalError;
+  if (!backupAssets.has(url)) {
+    try {
+      return await nativeFetch(input, { ...init, cache: 'no-cache', credentials: 'omit', referrerPolicy: 'no-referrer' });
+    } catch (error) {
+      if (signal?.aborted || !(error instanceof TypeError)) throw error;
+      originalError = error;
+    }
+  }
+  try {
+    releaseManifest ||= nativeFetch(`${globalThis.location.origin}/assets/data-release.json`, { cache: 'no-cache' }).then(response => {
+      if (!response.ok) throw new Error('Data manifest unavailable.');
+      return response.json();
+    });
+    const manifest = await releaseManifest;
+    const asset = manifest.assets?.[decodeURIComponent(match[1])];
+    if (manifest.releaseVersion !== 'v0.4.0' || asset?.url !== url ||
+        !/^\/api\/assets\/v0\.4\.0--[0-9a-f]{64}$/.test(asset.fallback_url || '')) throw originalError || new Error('No matching backup asset.');
+    const backupRequest = new Request(new URL(asset.fallback_url, `${globalThis.location.origin}/`), input instanceof Request ? input : init);
+    const response = await nativeFetch(backupRequest, init);
+    if (!response.ok || response.headers.get('x-bted-sha256') !== asset.sha256) throw new Error('Backup asset unavailable or mismatched.');
+    backupAssets.add(url);
+    return response;
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw originalError || error;
+  }
+}
+if (/^https?:\/\//.test(globalThis.location?.origin || '')) globalThis.fetch = fetchBtedAsset;
+
 function signalValue(feature) {
   const raw = feature.get('summary') ? feature.get('maxScore') : feature.get('score');
   const number = Number(raw);
@@ -337,8 +378,9 @@ export default class BTEDTrackPlugin {
       const root = () => pluginManager.rootModel;
       const view = () => root()?.session?.views?.find((item) => item.type === 'LinearGenomeView');
       const viewReady = () => { try { return view()?.width > 0; } catch { return false; } };
-      const allowed = () => new Set((root()?.jbrowse?.tracks || [])
-        .filter((track) => metadataFor(track, readConfObject, getConf))
+      const allowed = () => new Set([
+        ...(root()?.jbrowse?.tracks || []), ...(root()?.jbrowse?.assemblies || []).map(assembly => assembly.sequence),
+      ].filter((track) => track && (track.type === 'ReferenceSequenceTrack' || metadataFor(track, readConfObject, getConf)))
         .map(configId).filter(Boolean));
       const reply = (type, id, details) => window.parent.postMessage(
         { channel: BRIDGE_CHANNEL, nonce, type, id, ...details }, window.location.origin);

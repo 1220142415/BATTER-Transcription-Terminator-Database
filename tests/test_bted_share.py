@@ -21,10 +21,13 @@ const frame = {dataset:{config:'assemblies/GCF_TEST.config.json'},contentWindow:
 const button = {disabled:true,addEventListener(type,fn){this[type]=fn;}};
 const status = {textContent:''};
 const manual = {hidden:true,value:'',focus(){},select(){}};
-const elements = {'[data-genome-page]':root,'[data-browser-frame]':frame,'[data-share-view]':button,'[data-share-status]':status,'[data-share-manual]':manual};
+const browserStatus = {textContent:''};
+const retry = {addEventListener(type,fn){this[type]=fn;}};
+const timers = new Map();let timerNumber=0;
+const elements = {'[data-genome-page]':root,'[data-browser-frame]':frame,'[data-share-view]':button,'[data-share-status]':status,'[data-share-manual]':manual,'[data-browser-status]':browserStatus,'[data-retry-browser]':retry};
 global.document = {baseURI:'https://bted.example/genomes/GCF_TEST.html',querySelector(key){return elements[key]||null;},querySelectorAll(){return [];}};
 let url = process.argv[2];
-global.window = {location:{get href(){return url;},get search(){return new URL(url).search;},get origin(){return new URL(url).origin;}},addEventListener(type,fn){listeners[type]=fn;},history:{replaceState(_a,_b,next){url=String(next);}}};
+global.window = {location:{get href(){return url;},get search(){return new URL(url).search;},get origin(){return new URL(url).origin;}},addEventListener(type,fn){listeners[type]=fn;},history:{replaceState(_a,_b,next){url=String(next);}},setTimeout(fn){timers.set(++timerNumber,fn);return timerNumber;},clearTimeout(id){timers.delete(id);}};
 let copied = '';
 let clipboardFails = false;
 Object.defineProperty(global,'navigator',{value:{clipboard:{async writeText(text){if(clipboardFails)throw Error('denied');copied=text;}}},configurable:true});
@@ -46,7 +49,16 @@ async function receive(type, id='', details={}){
   button.click();
   const second=posted.findLast(row=>row.message.type==='capture').message;
   await receive('captured',second.id,{state});
-  process.stdout.write(JSON.stringify({successful,fallback:{status:status.textContent,manual:manual.value,visible:!manual.hidden}}));
+  const fallback={status:status.textContent,manual:manual.value,visible:!manual.hidden};
+  const readyStatus=browserStatus.textContent;
+  retry.click();
+  const retryNonce=new URL(frame.src).searchParams.get('bted_bridge');
+  await receive('ready'); // A reply from the old frame must not enable sharing.
+  const staleReplyIgnored=button.disabled;
+  [...timers.values()][0]();
+  const timeoutStatus=browserStatus.textContent;
+  await listeners.message({origin:'https://bted.example',source:frameWindow,data:{channel:'bted-browser-v1',nonce:retryNonce,type:'error',message:'Reference unavailable'}});
+  process.stdout.write(JSON.stringify({successful,fallback,readyStatus,retry:{newNonce:retryNonce!==nonce,staleReplyIgnored,timeoutStatus,errorStatus:browserStatus.textContent}}));
 })().catch(error=>{console.error(error);process.exitCode=1;});
 """
 
@@ -73,6 +85,11 @@ class BtedShareTests(unittest.TestCase):
         self.assertNotIn("session=local", data["successful"]["copied"])
         self.assertTrue(data["fallback"]["visible"])
         self.assertEqual(data["fallback"]["manual"], data["successful"]["copied"])
+        self.assertEqual(data["readyStatus"], "")
+        self.assertTrue(data["retry"]["newNonce"])
+        self.assertTrue(data["retry"]["staleReplyIgnored"])
+        self.assertIn("Reload", data["retry"]["timeoutStatus"])
+        self.assertIn("Reference unavailable", data["retry"]["errorStatus"])
 
 
 if __name__ == "__main__":

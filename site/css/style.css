@@ -453,6 +453,53 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-height: calc(100v
 .site-footer { color: var(--muted); background: var(--white); border-top: 1px solid var(--line); }
 .footer-inner { min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 18px; font-size: 12px; }
 .site-footer a { color: var(--navy); }
+.footer-links { display: flex; gap: 22px; }
+.source-notes { margin-top: 12px; color: var(--muted); font-size: 12px; }
+.source-notes summary { cursor: pointer; color: var(--navy); }
+.source-notes dl { margin-bottom: 0; }
+.source-notes dl > div { display: grid; grid-template-columns: 120px 1fr; gap: 12px; margin-top: 8px; }
+.source-notes dt { font-weight: 600; }
+.source-notes dd { margin: 0; overflow-wrap: anywhere; }
+
+.usage-range { display: flex; align-items: center; gap: 12px; margin: 24px 0; }
+.usage-range label { font-size: 14px; font-weight: 600; }
+.usage-range select { min-height: 40px; padding: 8px 30px 8px 12px; border: 1px solid var(--line); border-radius: 7px; background: white; color: var(--ink); font-size: 14px; }
+.usage-metrics { display: grid; grid-template-columns: repeat(3, 1fr); margin: 24px 0; border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
+.usage-metrics > div { padding: 22px 26px; border-right: 1px solid var(--line); }
+.usage-metrics > div:last-child { border: 0; }
+.usage-metrics span { display: block; color: var(--muted); font-size: 13px; }
+.usage-metrics strong { display: block; margin-top: 5px; color: var(--navy-dark); font-size: 32px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.usage-panel { min-width: 0; margin-bottom: 22px; padding: 24px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+.usage-panel h2 { margin: 0 0 20px; color: var(--navy-dark); font-size: 18px; font-weight: 650; }
+.usage-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.usage-map, .usage-trend { margin: 0; }
+.usage-map svg { display: block; width: 100%; max-height: 440px; }
+.usage-map-sphere { fill: #f9f9fc; stroke: var(--line); }
+.usage-map-country { stroke: white; stroke-width: .5; }
+.usage-map-country:hover { stroke: var(--navy); stroke-width: 1.2; }
+.usage-map figcaption, .usage-trend figcaption { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; color: var(--muted); font-size: 12px; }
+.usage-map figcaption { justify-content: center; }
+.usage-map-scale { width: 140px; height: 9px; border-radius: 3px; background: linear-gradient(to right, #ececf3, #dddaf4, #bcb7e6, #948bd3, #7369bf, #51469e); }
+.usage-trend svg { display: block; width: 100%; height: 150px; border-bottom: 1px solid var(--line); }
+.usage-table-wrap { overflow: auto; max-height: 360px; }
+.usage-panel table { width: 100%; margin: 0; border-collapse: collapse; font-size: 13px; }
+.usage-panel th, .usage-panel td { padding: 11px 8px; border-bottom: 1px solid var(--line); text-align: right; vertical-align: middle; font-variant-numeric: tabular-nums; }
+.usage-panel th:first-child { text-align: left; }
+.usage-panel thead th { position: sticky; top: 0; z-index: 1; color: var(--muted); background: var(--soft); font-size: 12px; font-weight: 600; }
+.usage-panel tbody th { font-weight: 500; overflow-wrap: anywhere; }
+.usage-panel small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+.usage-share { display: inline-flex; justify-content: flex-end; align-items: center; gap: 8px; white-space: nowrap; }
+.usage-share-track { width: 52px; height: 4px; background: var(--soft); }
+.usage-share-track i { display: block; height: 100%; background: var(--blue); }
+.usage-footnote, #usage-status { color: var(--muted); font-size: 13px; }
+@media (max-width: 700px) {
+  .usage-columns { grid-template-columns: 1fr; gap: 0; }
+  .usage-panel { padding: 16px; }
+  .usage-metrics > div { padding: 16px 12px; }
+  .usage-metrics strong { font-size: 25px; }
+  .usage-metrics span { font-size: 12px; }
+  .usage-trend figcaption { font-size: 10px; }
+}
 
 @media (max-width: 980px) {
   .header-inner { grid-template-columns: 1fr auto; gap: 12px; }
@@ -533,10 +580,27 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-height: calc(100v
 .diagram-endpoint { fill: none; stroke: var(--navy); stroke-width: 3; }
 .hero .hero-diagram p { text-align: right; font-size: 11px; margin: 4px 0 0; }
 .hero-compact h1 { max-width: 780px; }
-.home-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 0; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.home-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-top: 0; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .home-summary > div { display: grid; gap: 2px; padding: 16px 20px; background: var(--white); }
 .home-summary strong { color: var(--navy); font-size: 23px; font-variant-numeric: tabular-nums; }
 .home-summary span { color: var(--muted); font-size: 12px; }
+.home-content { padding-top: 18px; padding-bottom: 50px; }
+.home-data-note { margin: 0 0 28px; color: var(--muted); font-size: 12px; }
+.home-reference { display: grid; grid-template-columns: 1fr 2.4fr; gap: 40px; padding: 30px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); }
+.home-reference h2 { margin: 4px 0 8px; font-size: 27px; color: var(--navy-dark); }
+.home-reference p { margin-top: 0; color: var(--muted); font-size: 14px; }
+.home-reference .home-citation { color: var(--ink); line-height: 1.8; }
+.home-reference .home-doi { font-size: 12px; overflow-wrap: anywhere; }
+.home-reference-links { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 360px) {
+  .header-inner { grid-template-columns: 1fr; gap: 4px; padding-top: 8px; padding-bottom: 6px; }
+  .site-nav { justify-content: space-between; }
+}
+@media (max-width: 700px) {
+  .home-summary { grid-template-columns: repeat(2, 1fr); }
+  .home-reference { grid-template-columns: 1fr; gap: 15px; padding: 22px; }
+  .site-nav a { padding: 8px; font-size: 12px; white-space: nowrap; }
+}
 .genome-results { padding-top: 35px; padding-bottom: 44px; }
 .genome-results .section-heading { align-items: center; }
 .genome-results .section-heading h2 { margin: 1px 0; }

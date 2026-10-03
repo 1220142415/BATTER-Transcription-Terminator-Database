@@ -922,6 +922,7 @@ def _add_default_track(config: dict[str, object], track_id: str, track_type: str
             "type": display_type,
             "configuration": f"{track_id}-{display_type}",
             **({"showSidebar": False} if display_type == "MultiLinearWiggleDisplay" else {}),
+            **({"showTranslation": False, "heightPreConfig": 80} if display_type == "LinearReferenceSequenceDisplay" else {}),
         }],
     })
 
@@ -1449,6 +1450,10 @@ def build_v04_jbrowse_configs(
         }]
         view["bpPerPx"] = bp_per_px
         view["offsetPx"] = start / bp_per_px
+        sequence_track = assemblies[0]["sequence"]
+        sequence_track["name"] = "Reference sequence"
+        _add_default_track(config, sequence_track["trackId"], "ReferenceSequenceTrack", "LinearReferenceSequenceDisplay")
+        view["tracks"].sort(key=lambda track: track.get("configuration") != sequence_track["trackId"])
         for track in config.get("tracks", []):
             if not isinstance(track, dict) or not _is_reference_annotation(track):
                 continue
@@ -1498,7 +1503,7 @@ def build_v04_jbrowse_configs(
     return browser_configs, track_ids, catalog
 
 
-def write_data_release_json(destination: Path, assets: dict[str, dict[str, object]], v04_revision: str | None) -> None:
+def write_data_release_json(destination: Path, assets: dict[str, dict[str, object]], v04_revision: str | None, *, worker_fallback: bool = False) -> None:
     payload_assets: dict[str, dict[str, object]] = {}
     for logical_path, asset in sorted(assets.items()):
         payload_assets[logical_path] = {
@@ -1508,6 +1513,8 @@ def write_data_release_json(destination: Path, assets: dict[str, dict[str, objec
             "revision": asset["revision"],
             "asset_kind": asset["asset_kind"],
         }
+        if worker_fallback and logical_path != "release.json":
+            payload_assets[logical_path]["fallback_url"] = f"/api/assets/v0.4.0--{hashlib.sha256(logical_path.encode('utf-8')).hexdigest()}"
     payload = {
         "releaseVersion": "v0.4.0",
         "sharedAssets": {"releaseVersion": "v0.3.0", "revision": V03_SHARED_REVISION},
@@ -1555,6 +1562,10 @@ def validate_v04_jbrowse_configs(
         tracks = config.get("tracks", [])
         default_tracks = config.get("defaultSession", {}).get("views", [{}])[0].get("tracks", [])
         track_ids = {str(track.get("trackId", "")) for track in tracks if isinstance(track, dict)}
+        sequence_id = config["assemblies"][0]["sequence"]["trackId"]
+        track_ids.add(sequence_id)
+        if not default_tracks or default_tracks[0].get("configuration") != sequence_id:
+            raise StageError(f"{assembly}: reference sequence must be shown first by default")
         default_ids = {str(track.get("configuration", "")) for track in default_tracks if isinstance(track, dict)}
         endpoint_tracks = [
             track for track in tracks
@@ -1719,7 +1730,7 @@ def assemble_v04(
 
         copy_site_source(temp_stage)
         v04_revision = normalize_v04_data_base_url(v04_base_url)[1] if v04_base_url else None
-        write_data_release_json(temp_stage, assets, v04_revision)
+        write_data_release_json(temp_stage, assets, v04_revision, worker_fallback=mode == "worker")
         if not v04_base_url:
             copy_v04_local_assets(temp_stage, assets)
         build_v04_site(temp_stage, release_root, assets, browser_configs, track_ids)

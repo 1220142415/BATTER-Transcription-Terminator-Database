@@ -42,7 +42,11 @@ buttons.find(b=>b.dataset.sort==='endpoints').click();
 const sorted=tbody.children.map(r=>r.dataset.sortAccession);
 search.value='GCF_B';search.fire('input');
 const searched={visible:rows.filter(r=>!r.hidden).map(r=>r.dataset.sortAccession),href};
-process.stdout.write(JSON.stringify({initial,cleared,sorted,searched}));
+search.value='study Alpha';search.fire('input');
+const multiword=rows.filter(r=>!r.hidden).map(r=>r.dataset.sortAccession);
+study.value='A';assay.value='Rend-seq';search.fire('input');
+const inconsistent=rows.filter(r=>!r.hidden).length;
+process.stdout.write(JSON.stringify({initial,cleared,sorted,searched,multiword,inconsistent}));
 """
 
 
@@ -62,6 +66,8 @@ class GenomeFiltersTests(unittest.TestCase):
         self.assertEqual(data["sorted"], ["GCF_B", "GCF_C", "GCF_A"])
         self.assertEqual(data["searched"]["visible"], ["GCF_B"])
         self.assertIn("q=GCF_B", data["searched"]["href"])
+        self.assertEqual(data["multiword"], ["GCF_A"])
+        self.assertEqual(data["inconsistent"], 0)
 
 
 if __name__ == "__main__":

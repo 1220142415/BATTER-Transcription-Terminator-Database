@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 import gzip
 import io
@@ -669,8 +670,20 @@ def validate_release(root: Path = ROOT, *, release_dir: Path | None = None) -> d
     expected_source_ids = set(equality["old_source_ids"]) | cascino_ids
     if source_ids != expected_source_ids:
         _fail("Public source IDs differ from the archived v0.3.0 set plus the three approved Cascino sources")
-    if any(source_index[source_id] != old_source for source_id, old_source in equality["old_source_objects"].items()):
-        _fail("Internal provenance changed a v0.3.0 source metadata field")
+    for source_id, old_source in equality["old_source_objects"].items():
+        current = source_index[source_id]
+        if source_id == "BATTER_S1_002":
+            current = copy.deepcopy(current)
+            license_status = current["license_status"]
+            if license_status.get("redistribution_status") != "verified_redistributable" or current["publication_status"].get("redistribution_status") != "verified_redistributable":
+                _fail("BATTER_S1_002 does not include the reviewed redistribution correction")
+            # Only the documented license correction may differ from the archive.
+            for field in ("redistribution_status", "license_source", "note"):
+                license_status[field] = old_source["license_status"][field]
+            license_status.pop("redistribution_review", None)
+            current["publication_status"]["redistribution_status"] = old_source["publication_status"]["redistribution_status"]
+        if current != old_source:
+            _fail(f"Internal provenance changed an unapproved v0.3.0 source metadata field: {source_id}")
     if source_rows.get("BATTER_S1_002", {}).get("release_status") != "audit_only" or source_rows["BATTER_S1_002"]["record_count"] != "0":
         _fail("BATTER_S1_002 is not preserved as an audit-only source")
     # Compare each selected Cascino row back to its exact source TSV, including IDs and all original columns.

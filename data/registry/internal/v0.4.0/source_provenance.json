@@ -1449,10 +1449,18 @@
       "asset_redistribution": [],
       "license_status": {
         "article_license": "CC BY",
-        "license_source": "https://europepmc.org/article/MED/38030608",
-        "note": "Europe PMC license metadata checked on 2026-08-10; this status governs the v0.2.0 source-specific table. Original repository terms still apply.",
+        "license_source": "https://www.nature.com/articles/s41467-023-43534-2#rightslink",
+        "note": "2026-10-03: Author Supplementary Data 3 and its standardized derivatives may be redistributed under CC BY 4.0 with attribution, license link and change notices. No separate rights restriction was found in the workbook. The evidence/provenance release hold remains audit_only.",
         "pmid": "38030608",
-        "redistribution_status": "audit_only",
+        "redistribution_review": {
+          "asset_scope": "author_supplementary_data_3_and_standardized_derivatives",
+          "checked_on": "2026-10-03",
+          "license": "CC BY 4.0",
+          "previous_status": "audit_only",
+          "supplementary_sha256": "4ec2c23364ab94768875181cb28aec388a9c6380b1aba8adbac4eea8291ff1c4",
+          "supplementary_url": "https://media.springernature.com/original/springer-static/esm/art%3A10.1038%2Fs41467-023-43534-2/MediaObjects/41467_2023_43534_MOESM6_ESM.xlsx"
+        },
+        "redistribution_status": "verified_redistributable",
         "source_id": "BATTER_S1_002"
       },
       "publication_status": {
@@ -1460,7 +1468,7 @@
         "has_jbrowse": "false",
         "record_count": "0",
         "record_root": "data/public/v0.2.0/records/BATTER_S1_002",
-        "redistribution_status": "audit_only",
+        "redistribution_status": "verified_redistributable",
         "release_status": "audit_only",
         "source_annotations_status": "not_emitted_audit_only",
         "source_id": "BATTER_S1_002"

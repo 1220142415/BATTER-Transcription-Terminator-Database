@@ -20,10 +20,11 @@ class ReleaseDocumentationTests(unittest.TestCase):
                 self.assertIn(required, release)
         self.assertIn("网页不把 JSON 当作阅读或下载入口", release)
 
-    def test_three_docs_and_readme_point_to_current_release(self) -> None:
+    def test_docs_and_readme_point_to_current_release(self) -> None:
         docs = sorted(p.relative_to(ROOT).as_posix() for p in (ROOT / "docs").rglob("*.md"))
         self.assertEqual(docs, [
-            "docs/SOURCES.md", "docs/deployment.md", "docs/releases/v0.4.0.md",
+            "docs/PROMOTER_COMPARISON.md", "docs/SOURCES.md", "docs/USAGE_ANALYTICS.md",
+            "docs/deployment.md", "docs/releases/v0.4.0.md",
         ])
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("docs/releases/v0.4.0.md", readme)

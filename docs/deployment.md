@@ -63,6 +63,8 @@ python scripts/serve_v04_preview.py --site dist/pages-site --port 8769 \
 
 当前已上传 74 个文件，共 23,229,941 字节；逐文件下载后的大小与 SHA-256 均与本地一致。GFF3、FASTA 和旧 BigWig 的跨站 Range 请求返回 `206`。更新数据时先取得新的 **40 位提交号**，再用 `scripts/build_v04_asset_manifest.py --revision <新提交号>` 重建清单，并把该提交号同时写入 Pages/CI 和 `scripts/stage_site.py --hf-v04-data-base-url` 的参数。校验通过前不部署 Pages 或 Worker。公开版站点只保存网页与 JBrowse 程序，v0.4.0 数据由固定版本地址读取。
 
+2026-10-03 的 `BATTER_S1_002` 许可修正已写入本仓库和 D1，Hugging Face 更新按用户要求暂缓。当前网页构建使用提交 `8132334` 的公开数据快照，匹配已发布 HF 文件及校验值；重新部署时给 `stage_site.py` 传入该快照的 `--release-root`，不要将尚未上传的 metadata 校验值与旧 HF 版本混用。更新 HF 并核对新版本后，再使用本仓库当前 `data/public/v0.4.0/` 构建。访问统计的安装和口径见 [访问统计](USAGE_ANALYTICS.md)。
+
 ## Worker 与 D1
 
 当前部署目标是 `1052596411@qq.com` 的 Cloudflare 账号（`406a94b19dd8bd8d9e851f8c5ed3a569`）。Worker 名称是 `bted`，D1 名称是 `bted-catalog`，数据库 ID 为 `c304fae8-cce6-4fc1-922d-e3bbc1c9b995`。这些标识不是密钥；登录凭据保存在本机 Wrangler 配置中，不提交到仓库。

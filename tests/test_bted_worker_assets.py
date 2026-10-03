@@ -286,6 +286,11 @@ process.stdout.write(JSON.stringify({{
         config = payload["body"]
         self.assertEqual(config["metadata"]["release_version"], "v0.4.0")
         default_view = config["defaultSession"]["views"][0]
+        sequence = config["assemblies"][0]["sequence"]
+        self.assertEqual(default_view["tracks"][0]["type"], "ReferenceSequenceTrack")
+        self.assertEqual(default_view["tracks"][0]["configuration"], sequence["trackId"])
+        self.assertEqual(default_view["tracks"][0]["displays"][0]["type"], "LinearReferenceSequenceDisplay")
+        self.assertFalse(default_view["tracks"][0]["displays"][0]["showTranslation"])
         self.assertEqual(default_view["displayedRegions"][0], {
             "refName": "NC_000964.3", "start": 0, "end": 4215606,
             "reversed": False, "assemblyName": "BTED_GCF_000009045_1",

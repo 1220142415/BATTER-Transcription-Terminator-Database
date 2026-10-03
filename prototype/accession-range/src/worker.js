@@ -750,9 +750,13 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       ...(track.type === "MultiQuantitativeTrack" ? { showSidebar: false } : {}),
     }],
   }));
+  sessionTracks.unshift({
+    id: "bted_reference_track", type: "ReferenceSequenceTrack", configuration: `${assemblyName}_refseq`, minimized: false,
+    displays: [{ id: "bted_reference_display", type: "LinearReferenceSequenceDisplay", configuration: `${assemblyName}_refseq-LinearReferenceSequenceDisplay`, showTranslation: false, heightPreConfig: 80 }],
+  });
   return json({
     plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL("/jbrowse/plugins/bted-track-plugin.js", request.url).href }],
-    assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", trackId: `${assemblyName}_refseq`, adapter: { type: "IndexedFastaAdapter", fastaLocation: { uri: assetUrl(request, fasta.asset_key), locationType: "UriLocation" }, faiLocation: { uri: assetUrl(request, fai.asset_key), locationType: "UriLocation" } } } }],
+    assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", name: "Reference sequence", trackId: `${assemblyName}_refseq`, adapter: { type: "IndexedFastaAdapter", fastaLocation: { uri: assetUrl(request, fasta.asset_key), locationType: "UriLocation" }, faiLocation: { uri: assetUrl(request, fai.asset_key), locationType: "UriLocation" } } } }],
     tracks: configTracks,
     defaultSession: { name: `BTED · ${accession}`, views: [{ id: "bted_linear_genome_view", type: "LinearGenomeView", name: assembly.organism_name || accession, offsetPx: initialStart / initialBpPerPx, bpPerPx: initialBpPerPx, displayedRegions: [{ refName: contigName, start: 0, end: length, reversed: false, assemblyName }], tracks: sessionTracks }] },
     metadata: { release_version: release.release_version, assembly_accession: accession, source_ids: publicTracks.map(({ source }) => source.source_id), browser_asset_origin: release.asset_origin_status },
@@ -865,12 +869,131 @@ async function staticAsset(request, env) {
   return json({ error: "static_assets_not_configured" }, 404);
 }
 
+// Views only, following RAPPTOR's document-load and bot filters. No IP, user
+// agent, query string, visitor identifier, or individual event is persisted.
+const USAGE_RETENTION_DAYS = 400;
+const USAGE_RANGES = [7, 30, 90, 365, 0];
+const USAGE_BOT = /bot|crawl|spider|slurp|scrape|curl|wget|python-requests|httpx|axios|okhttp|java\/|go-http|libwww|headless|phantomjs|puppeteer|playwright|lighthouse|monitor|uptime|pingdom|preview|facebookexternalhit|embedly|feedfetcher|semrush|ahrefs|archive\.org/i;
+
+function usageDay(time = Date.now()) {
+  return new Date(time).toISOString().slice(0, 10);
+}
+
+function shiftUsageDay(day, offset) {
+  return usageDay(Date.parse(`${day}T00:00:00Z`) + offset * 86400000);
+}
+
+function usagePath(request) {
+  const path = new URL(request.url).pathname.replace(/\/$/, "") || "/";
+  if (path === "/" || path === "/index" || path === "/index.html") return "/";
+  if (path === "/genomes" || path === "/genomes.html") return "/genomes";
+  if (path === "/methodology" || path === "/methodology.html") return "/methodology";
+  const genome = /^\/genomes\/(GCF_[0-9]+\.[0-9]+)(?:\.html)?$/.exec(path);
+  return genome ? `/genomes/${genome[1]}` : null;
+}
+
+function countableUsage(request, response) {
+  if (request.method !== "GET" || !usagePath(request)) return false;
+  if (response.status !== 200 || !response.headers.get("content-type")?.includes("text/html")) return false;
+  const headers = request.headers;
+  const agent = headers.get("user-agent");
+  if (!agent || agent.length < 8 || USAGE_BOT.test(agent)) return false;
+  if (headers.has("range") || headers.has("next-router-prefetch") || headers.has("x-nextjs-data")) return false;
+  if (/prefetch|prerender/i.test(`${headers.get("purpose") || ""} ${headers.get("sec-purpose") || ""}`)) return false;
+  const destination = headers.get("sec-fetch-dest");
+  return destination ? destination === "document" : Boolean(headers.get("accept")?.includes("text/html"));
+}
+
+function usageGeo(request) {
+  // Only Cloudflare's trusted edge metadata; client geolocation headers are ignored.
+  const cf = request.cf || {};
+  const raw = typeof cf.country === "string" ? cf.country.toUpperCase() : "";
+  const country = /^[A-Z]{2}$/.test(raw) && raw !== "T1" ? raw : "XX";
+  const text = (value) => typeof value === "string" ? value.trim().slice(0, 64) : "";
+  return { country, region: country === "XX" ? "" : text(cf.region), city: country === "XX" ? "" : text(cf.city) };
+}
+
+async function recordUsage(request, env) {
+  const geo = usageGeo(request);
+  const day = usageDay();
+  await env.BTED_DB.batch([
+    env.BTED_DB.prepare(`INSERT INTO analytics_daily_geo (day, country_code, region, city, views)
+      VALUES (?, ?, ?, ?, 1) ON CONFLICT(day, country_code, region, city)
+      DO UPDATE SET views = views + 1`).bind(day, geo.country, geo.region, geo.city),
+    env.BTED_DB.prepare(`INSERT INTO analytics_daily_path (day, path, views)
+      VALUES (?, ?, 1) ON CONFLICT(day, path) DO UPDATE SET views = views + 1`).bind(day, usagePath(request)),
+  ]);
+}
+
+function usageCountryName(code) {
+  const names = { HK: "Hong Kong, China", MO: "Macao, China", TW: "Taiwan, China", XX: "Unknown" };
+  if (names[code]) return names[code];
+  try { return new Intl.DisplayNames(["en"], { type: "region" }).of(code) || code; } catch { return code; }
+}
+
+async function usageReport(env, url) {
+  const value = url.searchParams.get("days") ?? "30";
+  if (!USAGE_RANGES.map(String).includes(value)) return json({ error: "invalid_usage_range" }, 400, { "cache-control": "no-store" });
+  const days = Number(value);
+  const endDay = usageDay();
+  const cutoff = shiftUsageDay(endDay, -(USAGE_RETENTION_DAYS - 1));
+  const from = days ? shiftUsageDay(endDay, -(days - 1)) : cutoff;
+  if (!env.BTED_DB) return json({ error: "usage_unavailable" }, 503, { "cache-control": "no-store" });
+  try {
+    const [countryRows, cityRows, pathRows, dayRows, boundary] = await env.BTED_DB.batch([
+      env.BTED_DB.prepare(`SELECT country_code, SUM(views) AS views FROM analytics_daily_geo
+        WHERE day BETWEEN ? AND ? GROUP BY country_code ORDER BY views DESC, country_code`).bind(from, endDay),
+      env.BTED_DB.prepare(`SELECT country_code, region, city, SUM(views) AS views FROM analytics_daily_geo
+        WHERE day BETWEEN ? AND ? AND city <> '' GROUP BY country_code, region, city
+        ORDER BY views DESC, country_code, region, city LIMIT 50`).bind(from, endDay),
+      env.BTED_DB.prepare(`SELECT path, SUM(views) AS views FROM analytics_daily_path
+        WHERE day BETWEEN ? AND ? GROUP BY path ORDER BY views DESC, path LIMIT 30`).bind(from, endDay),
+      env.BTED_DB.prepare(`SELECT day, SUM(views) AS views FROM analytics_daily_geo
+        WHERE day BETWEEN ? AND ? GROUP BY day ORDER BY day`).bind(from, endDay),
+      env.BTED_DB.prepare("SELECT MIN(day) AS first_day FROM analytics_daily_geo WHERE day BETWEEN ? AND ?").bind(cutoff, endDay),
+    ]);
+    const views = countryRows.results.reduce((sum, row) => sum + Number(row.views), 0);
+    const countries = countryRows.results.map((row) => ({ code: row.country_code, name: usageCountryName(row.country_code), views: Number(row.views), share: views ? Number(row.views) / views : 0 }));
+    const firstRecordedDay = boundary.results[0]?.first_day || null;
+    const startDay = days ? from : firstRecordedDay || endDay;
+    const byDay = new Map(dayRows.results.map((row) => [row.day, Number(row.views)]));
+    const daily = [];
+    for (let day = startDay; day <= endDay; day = shiftUsageDay(day, 1)) daily.push({ day, views: byDay.get(day) || 0 });
+    return json({ rangeDays: days, startDay, endDay, firstRecordedDay, retentionDays: USAGE_RETENTION_DAYS,
+      totals: { views, countries: countries.filter((row) => row.code !== "XX").length, activeDays: daily.filter((row) => row.views > 0).length },
+      countries, cities: cityRows.results.map((row) => ({ countryCode: row.country_code, countryName: usageCountryName(row.country_code), region: row.region, city: row.city, views: Number(row.views) })),
+      paths: pathRows.results.map((row) => ({ path: row.path, views: Number(row.views) })), daily,
+    }, 200, { "cache-control": "public, max-age=60" });
+  } catch {
+    return json({ error: "usage_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+}
+
+async function purgeUsage(env, time) {
+  if (!env.BTED_DB) return;
+  const cutoff = shiftUsageDay(usageDay(time), -(USAGE_RETENTION_DAYS - 1));
+  await env.BTED_DB.batch([
+    env.BTED_DB.prepare("DELETE FROM analytics_daily_geo WHERE day < ?").bind(cutoff),
+    env.BTED_DB.prepare("DELETE FROM analytics_daily_path WHERE day < ?").bind(cutoff),
+  ]);
+}
+
 export default {
-  async fetch(request, env) {
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(purgeUsage(env, controller.scheduledTime));
+  },
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (!["GET", "HEAD"].includes(request.method)) return json({ error: "method_not_allowed" }, 405, { allow: "GET, HEAD" });
     if (url.pathname.startsWith("/downloads/v0.2.0/")) return retiredReleaseResponse("v0.2.0");
-    if (!url.pathname.startsWith("/api/")) return staticAsset(request, env);
+    if (!url.pathname.startsWith("/api/")) {
+      const response = await staticAsset(request, env);
+      if (env.BTED_ANALYTICS === "on" && env.BTED_DB && ctx && countableUsage(request, response)) {
+        ctx.waitUntil(recordUsage(request, env).catch(() => console.error("BTED usage write failed")));
+      }
+      return response;
+    }
+    if (url.pathname === "/api/usage") return usageReport(env, url);
     const requestedRelease = url.searchParams.get("release_version");
     if (requestedRelease === "v0.2.0") {
       return retiredReleaseResponse(requestedRelease);
