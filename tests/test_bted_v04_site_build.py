@@ -134,15 +134,23 @@ def create_release(root: Path, *, mismatched_count: bool = False) -> tuple[Path,
 
 
 class V04SiteBuildTests(unittest.TestCase):
-    def test_home_counts_distinguish_registered_papers_from_published_sources(self) -> None:
-        content = build_v0_4_site.home_content([{"metadata_rows": [
+    def test_home_counts_cover_all_datasets_without_counting_audit_only_records(self) -> None:
+        records = [["GCF_1", *([""] * 4), 2, 20, 3, 30, "matched", 10, ""],
+                   ["GCF_2", *([""] * 4), 1, 10, 0, 0, "matched", 20, ""]]
+        content = build_v0_4_site.home_content([{"assembly": "GCF_1", "metadata_rows": [
             {"pmid": "1", "release_status": "published_standardized", "record_count_number": 3},
             {"pmid": "1", "release_status": "published_standardized", "record_count_number": 4},
             {"pmid": "2", "release_status": "audit_only", "record_count_number": 100},
-        ]}])
-        self.assertIn("2</strong><span>Source publications", content)
-        self.assertIn("2</strong><span>Published sources", content)
-        self.assertIn("7</strong><span>3′ end records", content)
+        ]}, {"assembly": "GCF_3", "metadata_rows": [
+            {"pmid": "2", "release_status": "audit_only", "record_count_number": 100},
+            {"pmid": "3", "release_status": "published", "record_count_number": 0},
+        ]}], records)
+        self.assertIn("3</strong><span>Catalog genomes", content)
+        self.assertIn("30</strong><span>Predicted regions", content)
+        self.assertIn("6</strong><span>Augmentation / Rfam regions", content)
+        self.assertIn("1</strong><span>Experimental genomes", content)
+        self.assertIn("1</strong><span>Experimental publications", content)
+        self.assertIn("7</strong><span>Experimental records", content)
         self.assertNotIn("107</strong>", content)
 
     def test_genome_site_combines_evidence_browser_downloads_and_legacy_redirects(self) -> None:
@@ -173,15 +181,17 @@ class V04SiteBuildTests(unittest.TestCase):
                 {"GCF_000012525.1": "assemblies/GCF_000012525.1.config.json"},
                 {row["source_id"]: f"bted_v04_{row['source_id'].lower()}_endpoints" for row in rows},
                 taxonomy_path=taxonomy,
+                computational_genomes=json.loads((ROOT / "data/registry/batter-browser.json").read_text(encoding="utf-8"))["genomes"],
             )
 
             landing = (site / "index.html").read_text(encoding="utf-8")
             home = (site / "genomes.html").read_text(encoding="utf-8")
             genome = (site / "genomes/GCF_000012525.1.html").read_text(encoding="utf-8")
             self.assertIn("GCF_000012525.1", home)
-            self.assertIn("3</strong><span>3′ end records", landing)
-            self.assertIn("1</strong><span>Source publications", landing)
-            self.assertIn("2</strong><span>Published sources", landing)
+            self.assertIn("3</strong><span>Experimental records", landing)
+            self.assertIn("1</strong><span>Experimental publications", landing)
+            self.assertIn("40,000</strong><span>Catalog genomes", landing)
+            self.assertIn("116,801,134</strong><span>Predicted regions", landing)
             self.assertIn("https://doi.org/10.1186/s40168-026-02454-1", landing)
             self.assertIn("https://github.com/xu-research-lab/BATTER", landing)
             self.assertNotIn("data-genome-search-form", landing)

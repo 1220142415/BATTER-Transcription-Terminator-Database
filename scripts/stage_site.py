@@ -1756,7 +1756,8 @@ def assemble_v04(
         write_data_release_json(temp_stage, assets, v04_revision, worker_fallback=mode == "worker")
         if not v04_base_url:
             copy_v04_local_assets(temp_stage, assets)
-        build_v04_site(temp_stage, release_root, assets, browser_configs, track_ids)
+        computational_genomes = json.loads((REPO_ROOT / "data/registry/batter-browser.json").read_text(encoding="utf-8"))["genomes"] if mode == "worker" else ()
+        build_v04_site(temp_stage, release_root, assets, browser_configs, track_ids, computational_genomes=computational_genomes)
         if mode == "worker":
             build_batter_browser(temp_stage)
 

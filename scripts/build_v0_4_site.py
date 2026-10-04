@@ -298,16 +298,24 @@ def _search_blob(assembly: str, rows: list[dict[str, str]]) -> str:
     return " ".join(values).casefold()
 
 
-def home_content(genomes: list[dict[str, object]]) -> str:
+def home_content(genomes: list[dict[str, object]], computational_genomes=()) -> str:
     rows = [row for genome in genomes for row in genome["metadata_rows"]]
-    published = [row for row in rows if is_published_status(row.get("release_status"))]
-    metrics = ((len(genomes), "Reference genomes"), (len({row["pmid"] for row in rows}), "Source publications"), (len(published), "Published sources"), (sum(int(row["record_count_number"]) for row in published), "3′ end records"))
+    published = [row for row in rows if is_published_status(row.get("release_status")) and int(row["record_count_number"]) > 0]
+    # Full assembly accessions match the genome directory; datasets can overlap.
+    assemblies = {str(genome["assembly"]).upper() for genome in genomes} | {row[0].upper() for row in computational_genomes}
+    experimental_count = sum(any(is_published_status(row.get("release_status")) and int(row["record_count_number"]) > 0 for row in genome["metadata_rows"]) for genome in genomes)
+    metrics = ((len(assemblies), "Catalog genomes"),
+               (sum(row[10] for row in computational_genomes), "Predicted regions"),
+               (sum(row[5] + row[7] for row in computational_genomes), "Augmentation / Rfam regions"),
+               (experimental_count, "Experimental genomes"),
+               (sum(int(row["record_count_number"]) for row in published), "Experimental records"),
+               (len({row["pmid"] for row in published}), "Experimental publications"))
     summary = "".join(f'<div><strong>{count:,}</strong><span>{label}</span></div>' for count, label in metrics)
     return f'''<main class="home-page">
 <section class="hero hero-compact"><div class="page-shell hero-inner"><div class="hero-copy"><p class="eyebrow">BTED · {RELEASE_VERSION}</p><h1>Bacterial transcript<br>3′-end database</h1><p>Explore published 3′ ends, compare studies, and download data by genome.</p><div class="hero-actions"><a class="button primary" href="genomes.html">Browse genomes <span aria-hidden="true">→</span></a><a class="button" href="#batter-reference">BATTER paper</a></div></div>
 <div class="hero-diagram"><svg viewBox="0 0 440 210" role="img" aria-labelledby="track-diagram-title"><title id="track-diagram-title">Schematic of a gene, experimental signal and transcript 3′ ends</title><text x="24" y="29">Reference gene</text><path class="diagram-baseline" d="M24 64H416"/><path class="diagram-gene" d="M54 52H280L297 64L280 76H54Z"/><text x="24" y="108">Experimental signal</text><path class="diagram-baseline" d="M24 151H416"/><path class="diagram-signal" d="M24 151H68V147H92V141H117V145H144V138H170V143H194V132H218V138H243V125H265V132H288V98H298V130H314V144H340V149H416"/><text x="24" y="187">Transcript 3′ ends</text><path class="diagram-endpoint" d="M293 172V202M308 178V202M329 184V202"/></svg><p>Schematic · not measured data</p></div></div></section>
 <section class="page-shell home-summary" aria-label="Release statistics">{summary}</section>
-<div class="page-shell home-content"><p class="home-data-note">{RELEASE_VERSION} · Source publications include review-only studies. Endpoint counts cover published sources.</p>
+<div class="page-shell home-content"><p class="home-data-note">Current catalog · Upload in progress. Experimental records are counted by study; augmentation excludes training windows.</p>
 <section class="home-reference" id="batter-reference"><div><p class="eyebrow">Reference</p><h2>BATTER</h2><p>Paper and source code for bacterial transcription termination analysis.</p></div>
 <div class="home-reference-content"><p class="home-citation">Jin, Y., Cui, J., Liu, R. et al. <a href="https://doi.org/10.1186/s40168-026-02454-1">Conserved 3′ stem-loop structures enable comprehensive analysis of bacterial transcription termination in metagenomes.</a> <em>Microbiome</em> <strong>14</strong>, 222 (2026).</p><p class="home-doi">DOI: <a href="https://doi.org/10.1186/s40168-026-02454-1">10.1186/s40168-026-02454-1</a></p>
 <div class="home-reference-links"><a class="button" href="https://doi.org/10.1186/s40168-026-02454-1">Read paper ↗</a><a class="button" href="https://github.com/xu-research-lab/BATTER">BATTER code ↗</a><a class="button" href="https://github.com/1220142415/BATTER-Transcription-Terminator-Database">BTED repository ↗</a></div></div></section></div>
@@ -530,6 +538,7 @@ def build_site(
     browser_configs: dict[str, str],
     track_ids: dict[str, str],
     taxonomy_path: Path = TAXONOMY_REGISTRY,
+    computational_genomes=(),
 ) -> dict[str, object]:
     release, files = read_release(release_root)
     genomes = load_genomes(release_root, release, files)
@@ -539,7 +548,7 @@ def build_site(
             raise SiteBuildError(f"Published release file is missing from the browser allowlist: {relative}")
 
     site_root.mkdir(parents=True, exist_ok=True)
-    _write(site_root / "index.html", page("Home", home_content(genomes), current="home", scripts=("assets/home.js",)))
+    _write(site_root / "index.html", page("Home", home_content(genomes, computational_genomes), current="home", scripts=("assets/home.js",)))
     _write(site_root / "genomes.html", page("Genomes", index_content(genomes, asset_map, taxonomy), current="genomes", scripts=("assets/genome-index.js",)))
     genome_files = 0
     for genome in genomes:

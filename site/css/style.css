@@ -580,7 +580,7 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-height: calc(100v
 .diagram-endpoint { fill: none; stroke: var(--navy); stroke-width: 3; }
 .hero .hero-diagram p { text-align: right; font-size: 11px; margin: 4px 0 0; }
 .hero-compact h1 { max-width: 780px; }
-.home-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; margin-top: 0; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.home-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 0; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .home-summary > div { display: grid; gap: 2px; padding: 16px 20px; background: var(--white); }
 .home-summary strong { color: var(--navy); font-size: 23px; font-variant-numeric: tabular-nums; }
 .home-summary span { color: var(--muted); font-size: 12px; }
