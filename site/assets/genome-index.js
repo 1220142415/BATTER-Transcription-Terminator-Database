@@ -8,6 +8,7 @@
   const empty = document.querySelector("[data-empty]");
   const clear = document.querySelector("[data-clear-filters]");
   const dataType = document.querySelector("[data-genome-dataset]");
+  const resultCount = document.querySelector(".genome-result-count");
   const previous = document.querySelector("[data-genome-prev]");
   const next = document.querySelector("[data-genome-next]");
   const pageNumber = document.querySelector("[data-genome-page-number]");
@@ -28,6 +29,7 @@
   let direction = "asc";
   let page = 0;
   const pageSize = 25;
+  let catalogueReady = !dataType;
 
   function validOption(select, value) {
     return Array.from(select.options).some((option) => option.value === value) ? value : "";
@@ -106,6 +108,7 @@
   }
 
   function render() {
+    if (!catalogueReady) return;
     const query = search.value.trim().toLocaleLowerCase();
     let visible = 0;
     const matched = [];
@@ -194,8 +197,10 @@
   }
 
   async function loadGenomes() {
+    catalogueReady = false;
+    form.inert = true;
     retry.hidden = true;
-    loadStatus.textContent = "Loading uploaded genomes…";
+    loadStatus.textContent = "Loading genomes…";
     try {
       const response = await fetch("assets/batter-browser.json");
       if (!response.ok) throw new Error();
@@ -228,9 +233,14 @@
         }
       }
       loadStatus.textContent = "Upload in progress. Each genome is listed once; training windows are excluded from span counts.";
-      readUrl(); render();
     } catch {
       loadStatus.textContent = "Uploaded genome list unavailable. Experimental genomes remain available."; retry.hidden = false;
+    } finally {
+      catalogueReady = true;
+      readUrl(); render();
+      tbody.hidden = false;
+      if (resultCount) resultCount.hidden = false;
+      form.inert = false;
     }
   }
   if (dataType) { retry.addEventListener("click", loadGenomes); loadGenomes(); }

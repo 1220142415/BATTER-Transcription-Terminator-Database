@@ -17,7 +17,10 @@ def build(site_root):
     html = html.replace('<th aria-sort="none"><button type="button" data-sort="signal">', '<th>Predicted</th><th>Training spans</th><th aria-sort="none"><button type="button" data-sort="signal">', 1)
     html = html.replace('<td data-label="Signal">', '<td data-label="Predicted" data-prediction-count>0</td><td data-label="Training spans" data-augmentation-count>0</td><td data-label="Signal">')
     html = re.sub(r'of (\d+) genomes', r'of <span data-total-count>\1</span> genomes', html, count=1)
-    controls = '''<div class="batter-pagination"><button class="button" type="button" data-genome-prev disabled>Previous</button><span data-genome-page-number></span><button class="button" type="button" data-genome-next disabled>Next</button><button class="button" type="button" data-genome-retry hidden>Retry</button></div><p class="muted" data-genome-load-status role="status">Loading uploaded genomes…</p>'''
+    html = html.replace('data-genome-search-form>', 'data-genome-search-form inert>', 1)
+    html = html.replace('<div class="genome-result-count" role="status">', '<p class="genome-load-status" data-genome-load-status role="status">Loading genomes…</p><div class="genome-result-count" role="status" hidden>', 1)
+    html = html.replace('<tbody data-genome-results>', '<tbody data-genome-results hidden>', 1)
+    controls = '''<div class="batter-pagination"><button class="button" type="button" data-genome-prev disabled>Previous</button><span data-genome-page-number></span><button class="button" type="button" data-genome-next disabled>Next</button><button class="button" type="button" data-genome-retry hidden>Retry</button></div><noscript><p>Enable JavaScript to search all genomes. Experimental genomes are listed above.</p><style>[data-genome-results][hidden] { display: table-row-group !important; } .genome-result-count[hidden] { display: block !important; } [data-genome-load-status] { display: none; }</style></noscript>'''
     html = html.replace('</section>\n</main>', controls + '\n</section>\n</main>', 1)
     directory.write_text(html, encoding="utf-8")
     content = '''<main class="page-shell genome-page" data-batter-genome data-genome-page data-preserve-default-view="true">

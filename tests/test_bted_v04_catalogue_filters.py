@@ -98,5 +98,26 @@ setImmediate(()=>{
         self.assertEqual(data['retriedStudies'], '2')
         self.assertIn('Each genome is listed once', data['status'])
 
+    def test_waits_for_full_catalogue_and_recovers_when_fetch_fails(self):
+        data = self.run_js(r'''
+href='https://bted.example/genomes.html';
+const dataset=control();dataset.options=[{value:''}];
+const resultCount=control();resultCount.hidden=true;tbody.hidden=true;
+Object.assign(elements,{'[data-genome-dataset]':dataset,'.genome-result-count':resultCount,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control(),'[data-total-count]':control()});
+let rejectFetch;global.fetch=()=>new Promise((_resolve,reject)=>{rejectFetch=reject;});run();
+search.fire('input');
+const loading={nodes:tbody.children.length,inert:form.inert,hidden:tbody.hidden,countHidden:resultCount.hidden,count:count.textContent};
+rejectFetch(new Error('offline'));
+setImmediate(()=>process.stdout.write(JSON.stringify({loading,recovered:{nodes:tbody.children.length,inert:form.inert,hidden:tbody.hidden,countHidden:resultCount.hidden,count:count.textContent,retryHidden:elements['[data-genome-retry]'].hidden,status:elements['[data-genome-load-status]'].textContent}})));
+''')
+        self.assertEqual(data['loading'], {'nodes':0,'inert':True,'hidden':True,'countHidden':True,'count':''})
+        self.assertEqual(data['recovered']['nodes'], 3)
+        self.assertEqual(data['recovered']['count'], '3')
+        self.assertFalse(data['recovered']['inert'])
+        self.assertFalse(data['recovered']['hidden'])
+        self.assertFalse(data['recovered']['countHidden'])
+        self.assertFalse(data['recovered']['retryHidden'])
+        self.assertIn('Experimental genomes remain available', data['recovered']['status'])
+
 if __name__ == '__main__':
     unittest.main()

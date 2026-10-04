@@ -622,6 +622,8 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-height: calc(100v
 .genome-filter-bar .mobile-sort, .genome-filter-bar .mobile-sort-direction { display: none; }
 .genome-filters-form select:focus-visible, .genome-filters-form input:focus-visible, .genome-filter-reset:focus-visible, .genome-directory-table button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .genome-result-count { margin: 0; padding: 11px 18px; color: var(--muted); font-size: 13px; border-bottom: 1px solid var(--line); }
+.genome-load-status { margin: 0; padding: 14px 18px; color: var(--muted); font-size: 12px; }
+[data-genome-results][hidden], .genome-result-count[hidden] { display: none !important; }
 .genome-table-scroll { overflow-x: auto; }
 .genome-directory-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .genome-directory-table th { padding: 11px 13px; color: var(--navy-dark); background: #f5f5fb; text-align: left; white-space: nowrap; font-weight: 750; }
