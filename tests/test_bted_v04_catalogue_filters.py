@@ -75,8 +75,8 @@ href='https://bted.example/genomes.html?q=GCF_B';
 const dataset=control();dataset.options=['','experimental','prediction','augmentation'].map(value=>({value}));
 Object.assign(elements,{'[data-genome-dataset]':dataset,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control()});
 let catalogueFetches=0;global.fetch=async()=>{catalogueFetches++;return {ok:true,json:async()=>({genomes:[
-['GCF_B','000','OTU-1','Beta','isolate',5,5,1,1,'matched',12,'d__Bacteria;p__P1;c__C2;o__O2;f__F2;g__Beta'],
-['GCF_Z','000','OTU-2','Zeta','MAG',9,9,0,0,'unavailable',20,'d__Bacteria;p__P3;c__C4;o__O4;f__F4;g__Zeta'],
+['GCF_B','000','OTU-1','Beta','isolate',5,5,1,1,'matched',12,'d__Bacteria;p__P1;c__C2;o__O2;f__F2;g__Beta','NCBI-RefSeq'],
+['GCF_Z','000','OTU-2','Zeta','MAG',9,9,0,0,'unavailable',20,'d__Bacteria;p__P3;c__C4;o__O4;f__F4;g__Zeta','IMG'],
 ['GCF_W','000','OTU-3','Empty','MAG',0,0,0,0,'mismatch',0,''],
 ],reference_sizes:{GCF_B:[10000,2],GCF_Z:[20000,1]}})};};run();
 setImmediate(()=>{
@@ -84,8 +84,8 @@ setImmediate(()=>{
   const mixed={predictions:rows[1].cells['[data-prediction-count]'].textContent,training:rows[1].cells['[data-augmentation-count]'].textContent};
   search.value='';search.fire('input');choose('phylum','P3');choose('class','C4');choose('order','O4');choose('family','F4');choose('genus','Zeta');
   const cells=tbody.children[0].children;
-  const synthetic={count:count.textContent,nodes:tbody.children.length,columns:cells.map(c=>c.dataset.label),assembly:cells[0].children[0].children[0].textContent,href:cells[0].children[0].href,size:cells[3].children.map(c=>c.textContent),counts:cells[4].children[0].children.map(c=>c.children[0].textContent),annotation:cells[5].children[0].textContent};
-  clear.fire('click');search.value='GCF_W';search.fire('input');const noFeatures=count.textContent;const mismatchAnnotation=tbody.children[0].children[5].children[0].textContent;
+  const synthetic={count:count.textContent,nodes:tbody.children.length,columns:cells.map(c=>c.dataset.label),assembly:cells[0].children[0].children[0].textContent,href:cells[0].children[0].href,source:cells[1].textContent,size:cells[4].children.map(c=>c.textContent),counts:cells[5].children[0].children.map(c=>c.children[0].textContent),annotation:cells[6].children[0].textContent};
+  clear.fire('click');search.value='GCF_W';search.fire('input');const noFeatures=count.textContent;const mismatchAnnotation=tbody.children[0].children[6].children[0].textContent;
   const ids=()=>tbody.children.map(r=>r.dataset.sortAccession||r.children[0].children[0].children[0].textContent);
   clear.fire('click');buttons.find(b=>b.dataset.sort==='predictions').click();buttons.find(b=>b.dataset.sort==='predictions').click();const predictionOrder=ids();
   buttons.find(b=>b.dataset.sort==='training').click();buttons.find(b=>b.dataset.sort==='training').click();const trainingOrder=ids();
@@ -98,7 +98,7 @@ setImmediate(()=>{
         self.assertEqual(data['range'], 'Showing 1–5')
         self.assertTrue(all(s == {'count':'1','nodes':1,'duplicate':1} for s in data['states']))
         self.assertEqual(data['mixed'], {'predictions':'12','training':'6'})
-        self.assertEqual(data['synthetic'], {'count':'1','nodes':1,'columns':['Assembly','Organism','Taxonomy','Assembly size','Terminator data','Annotation'],'assembly':'GCF_Z','href':'genomes/GCF_Z','size':['20,000 bp','1 contig'],'counts':['0','20','9'],'annotation':'Missing'})
+        self.assertEqual(data['synthetic'], {'count':'1','nodes':1,'columns':['Genome ID','Reference source','Organism','Taxonomy','Assembly size','Terminator data','Annotation'],'assembly':'GCF_Z','href':'genomes/GCF_Z','source':'IMG','size':['20,000 bp','1 contig'],'counts':['0','20','9'],'annotation':'Missing'})
         self.assertEqual(data['noFeatures'], '1')
         self.assertEqual(data['mismatchAnnotation'], 'Incompatible')
         self.assertEqual(data['fetchesAfterFiltering'], 1)

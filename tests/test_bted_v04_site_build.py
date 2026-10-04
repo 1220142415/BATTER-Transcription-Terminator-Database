@@ -203,8 +203,9 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn('data-taxonomy-genus="Cyanobacterium"', home)
             for removed in ("Phylum", "Studies", "Methods", "Signal", "Open"):
                 self.assertNotIn(f'data-label="{removed}"', home)
-            for column in ("Assembly", "Organism", "Taxonomy", "Assembly size", "Terminator data", "Annotation"):
+            for column in ("Genome ID", "Reference source", "Organism", "Taxonomy", "Assembly size", "Terminator data", "Annotation"):
                 self.assertIn(f'data-label="{column}"', home)
+            self.assertIn('<td data-label="Reference source">NCBI RefSeq</td>', home)
             self.assertIn('2,742,269 bp', home)
             self.assertIn('2 contigs', home)
             self.assertIn('experimental endpoints</span>', home)
@@ -245,10 +246,12 @@ class V04SiteBuildTests(unittest.TestCase):
             (site / "assets").mkdir(exist_ok=True)
             build_batter_browser.build(site)
             combined = (site / "genomes.html").read_text(encoding="utf-8")
-            self.assertEqual(len(re.findall(r'<th[ >]', combined)), 6)
-            self.assertEqual(len(re.findall(r'<td[ >]', combined)), 6)
+            self.assertEqual(len(re.findall(r'<th[ >]', combined)), 7)
+            self.assertEqual(len(re.findall(r'<td[ >]', combined)), 7)
             self.assertIn('data-sort="predictions" title="Sort by predictions">Terminator data', combined)
             catalogue = json.loads((site / "assets/batter-browser.json").read_text(encoding="utf-8"))
+            self.assertEqual(catalogue["columns"][12], "source_collection")
+            self.assertEqual(next(row[12] for row in catalogue["genomes"] if row[0] == "2228664028"), "IMG")
             self.assertEqual(catalogue["reference_sizes"]["GCF_000012525.1"], [2742269, 2])
             self.assertIn('Top phyla in this release', (site / "index.html").read_text(encoding="utf-8"))
 

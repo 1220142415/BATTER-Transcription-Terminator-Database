@@ -368,7 +368,8 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
   {taxonomy_attributes}
   data-sort-accession="{esc(assembly.casefold())}" data-sort-organism="{esc(species.casefold())}"
   data-sort-endpoints="{endpoint_count}" data-sort-size="{size[0] if size else ''}">
-  <td data-label="Assembly"><a class="genome-table-name" href="{href}"><code>{esc(assembly)}</code></a></td>
+  <td data-label="Genome ID"><a class="genome-table-name" href="{href}"><code>{esc(assembly)}</code></a></td>
+  <td data-label="Reference source">NCBI RefSeq</td>
   <td data-label="Organism"><span class="genome-organism">{esc(species or assembly)}</span>{''.join(source_tags)}</td>
   <td data-label="Taxonomy"><span>{esc(genome_taxonomy['phylum'] or 'Unclassified')}</span><small>{esc(genome_taxonomy['genus'] or 'Genus not assigned')}</small></td>
   <td data-label="Assembly size" data-reference-size title="Browser reference length; may cover a subset of assembly contigs">{size_text}</td>
@@ -378,8 +379,8 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
     content = f'''<main>
 <section class="page-shell genome-results" id="genome-directory"><div class="page-heading"><div><p class="eyebrow">BTED {RELEASE_VERSION}</p><h1>Genomes</h1><p>Search by organism, assembly, or study.</p></div></div>
   <div class="genome-directory-panel"><form class="genome-filters-form" role="search" aria-label="Search and filter genomes" data-genome-search-form><div class="genome-filter-bar">
-    <label class="genome-filter-search"><span>Search genomes</span><span class="genome-filter-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input type="search" placeholder="Assembly or species" title="Also searches study titles and PMID" autocomplete="off" data-genome-search></span></label>
-    <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Assembly</option><option value="organism">Organism</option><option value="size">Assembly size</option><option value="endpoints">Experimental endpoints</option></select></label>
+    <label class="genome-filter-search"><span>Search genomes</span><span class="genome-filter-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input type="search" placeholder="Genome ID or species" title="Also searches study titles and PMID" autocomplete="off" data-genome-search></span></label>
+    <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Genome ID</option><option value="organism">Organism</option><option value="size">Assembly size</option><option value="endpoints">Experimental endpoints</option></select></label>
     <button class="mobile-sort-direction" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
     <button class="genome-filter-reset" type="button" data-clear-filters aria-label="Clear filters" title="Clear filters"><span aria-hidden="true">↺</span></button>
   </div><fieldset class="genome-taxonomy-panel"><legend>Taxonomy</legend><div class="genome-taxonomy-fields">
@@ -387,7 +388,8 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
   </div></fieldset></form>
   <div class="genome-result-count" role="status"><span><span data-visible-count>{count:,}</span> genomes</span><span data-result-range></span></div>
   <div class="genome-table-scroll"><table class="genome-directory-table"><thead><tr>
-    <th aria-sort="ascending"><button type="button" data-sort="accession">Assembly</button></th>
+    <th aria-sort="ascending"><button type="button" data-sort="accession">Genome ID</button></th>
+    <th title="Original genome database or study">Reference source</th>
     <th aria-sort="none"><button type="button" data-sort="organism">Organism</button></th>
     <th>Taxonomy</th>
     <th aria-sort="none"><button type="button" data-sort="size">Assembly size</button></th>

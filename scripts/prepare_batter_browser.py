@@ -12,7 +12,7 @@ REVISION = "6588c4242246fcfd40086a08a94fe3a6c378c029"
 ROOT = Path(__file__).resolve().parents[1]
 COLUMNS = ["genome_id", "batch", "otu_id", "organism", "genome_type",
            "otu_augmentation_span", "otu_augmentation_window", "rfam_training_span",
-           "rfam_training_window", "annotation_status", "tes_prediction", "taxonomy"]
+           "rfam_training_window", "annotation_status", "tes_prediction", "taxonomy", "source_collection"]
 
 
 def build(tables, revision):
@@ -30,7 +30,7 @@ def build(tables, revision):
             values += [int(row[key]) for key in COLUMNS[5:9]]
             if any(v < 0 for v in values[5:]):
                 raise ValueError("Negative feature count")
-            genomes.append(values + [row["annotation_status"], int(row["tes_prediction"]), row["taxonomy"]])
+            genomes.append(values + [row["annotation_status"], int(row["tes_prediction"]), row["taxonomy"], row["source_collection"]])
     if not genomes:
         raise ValueError("No uploaded genomes found")
     return {"revision": revision, "partial": True, "columns": COLUMNS, "genomes": genomes}

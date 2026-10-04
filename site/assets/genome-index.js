@@ -192,11 +192,13 @@
     const record = row.batter;
     const tr = document.createElement("tr");
     const href = `genomes/${encodeURIComponent(record[0])}`;
-    for (const label of ["Assembly", "Organism", "Taxonomy", "Assembly size", "Terminator data", "Annotation"]) {
+    for (const label of ["Genome ID", "Reference source", "Organism", "Taxonomy", "Assembly size", "Terminator data", "Annotation"]) {
       const td = document.createElement("td"); td.dataset.label = label;
-      if (label === "Assembly") {
+      if (label === "Genome ID") {
         const link = document.createElement("a"), code = document.createElement("code");
         link.className = "genome-table-name"; link.href = href; code.textContent = record[0]; link.append(code); td.append(link);
+      } else if (label === "Reference source") {
+        td.textContent = referenceSource(record[12]);
       } else if (label === "Organism") {
         const name = document.createElement("span"); name.className = "genome-organism"; name.textContent = record[3]; td.append(name);
         const type = document.createElement("small"); type.textContent = record[4] === "MAG" ? "Metagenome-assembled" : record[4]; td.append(type);
@@ -219,6 +221,10 @@
       tr.append(td);
     }
     return tr;
+  }
+
+  function referenceSource(source) {
+    return ({ "NCBI-RefSeq": "NCBI RefSeq", "NCBI-MAG": "NCBI GenBank", "NCBI-SAG": "NCBI GenBank" })[source] || source || "Not cataloged";
   }
 
   function referenceSize(cell, row) {
@@ -261,7 +267,7 @@
           rows.push(row); indexed.set(record[0].toUpperCase(), row);
         }
         row.batter = record;
-        row.dataset.genomeSearch += ` ${record[0]} ${record[2]} ${record[3]} ${record[11] || ""}`.toLowerCase();
+        row.dataset.genomeSearch += ` ${record[0]} ${record[2]} ${record[3]} ${record[11] || ""} ${referenceSource(record[12])}`.toLowerCase();
         row.sources ||= Array.from(row.querySelectorAll("[data-source-filter]"));
         row.dataset.sortPredictions = String(record[10]);
         row.dataset.sortTraining = String(record[5] + record[7]);
@@ -270,6 +276,7 @@
         if (record[10] > 0) row.dataset.genomeSearch += " batter predictions 42402588";
         if (record[5] + record[7] > 0) row.dataset.genomeSearch += " batter augmentation training 42402588";
         if (row.node) {
+          row.node.querySelector('[data-label="Reference source"]').textContent = referenceSource(record[12]);
           for (const [selector, value] of [["[data-prediction-count]", record[10]], ["[data-augmentation-count]", record[5] + record[7]]]) {
             const number = row.node.querySelector(selector); number.textContent = value.toLocaleString("en-US"); number.parentElement.classList.toggle("unavailable", !value);
           }
