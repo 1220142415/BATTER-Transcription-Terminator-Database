@@ -32,9 +32,11 @@
 
 目录增加 Genome source、Genome type 和 Gene annotation，可与文本、数据类型和分类层级组合。来源选项来自实际目录，NCBI-MAG 和 NCBI-SAG 统一显示为 NCBI GenBank；基因组类型采用登记的 Isolate、MAG、SAG，未登记的实验条目保留 Not cataloged。注释筛选与表格状态一致，区分可用、不兼容、缺失、不可用和未登记。
 
-Data type 增加 Experimental + prediction，表示同一基因组同时有两类数据，不表示单个位点通过实验验证。筛选保存在 URL 中，支持分享、恢复、一键清空和分页；全部在已加载目录上进行，不额外查询 D1 或下载序列文件。终止机制、效率和模型分数尚无完整可筛选字段，本轮不作推断。
+Data type 保留 All data、Experimental、Prediction 和 Augmentation / Rfam。所有基因组后续均计划提供预测，目前的差异来自上传进度，因此不设置实验与预测交集选项。筛选保存在 URL 中，支持分享、恢复、一键清空和分页；全部在已加载目录上进行，不额外查询 D1 或下载序列文件。终止机制、效率和模型分数尚无完整可筛选字段，本轮不作推断。
 
-筛选更新已发布到 Worker 版本 `fa5e606b-5c3c-4302-8e99-c0900c21c5aa`。62 项 Python 回归中 56 项通过、6 项按环境跳过；320／390 像素无横向溢出。真实目录核对：IMG + SAG 为 436 个，NCBI RefSeq + Isolate + Available 为 10,494 个，Experimental + prediction 为 2 个；19 个未登记类型的实验条目不会被推断为 Isolate。
+首次筛选更新发布到 Worker 版本 `fa5e606b-5c3c-4302-8e99-c0900c21c5aa`。62 项 Python 回归中 56 项通过、6 项按环境跳过；320／390 像素无横向溢出。真实目录核对：IMG + SAG 为 436 个，NCBI RefSeq + Isolate + Available 为 10,494 个；19 个未登记类型的实验条目不会被推断为 Isolate。
+
+按用户反馈移除实验与预测交集选项，发布为 Worker `150ca5f1-7ff7-4de3-9d1b-e50e2b670df3`。11 项目录筛选与页面生成检查通过；线上页面和筛选脚本与发布包一致，旧交集链接恢复为 All data。
 
 ## 验证
 

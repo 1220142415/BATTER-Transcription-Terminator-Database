@@ -137,7 +137,7 @@ setImmediate(()=>process.stdout.write(JSON.stringify({loading,recovered:{nodes:t
     def test_reference_filters_combine_restore_urls_and_preserve_unknowns(self):
         data = self.run_js(r'''
 href='https://bted.example/genomes.html?source=IMG&genome_type=MAG&annotation=Available';
-const dataset=control();dataset.options=['','experimental','prediction','augmentation','experimental_prediction'].map(value=>({value}));
+const dataset=control();dataset.options=['','experimental','prediction','augmentation'].map(value=>({value}));
 const sourceFilter=control(),typeFilter=control(),annotationFilter=control();
 typeFilter.options=['','isolate','MAG','SAG','unknown'].map(value=>({value}));
 annotationFilter.options=['','Available','Incompatible','Missing','Unavailable','Not cataloged'].map(value=>({value}));
@@ -160,12 +160,12 @@ setImmediate(()=>{
   clear.fire('click');set(sourceFilter,'NCBI GenBank');const genbank=count.textContent;
   set(typeFilter,'SAG');set(annotationFilter,'Not cataloged');const unrecorded=count.textContent,shared=href;
   clear.fire('click');href=shared;listeners.popstate();const restored={count:count.textContent,source:sourceFilter.value,type:typeFilter.value,annotation:annotationFilter.value};
-  clear.fire('click');set(dataset,'experimental_prediction');const both=count.textContent;
+  clear.fire('click');set(dataset,'experimental');
   set(sourceFilter,'IMG');const none={count:count.textContent,empty:empty.hidden};
   clear.fire('click');set(typeFilter,'unknown');const unknown=count.textContent;
   clear.fire('click');const cleared={count:count.textContent,href,values:[sourceFilter.value,typeFilter.value,annotationFilter.value,dataset.value]};
-  href='https://bted.example/genomes.html?source=invalid&genome_type=invalid&annotation=invalid';listeners.popstate();const invalid={count:count.textContent,values:[sourceFilter.value,typeFilter.value,annotationFilter.value]};
-  process.stdout.write(JSON.stringify({initial,sources,paged,resetPage,searched,incompatible,genbank,unrecorded,shared,restored,both,none,unknown,cleared,invalid,fetches}));
+  href='https://bted.example/genomes.html?source=invalid&genome_type=invalid&annotation=invalid&dataset=experimental_prediction';listeners.popstate();const invalid={count:count.textContent,values:[sourceFilter.value,typeFilter.value,annotationFilter.value,dataset.value]};
+  process.stdout.write(JSON.stringify({initial,sources,paged,resetPage,searched,incompatible,genbank,unrecorded,shared,restored,none,unknown,cleared,invalid,fetches}));
 });
 ''')
         self.assertEqual(data['initial'], {'count': '30', 'range': 'Showing 1–25'})
@@ -178,11 +178,10 @@ setImmediate(()=>{
         self.assertEqual(data['unrecorded'], '1')
         self.assertIn('genome_type=SAG', data['shared'])
         self.assertEqual(data['restored'], {'count': '1', 'source': 'NCBI GenBank', 'type': 'SAG', 'annotation': 'Not cataloged'})
-        self.assertEqual(data['both'], '1')
         self.assertEqual(data['none'], {'count': '0', 'empty': False})
         self.assertEqual(data['unknown'], '2')
         self.assertEqual(data['cleared'], {'count': '36', 'href': 'https://bted.example/genomes.html', 'values': ['', '', '', '']})
-        self.assertEqual(data['invalid'], {'count': '36', 'values': ['', '', '']})
+        self.assertEqual(data['invalid'], {'count': '36', 'values': ['', '', '', '']})
         self.assertEqual(data['fetches'], 1)
 
     def test_result_totals_and_ranges_follow_filters_and_pagination(self):

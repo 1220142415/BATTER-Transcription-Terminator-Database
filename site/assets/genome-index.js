@@ -95,7 +95,6 @@
     if (dataType?.value) {
       const available = { experimental: Number(row.dataset.sortEndpoints) > 0,
         prediction: Number(row.batter?.[10]) > 0, augmentation: Number(row.batter?.[5] || 0) + Number(row.batter?.[7] || 0) > 0 };
-      available.experimental_prediction = available.experimental && available.prediction;
       if (!available[dataType.value]) return false;
     }
     for (const select of taxonomy) {
