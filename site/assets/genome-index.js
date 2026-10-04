@@ -240,7 +240,7 @@
     if (!otu) { label?.remove(); return; }
     if (!label) { label = document.createElement("small"); label.dataset.gemOtu = ""; cell.append(label); }
     label.textContent = `GEM OTU: ${otu}`;
-    label.title = "Species-level cluster; coordinates refer to this representative genome, not all cluster members.";
+    label.title = "Species-level cluster. Coordinates use the representative FASTA.";
   }
 
   function referenceSource(source) {
@@ -322,7 +322,7 @@
           row.node.querySelector('[data-label="Annotation"]').replaceChildren(annotationBadge(record[9]));
         }
       }
-      loadStatus.textContent = "Upload in progress. Training regions include OTU augmentation and Rfam; context windows are excluded.";
+      loadStatus.textContent = "Upload in progress. OTU augmentation and Rfam counts exclude context windows.";
     } catch {
       loadStatus.textContent = "Uploaded genome list unavailable. Experimental genomes remain available."; retry.hidden = false;
     } finally {

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 310" role="img" aria-labelledby="title desc">
-  <title id="title">An intrinsic transcription termination motif and its transcript 3′ end</title>
-  <desc id="desc">A reference gene is followed by an RNA stem-loop and U-rich tail. A highlighted 3′ end aligns with a schematic peak of transcript-end enrichment. This is an illustrative example, not measured data or a universal termination mechanism.</desc>
+  <title id="title">Intrinsic transcription termination</title>
+  <desc id="desc">RNA stem-loop and U-rich tail, with the transcript 3′ end aligned to a schematic signal peak. An intrinsic termination example, not measured data.</desc>
   <g font-family="Segoe UI, Arial, sans-serif" font-size="15" fill="#756774">
     <rect x="421" y="32" width="26" height="247" rx="13" fill="#faeee3"/>
     <path d="M434 37V279" fill="none" stroke="#bc885f" stroke-dasharray="3 5" opacity=".55"/>

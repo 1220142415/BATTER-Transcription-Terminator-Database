@@ -16,13 +16,13 @@
   async function loadGenome() {
     status.textContent = "Loading genome data…"; reload.disabled = true;
     try {
-      if (!id || !/^[A-Za-z0-9_.-]{1,128}$/.test(id)) throw new Error("Choose a genome from the genome directory.");
+      if (!id || !/^[A-Za-z0-9_.-]{1,128}$/.test(id)) throw new Error("Select a genome from the catalog.");
       const api = new URL(`../api/batter/${encodeURIComponent(id)}`, document.baseURI);
       const requestedRevision = new URLSearchParams(location.search).get("revision");
       if (requestedRevision) api.searchParams.set("revision", requestedRevision);
       const response = await fetch(api);
-      if (response.status === 409) throw new Error("This data version has changed. Open the genome again from the directory.");
-      if (!response.ok) throw new Error(response.status === 404 ? "This genome is not in the uploaded catalogue." : "Genome files are not available yet. Select Reload to retry.");
+      if (response.status === 409) throw new Error("Data version changed. Reopen the genome from the catalog.");
+      if (!response.ok) throw new Error(response.status === 404 ? "Genome not found in the catalog." : "Genome files unavailable. Select Reload to retry.");
       const data = await response.json();
       const pageUrl = new URL(location.href); pageUrl.searchParams.set("revision", data.revision); history.replaceState(null, "", pageUrl);
       const name = data.taxonomy.split(";").find(taxon => taxon.startsWith("s__"))?.slice(3) || id;
@@ -33,14 +33,14 @@
       const provenance = $("[data-batter-provenance]");
       if (provenance) {
         const heading = document.createElement("h2"), facts = document.createElement("dl"), note = document.createElement("p");
-        heading.textContent = "Reference and coordinate provenance";
+        heading.textContent = "Reference details";
         const source = ({ "NCBI-RefSeq": "NCBI RefSeq", "NCBI-MAG": "NCBI GenBank", "NCBI-SAG": "NCBI GenBank" })[data.source_collection] || data.source_collection || "Not cataloged";
         for (const [label, value] of [["Genome ID", id], ["GEM OTU", data.otu_id], ["Genome source", source], ["Sequence source", data.reference.source], ["Input FASTA", data.reference.source_path]]) {
           if (!value) continue;
           const item = document.createElement("div"), term = document.createElement("dt"), description = document.createElement("dd");
           term.textContent = label; description.textContent = value; item.append(term, description); facts.append(item);
         }
-        note.textContent = "Prediction coordinates refer to this representative genome FASTA, not all members of its GEM OTU. A Genome ID alone does not establish sequence identity with an NCBI assembly version.";
+        note.textContent = "Prediction coordinates use this FASTA, not all members of its GEM OTU. An NCBI accession alone does not confirm sequence identity.";
         provenance.replaceChildren(heading, facts, note);
         if (data.reference.source_sha256) {
           const details = document.createElement("details"), summary = document.createElement("summary"), checksum = document.createElement("code");
@@ -63,16 +63,16 @@
       const metadataLink = link("Metadata", api.href); metadataLink.className = "button"; downloads.append(metadataLink);
       if (data.annotation.status !== "matched" || !counts.otu_augmentation_span && !counts.rfam_training_span) {
         const note = document.createElement("p"); note.className = "muted";
-        note.textContent = [data.annotation.status !== "matched" ? "No matching gene annotation." : "", !counts.otu_augmentation_span && !counts.rfam_training_span ? "No augmented spans for this genome." : ""].filter(Boolean).join(" ");
+        note.textContent = [data.annotation.status !== "matched" ? "No matching gene annotation." : "", !counts.otu_augmentation_span && !counts.rfam_training_span ? "No augmentation / Rfam regions." : ""].filter(Boolean).join(" ");
         downloads.append(note);
       }
       const config = new URL(api); config.pathname += "/config"; config.searchParams.set("revision", data.revision);
       const configResponse = await fetch(config);
-      if (!configResponse.ok) throw new Error("Browser files are not ready yet. Select Reload to retry.");
+      if (!configResponse.ok) throw new Error("Browser files unavailable. Select Reload to retry.");
       const browserConfig = await configResponse.json();
       if (browserConfig.metadata?.combined_reference_status === "separate_views") {
         const note = document.createElement("p"); note.className = "muted";
-        note.textContent = "Experimental and computational references differ. Both are shown in separate coordinate views.";
+        note.textContent = "Experimental and computational references differ and use separate coordinate views.";
         downloads.append(note);
       }
       const frame = $("[data-browser-frame]");

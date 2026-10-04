@@ -97,7 +97,7 @@
     });
     drawTrend(report);
     $("usage-period").textContent = `UTC: ${report.startDay} to ${report.endDay}.${report.firstRecordedDay ? ` First recorded: ${report.firstRecordedDay}.` : ""} Cities: top 50. Pages: top 30.`;
-    $("usage-status").textContent = report.totals.views ? "" : "No page views in this period. Counting starts after deployment.";
+    $("usage-status").textContent = report.totals.views ? "" : "No recorded views in this period.";
     $("usage-report").hidden = false;
   }
 
@@ -124,7 +124,7 @@
         if (error.name !== "AbortError") $("usage-map").replaceChildren(node("p", "Map unavailable. Country counts are listed below."));
       }
     } catch (error) {
-      if (error.name !== "AbortError") $("usage-status").textContent = "Usage is unavailable. Select Apply to retry.";
+      if (error.name !== "AbortError") $("usage-status").textContent = "Usage unavailable. Select Apply to retry.";
     }
   }
 

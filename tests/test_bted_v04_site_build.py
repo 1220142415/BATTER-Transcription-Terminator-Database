@@ -256,7 +256,7 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertEqual(catalogue["columns"][12], "source_collection")
             self.assertEqual(next(row[12] for row in catalogue["genomes"] if row[0] == "2228664028"), "IMG")
             self.assertEqual(catalogue["reference_sizes"]["GCF_000012525.1"], [2742269, 2])
-            self.assertIn('Genome distribution by phylum', (site / "index.html").read_text(encoding="utf-8"))
+            self.assertIn('Genomes by phylum', (site / "index.html").read_text(encoding="utf-8"))
 
     def test_home_phyla_deduplicate_assemblies_and_keep_unclassified(self) -> None:
         records = [[f"GCF_{i}", *([""] * 10), f"p__Group{i}"] for i in range(10)]

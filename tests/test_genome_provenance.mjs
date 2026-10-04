@@ -38,6 +38,6 @@ test("genome provenance uses registered metadata and remains readable when the b
     assert.equal(facts["Input FASTA"], metadata.reference.source_path);
     assert.match(panel.children[2].textContent, /not all members/);
     assert.equal(panel.children[3].children[1].textContent, metadata.reference.source_sha256);
-    assert.match(select("[data-browser-status]").textContent, /not ready/);
+    assert.match(select("[data-browser-status]").textContent, /unavailable/);
   }
 });

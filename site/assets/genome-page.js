@@ -161,7 +161,7 @@
     setBrowserStatus("Loading browser…");
     setShareStatus("");
     loadingTimer = window.setTimeout?.(() => {
-      if (!bridgeReady) setBrowserStatus("The browser is taking longer than expected. Select Reload to retry.");
+      if (!bridgeReady) setBrowserStatus("Browser loading is slow. Select Reload to retry.");
     }, 30000);
     bridgeReady = false;
     bridgeNonce = Math.random().toString(36).slice(2);
@@ -260,7 +260,7 @@
   packageButton.addEventListener("click", async () => {
     const links = Array.from(root.querySelectorAll("[data-package-file][data-zip-path]"));
     packageButton.disabled = true;
-    if (packageStatus) packageStatus.textContent = "Preparing the genome package…";
+    if (packageStatus) packageStatus.textContent = "Preparing ZIP…";
     try {
       const files = await Promise.all(links.map(async (link) => {
         const response = await fetch(link.href, { credentials: "omit" });
@@ -277,9 +277,9 @@
       download.click();
       download.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
-      if (packageStatus) packageStatus.textContent = `Created a ZIP with ${files.length} GFF3 and TSV files.`;
+      if (packageStatus) packageStatus.textContent = `ZIP ready: ${files.length} GFF3 and TSV files.`;
     } catch (error) {
-      if (packageStatus) packageStatus.textContent = "Package creation failed. Check your connection and try again.";
+      if (packageStatus) packageStatus.textContent = "ZIP download failed. Check your connection and retry.";
       console.error(error);
     } finally {
       packageButton.disabled = false;
