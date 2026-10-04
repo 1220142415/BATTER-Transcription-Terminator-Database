@@ -633,15 +633,10 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-height: calc(100v
 .genome-directory-table td { padding: 14px 13px; vertical-align: middle; border-top: 1px solid var(--line); }
 .genome-directory-table tbody tr:hover { background: #faf9ff; }
 .genome-directory-table tbody tr[hidden] { display: none; }
-.genome-directory-table td.number { text-align: right; font-variant-numeric: tabular-nums; }
+.genome-directory-table .number { text-align: right; font-variant-numeric: tabular-nums; }
 .genome-table-name { color: var(--navy-dark); font-weight: 750; text-decoration: none; }
 .genome-table-name:hover { text-decoration: underline; }
 .genome-directory-table td code { white-space: nowrap; }
-.genome-directory-table .row-action { display: inline-flex; min-height: 34px; align-items: center; padding: 5px 10px; color: var(--blue); background: var(--soft); border: 1px solid var(--line); border-radius: 6px; font-weight: 600; text-decoration: none; white-space: nowrap; }
-.genome-directory-table .row-action:hover { color: var(--white); background: var(--blue); border-color: var(--blue); }
-.signal-availability { display: inline-flex; padding: 3px 8px; border-radius: 12px; white-space: nowrap; font-size: 11px; font-weight: 750; }
-.signal-availability.available { color: var(--navy); background: #eeedf9; }
-.signal-availability.unavailable { color: #59636d; background: #edf0f2; }
 .genome-directory-table td [data-source-filter] { display: none; }
 .genome-directory-panel .search-empty { margin: 0; border-top: 1px solid var(--line); }
 .genome-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
@@ -736,7 +731,7 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-height: calc(100v
   .genome-directory-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
   .genome-directory-table tr { margin: 0 0 11px; padding: 10px 13px; border: 1px solid var(--line); border-left: 3px solid #aaa6d5; border-radius: 4px; background: var(--white); }
   .genome-directory-table td { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; border: 0; text-align: right; }
-  .genome-directory-table td::before { content: attr(data-label); flex: 0 0 86px; color: var(--muted); font-size: 11px; font-weight: 700; text-align: left; }
+  .genome-directory-table td::before { content: attr(data-label); flex: 0 0 140px; color: var(--muted); font-size: 11px; font-weight: 700; text-align: left; }
   .genome-directory-table td.number { text-align: right; }
   .genome-card-grid { grid-template-columns: 1fr; }
   .study-source-list { grid-template-columns: 1fr; }

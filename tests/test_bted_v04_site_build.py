@@ -189,7 +189,10 @@ class V04SiteBuildTests(unittest.TestCase):
             for rank in ("phylum", "class", "order", "family", "genus"):
                 self.assertIn(f'data-taxonomy-rank="{rank}"', home)
             self.assertIn('data-taxonomy-genus="Cyanobacterium"', home)
-            self.assertIn('<td data-label="Phylum">Cyanobacteria</td>', home)
+            for removed in ("Phylum", "Studies", "Methods", "Signal", "Open"):
+                self.assertNotIn(f'data-label="{removed}"', home)
+            self.assertIn('data-label="Experimental endpoints"', home)
+            self.assertIn('<a class="genome-table-name" href="genomes/GCF_000012525.1.html"><code>GCF_000012525.1</code></a>', home)
             for removed in ("study", "assay", "evidence", "signal"):
                 self.assertNotIn(f'data-filter-{removed}', home)
             self.assertLess(home.index('class="genome-directory-panel"'), home.index('data-genome-search-form'))

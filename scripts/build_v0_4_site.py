@@ -323,30 +323,14 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
         rows = genome["metadata_rows"]
         published = [row for row in rows if is_published_status(row.get("release_status"))]
         species = next((row.get("species", "") for row in rows if row.get("species")), "")
-        study_count = len({row["pmid"] for row in published})
         endpoint_count = sum(int(row["record_count_number"]) for row in published)
         source_tags = []
-        signal_count = 0
         for row in rows:
-            sid = row["source_id"]
-            has_signal = _asset_exists(
-                asset_map,
-                lambda logical, _asset, source_id=sid: logical.startswith(f"tracks/{source_id}/")
-                and logical.lower().endswith((".bw", ".bigwig")),
-            )
-            signal_count += int(has_signal)
             source_search = " ".join(row.get(key, "") for key in
                                      ("title", "pmid", "source_id", "assay", "raw_data_accessions")).casefold()
             source_tags.append(
-                f'<span hidden data-source-filter data-search="{esc(source_search)}" '
-                f'data-study="{esc(row["pmid"])}" data-assay="{esc(row.get("assay", ""))}" '
-                f'data-published="{"yes" if is_published_status(row.get("release_status")) else "no"}" '
-                f'data-evidence="{esc(row.get("evidence_class") or "audit_only")}" '
-                f'data-signal="{"yes" if has_signal else "no"}"></span>'
+                f'<span hidden data-source-filter data-search="{esc(source_search)}"></span>'
             )
-        methods = sorted({row.get("assay", "") for row in published if row.get("assay")})
-        method_text = methods[0] if len(methods) == 1 else f"{methods[0]} +{len(methods) - 1}" if methods else "—"
-        signal_text = f"{signal_count} source{'s' if signal_count != 1 else ''}" if signal_count else "No signal"
         genome_search = " ".join((assembly, species, *genome_taxonomy.values())).casefold()
         taxonomy_attributes = " ".join(
             f'data-taxonomy-{rank}="{esc(value)}"' for rank, value in genome_taxonomy.items()
@@ -355,21 +339,16 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
         table_rows.append(f'''<tr data-genome-row data-genome-search="{esc(genome_search)}"
   {taxonomy_attributes}
   data-sort-accession="{esc(assembly.casefold())}" data-sort-organism="{esc(species.casefold())}"
-  data-sort-studies="{study_count}" data-sort-endpoints="{endpoint_count}" data-sort-signal="{signal_count}">
-  <td data-label="Organism"><a class="genome-table-name" href="{href}">{esc(species or assembly)}</a></td>
-  <td data-label="Assembly"><code>{esc(assembly)}</code></td>
-  <td data-label="Phylum">{esc(genome_taxonomy['phylum'] or 'Not assigned')}</td>
-  <td data-label="Studies">{study_count}</td>
-  <td data-label="Methods">{esc(method_text)}</td>
-  <td data-label="Endpoints" class="number">{endpoint_count:,}</td>
-  <td data-label="Signal"><span class="signal-availability {'available' if signal_count else 'unavailable'}">{signal_text}</span></td>
-  <td data-label="Open"><a class="row-action" href="{href}">Open genome</a>{''.join(source_tags)}</td>
+  data-sort-endpoints="{endpoint_count}">
+  <td data-label="Organism">{esc(species or assembly)}{''.join(source_tags)}</td>
+  <td data-label="Assembly"><a class="genome-table-name" href="{href}"><code>{esc(assembly)}</code></a></td>
+  <td data-label="Experimental endpoints" class="number">{endpoint_count:,}</td>
 </tr>''')
     content = f'''<main>
 <section class="page-shell genome-results" id="genome-directory"><div class="page-heading"><div><p class="eyebrow">BTED {RELEASE_VERSION}</p><h1>Genomes</h1><p>Search by organism, assembly, or study.</p></div></div>
   <div class="genome-directory-panel"><form class="genome-filters-form" role="search" aria-label="Search and filter genomes" data-genome-search-form><div class="genome-filter-bar">
     <label class="genome-filter-search"><span>Search genomes</span><span class="genome-filter-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input type="search" placeholder="Assembly or species" title="Also searches study titles and PMID" autocomplete="off" data-genome-search></span></label>
-    <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Assembly</option><option value="organism">Organism</option><option value="studies">Studies</option><option value="endpoints">Endpoints</option><option value="signal">Signal</option></select></label>
+    <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Assembly</option><option value="organism">Organism</option><option value="endpoints">Experimental endpoints</option></select></label>
     <button class="mobile-sort-direction" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
     <button class="genome-filter-reset" type="button" data-clear-filters aria-label="Clear filters" title="Clear filters"><span aria-hidden="true">↺</span></button>
   </div><fieldset class="genome-taxonomy-panel"><legend>Taxonomy</legend><div class="genome-taxonomy-fields">
@@ -379,12 +358,7 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
   <div class="genome-table-scroll"><table class="genome-directory-table"><thead><tr>
     <th aria-sort="none"><button type="button" data-sort="organism">Organism</button></th>
     <th aria-sort="ascending"><button type="button" data-sort="accession">Assembly</button></th>
-    <th>Phylum</th>
-    <th aria-sort="none"><button type="button" data-sort="studies">Studies</button></th>
-    <th>Methods</th>
-    <th aria-sort="none"><button type="button" data-sort="endpoints">Endpoints</button></th>
-    <th aria-sort="none"><button type="button" data-sort="signal">Signal</button></th>
-    <th>Open</th>
+    <th class="number" aria-sort="none"><button type="button" data-sort="endpoints">Experimental endpoints</button></th>
   </tr></thead><tbody data-genome-results>{''.join(table_rows)}</tbody></table></div>
   <p class="search-empty" data-empty hidden>No genomes match these filters. Clear filters to see all genomes.</p></div>
 </section>

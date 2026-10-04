@@ -69,7 +69,7 @@ python scripts/serve_v04_preview.py --site dist/pages-site --port 8769 \
 
 ### BATTER 训练增强浏览
 
-`Genomes` 用一张基因组表，通过 Data type 筛选全部、实验、预测和数据增强，同一完整组装编号只显示一行。实验的研究、方法、证据和信号筛选保留。实验与计算数据共用同一个基因组页面和 JBrowse；模型预测只展示已经发布的结果，不执行预测任务。计算数据来自 HF 准备分支 `v05-preparation-f5c55e9f129f`，当前固定提交 `6588c4242246fcfd40086a08a94fe3a6c378c029`，目录包含批次 000–039 的 40,000 个基因组。上传尚未完成，不能将此目录视为完整论文数据。
+`Genomes` 用一张基因组表，通过 Data type 筛选全部、实验、预测和数据增强，同一完整组装编号只显示一行。主表只保留 Organism、Assembly、Experimental endpoints、Predictions、Training regions 五列，点击 Assembly 进入详情。Taxonomy 在独立筛选区按门→纲→目→科→属逐级选择；文章、方法和信号信息在详情及轨道说明中查看。Training regions 为 OTU 增强区间与 Rfam 训练区间之和，不计上下文窗口。实验与计算数据共用同一个基因组页面和 JBrowse；模型预测只展示已经发布的结果，不执行预测任务。计算数据来自 HF 准备分支 `v05-preparation-f5c55e9f129f`，当前固定提交 `6588c4242246fcfd40086a08a94fe3a6c378c029`，目录包含批次 000–039 的 40,000 个基因组。上传尚未完成，不能将此目录视为完整论文数据。
 
 `data/registry/batter-browser.json` 保存目录字段、统计数和固定版本；网页读取构建后的 `assets/batter-browser.json`。序列、GFF3 和索引仍在 HF，Worker 按目录生成 `/api/batter/<genome>/config`，无需先导入 D1。`batter-overlays.json` 保存重叠基因组的逐 contig 长度和序列 SHA-256 比较结果；构建后的 `assets/genome-browsers.json` 登记实验配置和叠加依据。相同序列可以叠加实验、预测、增强轨道；名称不同但序列相同的 contig 使用 JBrowse 原生别名。例如 `BA000030.4` 与 `NC_003155.5` 的长度和序列哈希一致。真正不同或尚未核对的参考在同一浏览器中保留独立坐标视图，不凭 accession 叠加。只展示 `matched` 注释。橙色为预测，深蓝为 OTU 增强区间，紫色为 Rfam 区间，浅色为上下文窗口；窗口不算额外终止子。
 

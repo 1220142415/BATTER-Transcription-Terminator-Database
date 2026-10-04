@@ -14,8 +14,9 @@ def build(site_root):
     html = directory.read_text(encoding="utf-8")
     selector = '''<label>Data type<select data-genome-dataset><option value="">All data</option><option value="experimental">Experimental</option><option value="prediction">Prediction</option><option value="augmentation">Augmentation</option></select></label>'''
     html = html.replace('<label class="mobile-sort">', selector + '<label class="mobile-sort">', 1)
-    html = html.replace('<th aria-sort="none"><button type="button" data-sort="signal">', '<th>Predicted</th><th>Training spans</th><th aria-sort="none"><button type="button" data-sort="signal">', 1)
-    html = html.replace('<td data-label="Signal">', '<td data-label="Predicted" data-prediction-count>0</td><td data-label="Training spans" data-augmentation-count>0</td><td data-label="Signal">')
+    html = html.replace('</select></label>\n    <button class="mobile-sort-direction"', '<option value="predictions">Predictions</option><option value="training">Training regions</option></select></label>\n    <button class="mobile-sort-direction"', 1)
+    html = html.replace('</tr></thead>', '<th class="number" aria-sort="none"><button type="button" data-sort="predictions">Predictions</button></th><th class="number" aria-sort="none"><button type="button" data-sort="training">Training regions</button></th></tr></thead>', 1)
+    html = html.replace('</td>\n</tr>', '</td><td data-label="Predictions" class="number" data-prediction-count>0</td><td data-label="Training regions" class="number" data-augmentation-count>0</td>\n</tr>')
     html = re.sub(r'of (\d+) genomes', r'of <span data-total-count>\1</span> genomes', html, count=1)
     html = html.replace('data-genome-search-form>', 'data-genome-search-form inert>', 1)
     html = html.replace('<div class="genome-result-count" role="status">', '<p class="genome-load-status" data-genome-load-status role="status">Loading genomes…</p><div class="genome-result-count" role="status" hidden>', 1)

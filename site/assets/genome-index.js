@@ -22,8 +22,8 @@
   const sortButtons = Array.from(document.querySelectorAll("[data-sort]"));
   const mobileSort = document.querySelector("[data-sort-select]");
   const mobileDirection = document.querySelector("[data-sort-direction]");
-  const sortFields = new Set(["accession", "organism", "studies", "endpoints", "signal"]);
-  const numericFields = new Set(["studies", "endpoints", "signal"]);
+  const sortFields = new Set(["accession", "organism", "endpoints", ...(dataType ? ["predictions", "training"] : [])]);
+  const numericFields = new Set(["endpoints", "predictions", "training"]);
   const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
   let sortField = "accession";
   let direction = "asc";
@@ -100,8 +100,8 @@
   }
 
   function compareRows(a, b) {
-    const left = a.dataset[`sort${sortField[0].toUpperCase()}${sortField.slice(1)}`];
-    const right = b.dataset[`sort${sortField[0].toUpperCase()}${sortField.slice(1)}`];
+    const left = a.dataset[`sort${sortField[0].toUpperCase()}${sortField.slice(1)}`] ?? 0;
+    const right = b.dataset[`sort${sortField[0].toUpperCase()}${sortField.slice(1)}`] ?? 0;
     const primary = numericFields.has(sortField) ? Number(left) - Number(right) : collator.compare(left, right);
     const ordered = direction === "desc" ? -primary : primary;
     return ordered || collator.compare(a.dataset.sortAccession, b.dataset.sortAccession);
@@ -185,12 +185,13 @@
     const record = row.batter;
     const tr = document.createElement("tr");
     const href = `genomes/${encodeURIComponent(record[0])}`;
-    const labels = ["Organism", "Assembly", "Phylum", "Studies", "Methods", "Endpoints", "Predicted", "Training spans", "Signal", "Open"];
-    const values = [record[3], `${record[0]} · ${record[2]}`, row.dataset.taxonomyPhylum || "Not assigned", row.dataset.sortStudies, row.methods, "0", Number(record[10]).toLocaleString("en-US"), (record[5] + record[7]).toLocaleString("en-US"), "No signal", "Open genome"];
+    const labels = ["Organism", "Assembly", "Experimental endpoints", "Predictions", "Training regions"];
+    const values = [record[3], record[0], "0", Number(record[10]).toLocaleString("en-US"), (record[5] + record[7]).toLocaleString("en-US")];
     values.forEach((value, i) => {
       const td = document.createElement("td"); td.dataset.label = labels[i];
-      if (i === 0 || i === 9) { const link = document.createElement("a"); link.textContent = value; link.href = href; td.append(link); }
+      if (i === 1) { const link = document.createElement("a"); link.className = "genome-table-name"; const code = document.createElement("code"); code.textContent = value; link.href = href; link.append(code); td.append(link); }
       else td.textContent = value;
+      if (i >= 2) td.className = "number";
       tr.append(td);
     });
     return tr;
@@ -209,7 +210,7 @@
       for (const record of records) {
         let row = indexed.get(record[0].toUpperCase());
         if (!row) {
-          row = { dataset: { genomeSearch: "", sortAccession: record[0].toLowerCase(), sortOrganism: record[3].toLowerCase(), sortStudies: "1", sortEndpoints: "0", sortSignal: "0" }, sources: [] };
+          row = { dataset: { genomeSearch: "", sortAccession: record[0].toLowerCase(), sortOrganism: record[3].toLowerCase(), sortEndpoints: "0" }, sources: [] };
           const ranks = { p: "Phylum", c: "Class", o: "Order", f: "Family", g: "Genus" };
           for (const taxon of (record[11] || "").split(";")) {
             const rank = ranks[taxon[0]], value = taxon.slice(3);
@@ -220,19 +221,16 @@
         row.batter = record;
         row.dataset.genomeSearch += ` ${record[0]} ${record[2]} ${record[3]} ${record[11] || ""}`.toLowerCase();
         row.sources ||= Array.from(row.querySelectorAll("[data-source-filter]"));
-        if (record[10] > 0 && !row.sources.some(source => source.dataset.evidence === "model_prediction")) row.sources.push({ dataset: { search: "batter predictions 42402588", study: "42402588", assay: "BATTER-TPE", published: "yes", evidence: "model_prediction", signal: "no" } });
-        if (record[5] + record[7] > 0 && !row.sources.some(source => source.dataset.evidence === "training_augmentation")) row.sources.push({ dataset: { search: "batter augmentation training 42402588", study: "42402588", assay: "Training augmentation", published: "yes", evidence: "training_augmentation", signal: "no" } });
-        const published = row.sources.filter(source => source.dataset.published === "yes");
-        row.dataset.sortStudies = String(new Set(published.map(source => source.dataset.study)).size);
-        row.methods = [...new Set(published.map(source => source.dataset.assay).filter(Boolean))].sort().join(" · ") || "—";
+        row.dataset.sortPredictions = String(record[10]);
+        row.dataset.sortTraining = String(record[5] + record[7]);
+        if (record[10] > 0) row.dataset.genomeSearch += " batter predictions 42402588";
+        if (record[5] + record[7] > 0) row.dataset.genomeSearch += " batter augmentation training 42402588";
         if (row.node) {
-          row.node.querySelector('[data-label="Studies"]').textContent = row.dataset.sortStudies;
-          row.node.querySelector('[data-label="Methods"]').textContent = row.methods;
           row.node.querySelector("[data-prediction-count]").textContent = Number(record[10]).toLocaleString("en-US");
           row.node.querySelector("[data-augmentation-count]").textContent = (record[5] + record[7]).toLocaleString("en-US");
         }
       }
-      loadStatus.textContent = "Upload in progress. Each genome is listed once; training windows are excluded from span counts.";
+      loadStatus.textContent = "Upload in progress. Training regions include OTU augmentation and Rfam; context windows are excluded.";
     } catch {
       loadStatus.textContent = "Uploaded genome list unavailable. Experimental genomes remain available."; retry.hidden = false;
     } finally {
