@@ -13,7 +13,7 @@ def build(site_root):
     directory = site_root / "genomes.html"
     html = directory.read_text(encoding="utf-8")
     selector = '''<label>Data type<select data-genome-dataset><option value="">All data</option><option value="experimental">Experimental</option><option value="prediction">Prediction</option><option value="augmentation">Augmentation</option></select></label>'''
-    html = html.replace('<label>Taxonomy', selector + '<label>Taxonomy', 1)
+    html = html.replace('<label class="mobile-sort">', selector + '<label class="mobile-sort">', 1)
     html = html.replace('<th aria-sort="none"><button type="button" data-sort="signal">', '<th>Predicted</th><th>Training spans</th><th aria-sort="none"><button type="button" data-sort="signal">', 1)
     html = html.replace('<td data-label="Signal">', '<td data-label="Predicted" data-prediction-count>0</td><td data-label="Training spans" data-augmentation-count>0</td><td data-label="Signal">')
     html = re.sub(r'of (\d+) genomes', r'of <span data-total-count>\1</span> genomes', html, count=1)

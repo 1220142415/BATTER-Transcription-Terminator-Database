@@ -317,15 +317,9 @@ def home_content(genomes: list[dict[str, object]]) -> str:
 def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[str, object]], taxonomy: dict[str, dict[str, str]]) -> str:
     count = len(genomes)
     table_rows: list[str] = []
-    studies: dict[str, str] = {}
-    assays: set[str] = set()
-    taxa: dict[str, set[str]] = {rank: set() for rank in TAXONOMY_RANKS}
     for genome in genomes:
         assembly = str(genome["assembly"])
         genome_taxonomy = taxonomy[assembly]
-        for rank, value in genome_taxonomy.items():
-            if value:
-                taxa[rank].add(value)
         rows = genome["metadata_rows"]
         published = [row for row in rows if is_published_status(row.get("release_status"))]
         species = next((row.get("species", "") for row in rows if row.get("species")), "")
@@ -335,9 +329,6 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
         signal_count = 0
         for row in rows:
             sid = row["source_id"]
-            studies.setdefault(row["pmid"], row.get("title", ""))
-            if is_published_status(row.get("release_status")):
-                assays.add(row.get("assay", ""))
             has_signal = _asset_exists(
                 asset_map,
                 lambda logical, _asset, source_id=sid: logical.startswith(f"tracks/{source_id}/")
@@ -374,30 +365,16 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
   <td data-label="Signal"><span class="signal-availability {'available' if signal_count else 'unavailable'}">{signal_text}</span></td>
   <td data-label="Open"><a class="row-action" href="{href}">Open genome</a>{''.join(source_tags)}</td>
 </tr>''')
-    study_options = "".join(
-        f'<option value="{esc(pmid)}">PMID {esc(pmid)} · {esc(title[:58])}</option>'
-        for pmid, title in sorted(studies.items())
-    )
-    assay_options = "".join(f'<option value="{esc(assay)}">{esc(assay)}</option>' for assay in sorted(assays))
-    taxonomy_options = "".join(
-        f'<optgroup label="{rank.capitalize()}">'
-        + "".join(f'<option value="{esc(rank + ":" + value)}">{esc(value)}</option>' for value in sorted(taxa[rank]))
-        + '</optgroup>'
-        for rank in TAXONOMY_RANKS if taxa[rank]
-    )
     content = f'''<main>
 <section class="page-shell genome-results" id="genome-directory"><div class="page-heading"><div><p class="eyebrow">BTED {RELEASE_VERSION}</p><h1>Genomes</h1><p>Search by organism, assembly, or study.</p></div></div>
-  <div class="genome-directory-panel"><form class="genome-filter-bar" role="search" aria-label="Search and filter genomes" data-genome-search-form>
+  <div class="genome-directory-panel"><form class="genome-filters-form" role="search" aria-label="Search and filter genomes" data-genome-search-form><div class="genome-filter-bar">
     <label class="genome-filter-search"><span>Search genomes</span><span class="genome-filter-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input type="search" placeholder="Assembly or species" title="Also searches study titles and PMID" autocomplete="off" data-genome-search></span></label>
-    <label>Taxonomy<select data-filter-taxonomy><option value="">All taxa</option>{taxonomy_options}</select></label>
-    <label>Study<select data-filter-study><option value="">All studies</option>{study_options}</select></label>
-    <label>Method<select data-filter-assay><option value="">All methods</option>{assay_options}</select></label>
-    <label>Evidence<select data-filter-evidence><option value="">All evidence</option><option value="author_called_endpoint">Paper-reported 3′ ends</option><option value="curated_record">Literature-curated records</option><option value="audit_only">Review record only</option></select></label>
-    <label>Experimental signal<select data-filter-signal><option value="">Any availability</option><option value="yes">Signal available</option><option value="no">No signal file</option></select></label>
     <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Assembly</option><option value="organism">Organism</option><option value="studies">Studies</option><option value="endpoints">Endpoints</option><option value="signal">Signal</option></select></label>
     <button class="mobile-sort-direction" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
     <button class="genome-filter-reset" type="button" data-clear-filters aria-label="Clear filters" title="Clear filters"><span aria-hidden="true">↺</span></button>
-  </form>
+  </div><fieldset class="genome-taxonomy-panel"><legend>Taxonomy</legend><div class="genome-taxonomy-fields">
+    {''.join(f'<label>{rank.capitalize()}<select data-taxonomy-rank="{rank}"><option value="">All</option></select></label>' for rank in TAXONOMY_RANKS)}
+  </div></fieldset></form>
   <div class="genome-result-count" role="status"><span data-visible-count>{count}</span> of {count} genomes</div>
   <div class="genome-table-scroll"><table class="genome-directory-table"><thead><tr>
     <th aria-sort="none"><button type="button" data-sort="organism">Organism</button></th>

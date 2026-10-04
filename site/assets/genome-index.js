@@ -13,13 +13,7 @@
   const pageNumber = document.querySelector("[data-genome-page-number]");
   const loadStatus = document.querySelector("[data-genome-load-status]");
   const retry = document.querySelector("[data-genome-retry]");
-  const taxonomy = document.querySelector("[data-filter-taxonomy]");
-  const filters = {
-    study: document.querySelector("[data-filter-study]"),
-    assay: document.querySelector("[data-filter-assay]"),
-    evidence: document.querySelector("[data-filter-evidence]"),
-    signal: document.querySelector("[data-filter-signal]"),
-  };
+  const taxonomy = Array.from(document.querySelectorAll("[data-taxonomy-rank]"));
   if (!form || !search || !tbody) return;
 
   const rows = Array.from(tbody.querySelectorAll("[data-genome-row]"));
@@ -43,29 +37,44 @@
     const params = new URLSearchParams(window.location.search);
     search.value = params.get("q") || params.get("search") || params.get("query")
       || params.get("accession") || params.get("assembly") || "";
-    Object.entries(filters).forEach(([key, select]) => {
-      if (select) select.value = validOption(select, params.get(key) || "");
-    });
-    if (taxonomy) taxonomy.value = validOption(taxonomy, params.get("taxon") || "");
+    const [legacyRank, ...legacyName] = (params.get("taxon") || "").split(":");
+    updateTaxa(Object.fromEntries(taxonomy.map(select => {
+      const rank = select.dataset.taxonomyRank;
+      return [rank, params.get(rank) || (legacyRank === rank ? legacyName.join(":") : "")];
+    })));
     if (dataType) dataType.value = validOption(dataType, params.get("dataset") || "");
     sortField = sortFields.has(params.get("sort")) ? params.get("sort") : "accession";
-    direction = params.get("order") === "desc" ? "desc" : "asc";
+    direction = (params.get("direction") || params.get("order")) === "desc" ? "desc" : "asc";
     if (mobileSort) mobileSort.value = sortField;
   }
 
   function updateUrl() {
     const url = new URL(window.location.href);
-    ["q", "search", "query", "accession", "assembly", "taxon", "study", "assay", "evidence", "signal", "sort", "order", "dataset"]
+    ["q", "search", "query", "accession", "assembly", "taxon", "rank", "phylum", "class", "order", "family", "genus", "study", "assay", "evidence", "signal", "sort", "dataset", "direction"]
       .forEach((key) => url.searchParams.delete(key));
     if (search.value.trim()) url.searchParams.set("q", search.value.trim());
-    if (taxonomy?.value) url.searchParams.set("taxon", taxonomy.value);
+    taxonomy.forEach(select => { if (select.value) url.searchParams.set(select.dataset.taxonomyRank, select.value); });
     if (dataType?.value) url.searchParams.set("dataset", dataType.value);
-    Object.entries(filters).forEach(([key, select]) => {
-      if (select && select.value) url.searchParams.set(key, select.value);
-    });
     if (sortField !== "accession") url.searchParams.set("sort", sortField);
-    if (direction !== "asc") url.searchParams.set("order", direction);
+    if (direction !== "asc") url.searchParams.set("direction", direction);
     window.history.replaceState({}, "", url);
+  }
+
+  function updateTaxa(selection = {}) {
+    let matching = rows;
+    for (const select of taxonomy) {
+      const rank = select.dataset.taxonomyRank;
+      const key = `taxonomy${rank[0].toUpperCase()}${rank.slice(1)}`;
+      const selected = selection[rank] ?? select.value;
+      const values = [...new Set(matching.map(row => row.dataset[key]).filter(Boolean))].sort(collator.compare);
+      const all = document.createElement("option"); all.value = ""; all.textContent = "All";
+      select.replaceChildren(all);
+      for (const value of values) {
+        const option = document.createElement("option"); option.value = value; option.textContent = value; select.append(option);
+      }
+      select.value = values.includes(selected) ? selected : "";
+      if (select.value) matching = matching.filter(row => row.dataset[key] === select.value);
+    }
   }
 
   function sourceMatches(row, query) {
@@ -74,20 +83,15 @@
         prediction: Number(row.batter?.[10]) > 0, augmentation: Number(row.batter?.[5] || 0) + Number(row.batter?.[7] || 0) > 0 };
       if (!available[dataType.value]) return false;
     }
-    if (taxonomy?.value) {
-      const separator = taxonomy.value.indexOf(":");
-      const rank = taxonomy.value.slice(0, separator);
-      const value = taxonomy.value.slice(separator + 1);
+    for (const select of taxonomy) {
+      const rank = select.dataset.taxonomyRank;
       const key = `taxonomy${rank[0].toUpperCase()}${rank.slice(1)}`;
-      if (row.dataset[key] !== value) return false;
+      if (select.value && row.dataset[key] !== select.value) return false;
     }
     const tokens = query.normalize("NFKC").split(/[^\p{L}\p{N}_.-]+/u).filter(Boolean);
     const sources = row.sources || Array.from(row.querySelectorAll("[data-source-filter]"));
-    return sources.some((source) => {
-      const text = `${row.dataset.genomeSearch} ${source.dataset.search}`.normalize("NFKC");
-      if (!tokens.every((token) => text.includes(token))) return false;
-      return Object.entries(filters).every(([key, select]) => !select || !select.value || source.dataset[key] === select.value);
-    });
+    const text = `${row.dataset.genomeSearch} ${sources.map(source => source.dataset.search).join(" ")}`.normalize("NFKC").toLocaleLowerCase();
+    return tokens.every(token => text.includes(token));
   }
 
   function compareRows(a, b) {
@@ -134,8 +138,10 @@
 
   search.addEventListener("input", changed);
   form.addEventListener("submit", (event) => { event.preventDefault(); changed(); });
-  Object.values(filters).forEach((select) => select?.addEventListener("change", changed));
-  taxonomy?.addEventListener("change", changed);
+  taxonomy.forEach((select, index) => select.addEventListener("change", () => {
+    taxonomy.slice(index + 1).forEach(child => { child.value = ""; });
+    updateTaxa(); changed();
+  }));
   dataType?.addEventListener("change", changed);
   previous?.addEventListener("click", () => { page--; render(); });
   next?.addEventListener("click", () => { page++; render(); });
@@ -158,9 +164,9 @@
   });
   clear?.addEventListener("click", () => {
     search.value = "";
-    if (taxonomy) taxonomy.value = "";
+    taxonomy.forEach(select => { select.value = ""; });
+    updateTaxa();
     if (dataType) dataType.value = "";
-    Object.values(filters).forEach((select) => { if (select) select.value = ""; });
     sortField = "accession";
     direction = "asc";
     changed();
@@ -192,7 +198,6 @@
       if (!response.ok) throw new Error();
       const records = (await response.json()).genomes;
       const indexed = new Map(rows.map(row => [row.dataset.sortAccession.toUpperCase(), row]));
-      const taxa = new Set();
       for (const record of records) {
         let row = indexed.get(record[0].toUpperCase());
         if (!row) {
@@ -200,7 +205,7 @@
           const ranks = { p: "Phylum", c: "Class", o: "Order", f: "Family", g: "Genus" };
           for (const taxon of (record[11] || "").split(";")) {
             const rank = ranks[taxon[0]], value = taxon.slice(3);
-            if (rank && value) { row.dataset[`taxonomy${rank}`] = value; taxa.add(`${rank.toLowerCase()}:${value}`); }
+            if (rank && value) row.dataset[`taxonomy${rank}`] = value;
           }
           rows.push(row); indexed.set(record[0].toUpperCase(), row);
         }
@@ -219,18 +224,6 @@
           row.node.querySelector("[data-augmentation-count]").textContent = (record[5] + record[7]).toLocaleString("en-US");
         }
       }
-      function addOption(select, value, label) {
-        if (!select || Array.from(select.options).some(option => option.value === value)) return;
-        const option = document.createElement("option"); option.value = value; option.textContent = label; select.append(option);
-      }
-      const knownTaxa = new Set(Array.from(taxonomy.options).map(option => option.value));
-      for (const taxon of [...taxa].sort()) {
-        if (knownTaxa.has(taxon)) continue;
-        const option = document.createElement("option"); option.value = taxon; option.textContent = taxon.replace(":", ": "); taxonomy.append(option);
-      }
-      addOption(filters.study, "42402588", "BATTER · PMID 42402588");
-      for (const method of ["BATTER-TPE", "Training augmentation"]) addOption(filters.assay, method, method);
-      addOption(filters.evidence, "model_prediction", "Model prediction"); addOption(filters.evidence, "training_augmentation", "Training augmentation");
       loadStatus.textContent = "Upload in progress. Each genome is listed once; training windows are excluded from span counts.";
       readUrl(); render();
     } catch {
