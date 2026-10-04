@@ -45,7 +45,7 @@ def build(site_root):
     phyla.feed(html)
     home = site_root / "index.html"
     home.write_text(home.read_text(encoding="utf-8").replace('<section class="home-reference"', phylum_content(data["genomes"], phyla.genomes) + '\n<section class="home-reference"', 1), encoding="utf-8")
-    selector = '''<label>Data type<select data-genome-dataset><option value="">All data</option><option value="experimental">Experimental</option><option value="prediction">Prediction</option><option value="augmentation">Augmentation</option></select></label>'''
+    selector = '''<label>Data type<select data-genome-dataset aria-describedby="genome-filter-note"><option value="">All data</option><option value="experimental">Experimental</option><option value="prediction">Prediction</option><option value="augmentation">Augmentation / Rfam</option><option value="experimental_prediction">Experimental + prediction</option></select></label>'''
     html = html.replace('<label class="mobile-sort">', selector + '<label class="mobile-sort">', 1)
     html = html.replace('</select></label>\n    <button class="mobile-sort-direction"', '<option value="predictions">Predictions</option><option value="training">Training regions</option></select></label>\n    <button class="mobile-sort-direction"', 1)
     html = html.replace('data-sort="endpoints" title="Sort by experimental endpoints">Terminator data', 'data-sort="predictions" title="Sort by predictions">Terminator data', 1)

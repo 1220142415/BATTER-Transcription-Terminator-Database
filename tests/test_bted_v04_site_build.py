@@ -201,6 +201,9 @@ class V04SiteBuildTests(unittest.TestCase):
             for rank in ("phylum", "class", "order", "family", "genus"):
                 self.assertIn(f'data-taxonomy-rank="{rank}"', home)
             self.assertIn('data-taxonomy-genus="Cyanobacterium"', home)
+            for field in ('source', 'type', 'annotation'):
+                self.assertIn(f'data-genome-{field}-filter', home)
+            self.assertIn('data-genome-source="NCBI RefSeq" data-genome-type="unknown" data-genome-annotation="Not cataloged"', home)
             for removed in ("Phylum", "Studies", "Methods", "Signal", "Open"):
                 self.assertNotIn(f'data-label="{removed}"', home)
             for column in ("Genome ID", "Genome source", "Organism", "Taxonomy", "Assembly size", "Terminator data", "Annotation"):

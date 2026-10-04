@@ -368,6 +368,7 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
         href = f"genomes/{quote(assembly)}.html"
         table_rows.append(f'''<tr data-genome-row data-genome-search="{esc(genome_search)}"
   {taxonomy_attributes}
+  data-genome-source="NCBI RefSeq" data-genome-type="unknown" data-genome-annotation="{'Available' if has_annotation else 'Not cataloged'}"
   data-sort-accession="{esc(assembly.casefold())}" data-sort-organism="{esc(species.casefold())}"
   data-sort-endpoints="{endpoint_count}" data-sort-size="{size[0] if size else ''}">
   <td data-label="Genome ID"><a class="genome-table-name" href="{href}"><code>{esc(assembly)}</code></a></td>
@@ -385,7 +386,11 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
     <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Genome ID</option><option value="organism">Organism</option><option value="size">Assembly size</option><option value="endpoints">Experimental endpoints</option></select></label>
     <button class="mobile-sort-direction" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
     <button class="genome-filter-reset" type="button" data-clear-filters aria-label="Clear filters" title="Clear filters"><span aria-hidden="true">↺</span></button>
-  </div><fieldset class="genome-taxonomy-panel"><legend>Taxonomy</legend><div class="genome-taxonomy-fields">
+  </div><div class="genome-refine-filters">
+    <label>Genome source<select data-genome-source-filter title="Original genome database or study, separate from the input FASTA source"><option value="">All sources</option></select></label>
+    <label>Genome type<select data-genome-type-filter aria-describedby="genome-filter-note"><option value="">All types</option><option value="isolate">Isolate</option><option value="MAG">MAG · Metagenome-assembled</option><option value="SAG">SAG · Single-cell amplified</option><option value="unknown">Not cataloged</option></select></label>
+    <label>Gene annotation<select data-genome-annotation-filter title="Availability of gene annotation for the browser reference"><option value="">All statuses</option><option value="Available">Available</option><option value="Incompatible">Incompatible with reference</option><option value="Missing">Missing</option><option value="Unavailable">Unavailable</option><option value="Not cataloged">Not cataloged</option></select></label>
+  </div><p class="genome-filter-note" id="genome-filter-note">Filters combine. Genome type uses registered metadata; unrecorded types are not inferred. Data type describes availability in a genome, not validation of individual sites.</p><fieldset class="genome-taxonomy-panel"><legend>Taxonomy</legend><div class="genome-taxonomy-fields">
     {''.join(f'<label>{rank.capitalize()}<select data-taxonomy-rank="{rank}"{" disabled" if rank != "phylum" else ""}><option value="">All</option></select></label>' for rank in TAXONOMY_RANKS)}
   </div></fieldset></form>
   <div class="genome-result-count" role="status"><span><span data-visible-count>{count:,}</span> genomes</span><span data-result-range></span></div>

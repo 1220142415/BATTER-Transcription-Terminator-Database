@@ -17,6 +17,7 @@ function row(id,name,endpoints,phylum,cl,order,family,genus,sources){return {dat
 const rows=[row('GCF_A','Alpha',100,'P1','C1','O1','F1','Alpha',[source('A','Term-seq','study a')]),
 row('GCF_B','Beta',300,'P1','C2','O2','F2','Beta',[source('A','Term-seq','study a'),source('AUDIT','Review only','audit','no')]),
 row('GCF_C','Gamma',200,'P2','C3','O3','F3','Gamma',[source('B','Rend-seq','study b')])];
+rows.forEach(row=>Object.assign(row.dataset,{genomeSource:'NCBI RefSeq',genomeType:'unknown',genomeAnnotation:'Available'}));
 const search=control(),clear=control(),form=control(),count=control(),empty=control(),sortSelect=control(),direction=control();
 const taxonomy=['phylum','class','order','family','genus'].map(rank=>{const select=control();select.dataset.taxonomyRank=rank;return select;});
 const tbody={children:[],querySelectorAll(){return rows;},append(node){this.children=this.children.filter(n=>n!==node);this.children.push(node);},replaceChildren(){this.children=[];}};
@@ -132,6 +133,57 @@ setImmediate(()=>process.stdout.write(JSON.stringify({loading,recovered:{nodes:t
         self.assertFalse(data['recovered']['countHidden'])
         self.assertFalse(data['recovered']['retryHidden'])
         self.assertIn('Experimental genomes remain available', data['recovered']['status'])
+
+    def test_reference_filters_combine_restore_urls_and_preserve_unknowns(self):
+        data = self.run_js(r'''
+href='https://bted.example/genomes.html?source=IMG&genome_type=MAG&annotation=Available';
+const dataset=control();dataset.options=['','experimental','prediction','augmentation','experimental_prediction'].map(value=>({value}));
+const sourceFilter=control(),typeFilter=control(),annotationFilter=control();
+typeFilter.options=['','isolate','MAG','SAG','unknown'].map(value=>({value}));
+annotationFilter.options=['','Available','Incompatible','Missing','Unavailable','Not cataloged'].map(value=>({value}));
+Object.assign(elements,{'[data-genome-dataset]':dataset,'[data-genome-source-filter]':sourceFilter,'[data-genome-type-filter]':typeFilter,'[data-genome-annotation-filter]':annotationFilter,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control()});
+let fetches=0;global.fetch=async()=>{fetches++;return {ok:true,json:async()=>({genomes:[
+...Array.from({length:30},(_,i)=>[`IMG_${i}`,'000',`OTU-${i}`,`Species ${i}`,'MAG',1,1,0,0,'matched',1,'p__P9;c__C9','IMG']),
+['GCF_B','000','OTU-B','Beta','isolate',1,1,0,0,'matched',1,'p__P1;c__C2','NCBI-RefSeq'],
+['IMG_S','000','OTU-S','Single cell','SAG',0,0,0,0,'contig_mismatch',1,'p__P9;c__C9','IMG'],
+['NCBI_M','000','OTU-M','MAG','MAG',0,0,0,0,'unavailable',1,'p__P9;c__C9','NCBI-MAG'],
+['NCBI_S','000','OTU-N','SAG','SAG',0,0,0,0,'no_ncbi_accession',1,'p__P9;c__C9','NCBI-SAG'],
+]})};};run();
+setImmediate(()=>{
+  const state=()=>({count:count.textContent,range:elements['[data-result-range]'].textContent});
+  const set=(select,value)=>{select.value=value;select.fire('change');};
+  const initial=state(),sources=sourceFilter.options.map(o=>o.value);
+  elements['[data-genome-next]'].fire('click');const paged=state();
+  set(annotationFilter,'Available');const resetPage=state();
+  choose('phylum','P9');choose('class','C9');set(search,'Species 29');search.fire('input');const searched=count.textContent;
+  clear.fire('click');set(sourceFilter,'IMG');set(typeFilter,'SAG');set(annotationFilter,'Incompatible');const incompatible=count.textContent;
+  clear.fire('click');set(sourceFilter,'NCBI GenBank');const genbank=count.textContent;
+  set(typeFilter,'SAG');set(annotationFilter,'Not cataloged');const unrecorded=count.textContent,shared=href;
+  clear.fire('click');href=shared;listeners.popstate();const restored={count:count.textContent,source:sourceFilter.value,type:typeFilter.value,annotation:annotationFilter.value};
+  clear.fire('click');set(dataset,'experimental_prediction');const both=count.textContent;
+  set(sourceFilter,'IMG');const none={count:count.textContent,empty:empty.hidden};
+  clear.fire('click');set(typeFilter,'unknown');const unknown=count.textContent;
+  clear.fire('click');const cleared={count:count.textContent,href,values:[sourceFilter.value,typeFilter.value,annotationFilter.value,dataset.value]};
+  href='https://bted.example/genomes.html?source=invalid&genome_type=invalid&annotation=invalid';listeners.popstate();const invalid={count:count.textContent,values:[sourceFilter.value,typeFilter.value,annotationFilter.value]};
+  process.stdout.write(JSON.stringify({initial,sources,paged,resetPage,searched,incompatible,genbank,unrecorded,shared,restored,both,none,unknown,cleared,invalid,fetches}));
+});
+''')
+        self.assertEqual(data['initial'], {'count': '30', 'range': 'Showing 1–25'})
+        self.assertEqual(data['sources'], ['', 'IMG', 'NCBI GenBank', 'NCBI RefSeq'])
+        self.assertEqual(data['paged'], {'count': '30', 'range': 'Showing 26–30'})
+        self.assertEqual(data['resetPage'], data['initial'])
+        self.assertEqual(data['searched'], '1')
+        self.assertEqual(data['incompatible'], '1')
+        self.assertEqual(data['genbank'], '2')
+        self.assertEqual(data['unrecorded'], '1')
+        self.assertIn('genome_type=SAG', data['shared'])
+        self.assertEqual(data['restored'], {'count': '1', 'source': 'NCBI GenBank', 'type': 'SAG', 'annotation': 'Not cataloged'})
+        self.assertEqual(data['both'], '1')
+        self.assertEqual(data['none'], {'count': '0', 'empty': False})
+        self.assertEqual(data['unknown'], '2')
+        self.assertEqual(data['cleared'], {'count': '36', 'href': 'https://bted.example/genomes.html', 'values': ['', '', '', '']})
+        self.assertEqual(data['invalid'], {'count': '36', 'values': ['', '', '']})
+        self.assertEqual(data['fetches'], 1)
 
     def test_result_totals_and_ranges_follow_filters_and_pagination(self):
         data = self.run_js(r'''

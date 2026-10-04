@@ -28,6 +28,14 @@
 - 详情页分别显示 Genome source 和 Sequence source，并读取真实 `source_path` 和原始 FASTA SHA-256。
 - 预测坐标对应代表基因组 FASTA；同一 OTU 内的成员不共享坐标。GCF 编号本身不能代替序列核对。
 
+## 必要筛选
+
+目录增加 Genome source、Genome type 和 Gene annotation，可与文本、数据类型和分类层级组合。来源选项来自实际目录，NCBI-MAG 和 NCBI-SAG 统一显示为 NCBI GenBank；基因组类型采用登记的 Isolate、MAG、SAG，未登记的实验条目保留 Not cataloged。注释筛选与表格状态一致，区分可用、不兼容、缺失、不可用和未登记。
+
+Data type 增加 Experimental + prediction，表示同一基因组同时有两类数据，不表示单个位点通过实验验证。筛选保存在 URL 中，支持分享、恢复、一键清空和分页；全部在已加载目录上进行，不额外查询 D1 或下载序列文件。终止机制、效率和模型分数尚无完整可筛选字段，本轮不作推断。
+
+筛选更新已发布到 Worker 版本 `fa5e606b-5c3c-4302-8e99-c0900c21c5aa`。62 项 Python 回归中 56 项通过、6 项按环境跳过；320／390 像素无横向溢出。真实目录核对：IMG + SAG 为 436 个，NCBI RefSeq + Isolate + Available 为 10,494 个，Experimental + prediction 为 2 个；19 个未登记类型的实验条目不会被推断为 Isolate。
+
 ## 验证
 
 - 21 个实验详情页逐页打开，标题与新增导航锚点完整。

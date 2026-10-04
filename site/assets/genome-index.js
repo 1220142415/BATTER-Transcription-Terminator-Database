@@ -9,6 +9,11 @@
   const empty = document.querySelector("[data-empty]");
   const clear = document.querySelector("[data-clear-filters]");
   const dataType = document.querySelector("[data-genome-dataset]");
+  const filters = [
+    ["source", document.querySelector("[data-genome-source-filter]"), "genomeSource"],
+    ["genome_type", document.querySelector("[data-genome-type-filter]"), "genomeType"],
+    ["annotation", document.querySelector("[data-genome-annotation-filter]"), "genomeAnnotation"],
+  ].filter(([, select]) => select);
   const resultCount = document.querySelector(".genome-result-count");
   const previous = document.querySelector("[data-genome-prev]");
   const next = document.querySelector("[data-genome-next]");
@@ -46,6 +51,7 @@
       return [rank, params.get(rank) || (legacyRank === rank ? legacyName.join(":") : "")];
     })));
     if (dataType) dataType.value = validOption(dataType, params.get("dataset") || "");
+    filters.forEach(([param, select]) => { select.value = validOption(select, params.get(param) || ""); });
     sortField = sortFields.has(params.get("sort")) ? params.get("sort") : "accession";
     direction = (params.get("direction") || params.get("order")) === "desc" ? "desc" : "asc";
     if (mobileSort) mobileSort.value = sortField;
@@ -53,11 +59,12 @@
 
   function updateUrl() {
     const url = new URL(window.location.href);
-    ["q", "search", "query", "accession", "assembly", "taxon", "rank", "phylum", "class", "order", "family", "genus", "study", "assay", "evidence", "signal", "sort", "dataset", "direction"]
+    ["q", "search", "query", "accession", "assembly", "taxon", "rank", "phylum", "class", "order", "family", "genus", "study", "assay", "evidence", "signal", "sort", "dataset", "direction", ...filters.map(([param]) => param)]
       .forEach((key) => url.searchParams.delete(key));
     if (search.value.trim()) url.searchParams.set("q", search.value.trim());
     taxonomy.forEach(select => { if (select.value) url.searchParams.set(select.dataset.taxonomyRank, select.value); });
     if (dataType?.value) url.searchParams.set("dataset", dataType.value);
+    filters.forEach(([param, select]) => { if (select.value) url.searchParams.set(param, select.value); });
     if (sortField !== "accession") url.searchParams.set("sort", sortField);
     if (direction !== "asc") url.searchParams.set("direction", direction);
     window.history.replaceState({}, "", url);
@@ -84,9 +91,11 @@
   }
 
   function sourceMatches(row, query) {
+    if (filters.some(([, select, key]) => select.value && row.dataset[key] !== select.value)) return false;
     if (dataType?.value) {
       const available = { experimental: Number(row.dataset.sortEndpoints) > 0,
         prediction: Number(row.batter?.[10]) > 0, augmentation: Number(row.batter?.[5] || 0) + Number(row.batter?.[7] || 0) > 0 };
+      available.experimental_prediction = available.experimental && available.prediction;
       if (!available[dataType.value]) return false;
     }
     for (const select of taxonomy) {
@@ -156,6 +165,7 @@
     updateTaxa(); changed();
   }));
   dataType?.addEventListener("change", changed);
+  filters.forEach(([, select]) => select.addEventListener("change", changed));
   previous?.addEventListener("click", () => { page--; render(); });
   next?.addEventListener("click", () => { page++; render(); });
   sortButtons.forEach((button) => button.addEventListener("click", () => {
@@ -180,11 +190,13 @@
     taxonomy.forEach(select => { select.value = ""; });
     updateTaxa();
     if (dataType) dataType.value = "";
+    filters.forEach(([, select]) => { select.value = ""; });
     sortField = "accession";
     direction = "asc";
     changed();
   });
-  window.addEventListener("popstate", () => { readUrl(); render(); });
+  window.addEventListener("popstate", () => { page = 0; readUrl(); render(); });
+  updateSourceOptions();
   readUrl();
   render();
 
@@ -236,6 +248,16 @@
     return ({ "NCBI-RefSeq": "NCBI RefSeq", "NCBI-MAG": "NCBI GenBank", "NCBI-SAG": "NCBI GenBank" })[source] || source || "Not cataloged";
   }
 
+  function updateSourceOptions() {
+    const select = filters.find(([param]) => param === "source")?.[1];
+    if (!select) return;
+    const all = document.createElement("option"); all.value = ""; all.textContent = "All sources";
+    select.replaceChildren(all);
+    for (const source of [...new Set(rows.map(row => row.dataset.genomeSource).filter(Boolean))].sort(collator.compare)) {
+      const option = document.createElement("option"); option.value = source; option.textContent = source; select.append(option);
+    }
+  }
+
   function referenceSize(cell, row) {
     cell.replaceChildren();
     cell.title = "Browser reference length; may cover a subset of assembly contigs";
@@ -246,10 +268,14 @@
     else bases.className = "muted";
   }
 
+  function annotationLabel(status) {
+    return ({ matched: "Available", mismatch: "Incompatible", contig_mismatch: "Incompatible", unavailable: "Missing", download_failed: "Unavailable", invalid_gff: "Unavailable" })[status] || "Not cataloged";
+  }
+
   function annotationBadge(status) {
     const badge = document.createElement("span");
     badge.className = `genome-annotation${status === "matched" ? "" : " unavailable"}`;
-    badge.textContent = ({ matched: "Available", mismatch: "Incompatible", contig_mismatch: "Incompatible", unavailable: "Missing", download_failed: "Unavailable", invalid_gff: "Unavailable" })[status] || "Not cataloged";
+    badge.textContent = annotationLabel(status);
     return badge;
   }
 
@@ -276,6 +302,9 @@
           rows.push(row); indexed.set(record[0].toUpperCase(), row);
         }
         row.batter = record;
+        row.dataset.genomeSource = referenceSource(record[12]);
+        row.dataset.genomeType = record[4] || "unknown";
+        row.dataset.genomeAnnotation = annotationLabel(record[9]);
         row.dataset.genomeSearch += ` ${record[0]} ${record[2]} ${record[3]} ${record[11] || ""} ${referenceSource(record[12])}`.toLowerCase();
         row.sources ||= Array.from(row.querySelectorAll("[data-source-filter]"));
         row.dataset.sortPredictions = String(record[10]);
@@ -299,6 +328,7 @@
       loadStatus.textContent = "Uploaded genome list unavailable. Experimental genomes remain available."; retry.hidden = false;
     } finally {
       catalogueReady = true;
+      updateSourceOptions();
       readUrl(); render();
       tbody.hidden = false;
       if (resultCount) resultCount.hidden = false;
