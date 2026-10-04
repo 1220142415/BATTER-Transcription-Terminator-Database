@@ -315,6 +315,22 @@ def home_content(genomes: list[dict[str, object]]) -> str:
 
 
 def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[str, object]], taxonomy: dict[str, dict[str, str]]) -> str:
+    registry = Path(__file__).resolve().parents[1] / "data/registry"
+    contigs = json.loads((registry / "reference_contigs.v0.2.0.json").read_text(encoding="utf-8"))["rows"]
+    with (registry / "browser_refs/contigs.tsv").open(encoding="utf-8") as handle:
+        contigs.extend(csv.DictReader(handle, delimiter="\t"))
+    lengths: dict[tuple[str, str], int] = {}
+    for contig in contigs:
+        key = (contig["assembly_accession"], contig["contig_accession"])
+        length = int(contig["length_bp"])
+        if length <= 0 or key in lengths and lengths[key] != length:
+            raise SiteBuildError(f"Invalid or conflicting reference length: {key}")
+        lengths[key] = length
+    reference_sizes: dict[str, list[int]] = {}
+    for (assembly, _contig), length in lengths.items():
+        size = reference_sizes.setdefault(assembly, [0, 0])
+        size[0] += length
+        size[1] += 1
     count = len(genomes)
     table_rows: list[str] = []
     for genome in genomes:
@@ -324,6 +340,10 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
         published = [row for row in rows if is_published_status(row.get("release_status"))]
         species = next((row.get("species", "") for row in rows if row.get("species")), "")
         endpoint_count = sum(int(row["record_count_number"]) for row in published)
+        size = reference_sizes.get(assembly)
+        size_text = f'<span>{size[0]:,} bp</span><small>{size[1]:,} {"contig" if size[1] == 1 else "contigs"}</small>' if size else '<span class="muted">Not cataloged</span>'
+        has_annotation = _asset_exists(asset_map, lambda logical, asset: asset.get("asset_kind") == "gff3" and
+            logical in (f"assemblies/{assembly}/reference/genes.gff3.gz", f"assemblies/{assembly}/reference/genes.gff3", f"browser/{assembly}/annotation.gff3"))
         source_tags = []
         for row in rows:
             source_search = " ".join(row.get(key, "") for key in
@@ -339,16 +359,19 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
         table_rows.append(f'''<tr data-genome-row data-genome-search="{esc(genome_search)}"
   {taxonomy_attributes}
   data-sort-accession="{esc(assembly.casefold())}" data-sort-organism="{esc(species.casefold())}"
-  data-sort-endpoints="{endpoint_count}">
-  <td data-label="Organism">{esc(species or assembly)}{''.join(source_tags)}</td>
+  data-sort-endpoints="{endpoint_count}" data-sort-size="{size[0] if size else ''}">
   <td data-label="Assembly"><a class="genome-table-name" href="{href}"><code>{esc(assembly)}</code></a></td>
-  <td data-label="Experimental endpoints" class="number">{endpoint_count:,}</td>
+  <td data-label="Organism"><span class="genome-organism">{esc(species or assembly)}</span>{''.join(source_tags)}</td>
+  <td data-label="Taxonomy"><span>{esc(genome_taxonomy['phylum'] or 'Unclassified')}</span><small>{esc(genome_taxonomy['genus'] or 'Genus not assigned')}</small></td>
+  <td data-label="Assembly size" data-reference-size title="Browser reference length; may cover a subset of assembly contigs">{size_text}</td>
+  <td data-label="Terminator data"><div class="genome-data-counts"><span class="genome-evidence experimental{' unavailable' if not endpoint_count else ''}" title="Published transcript 3′ end records"><b>{endpoint_count:,}</b> experimental endpoints</span><span class="genome-evidence prediction unavailable"><b data-prediction-count>0</b> predictions</span><span class="genome-evidence training unavailable" title="OTU augmentation and Rfam training regions; context windows excluded"><b data-augmentation-count>0</b> augmentation / Rfam</span></div></td>
+  <td data-label="Annotation"><span class="genome-annotation{' unavailable' if not has_annotation else ''}">{'Available' if has_annotation else 'Not cataloged'}</span></td>
 </tr>''')
     content = f'''<main>
 <section class="page-shell genome-results" id="genome-directory"><div class="page-heading"><div><p class="eyebrow">BTED {RELEASE_VERSION}</p><h1>Genomes</h1><p>Search by organism, assembly, or study.</p></div></div>
   <div class="genome-directory-panel"><form class="genome-filters-form" role="search" aria-label="Search and filter genomes" data-genome-search-form><div class="genome-filter-bar">
     <label class="genome-filter-search"><span>Search genomes</span><span class="genome-filter-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input type="search" placeholder="Assembly or species" title="Also searches study titles and PMID" autocomplete="off" data-genome-search></span></label>
-    <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Assembly</option><option value="organism">Organism</option><option value="endpoints">Experimental endpoints</option></select></label>
+    <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Assembly</option><option value="organism">Organism</option><option value="size">Assembly size</option><option value="endpoints">Experimental endpoints</option></select></label>
     <button class="mobile-sort-direction" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
     <button class="genome-filter-reset" type="button" data-clear-filters aria-label="Clear filters" title="Clear filters"><span aria-hidden="true">↺</span></button>
   </div><fieldset class="genome-taxonomy-panel"><legend>Taxonomy</legend><div class="genome-taxonomy-fields">
@@ -356,9 +379,12 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
   </div></fieldset></form>
   <div class="genome-result-count" role="status"><span data-visible-count>{count}</span> of {count} genomes</div>
   <div class="genome-table-scroll"><table class="genome-directory-table"><thead><tr>
-    <th aria-sort="none"><button type="button" data-sort="organism">Organism</button></th>
     <th aria-sort="ascending"><button type="button" data-sort="accession">Assembly</button></th>
-    <th class="number" aria-sort="none"><button type="button" data-sort="endpoints">Experimental endpoints</button></th>
+    <th aria-sort="none"><button type="button" data-sort="organism">Organism</button></th>
+    <th>Taxonomy</th>
+    <th aria-sort="none"><button type="button" data-sort="size">Assembly size</button></th>
+    <th aria-sort="none"><button type="button" data-sort="endpoints" title="Sort by experimental endpoints">Terminator data</button></th>
+    <th>Annotation</th>
   </tr></thead><tbody data-genome-results>{''.join(table_rows)}</tbody></table></div>
   <p class="search-empty" data-empty hidden>No genomes match these filters. Clear filters to see all genomes.</p></div>
 </section>

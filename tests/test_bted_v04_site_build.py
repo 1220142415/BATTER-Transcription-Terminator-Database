@@ -4,6 +4,7 @@ import csv
 import gzip
 import hashlib
 import json
+import re
 import shutil
 import sys
 import uuid
@@ -19,6 +20,7 @@ TEMP_ROOT.mkdir(exist_ok=True)
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_v0_4_site  # noqa: E402
+import build_batter_browser  # noqa: E402
 
 
 @contextmanager
@@ -191,7 +193,11 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn('data-taxonomy-genus="Cyanobacterium"', home)
             for removed in ("Phylum", "Studies", "Methods", "Signal", "Open"):
                 self.assertNotIn(f'data-label="{removed}"', home)
-            self.assertIn('data-label="Experimental endpoints"', home)
+            for column in ("Assembly", "Organism", "Taxonomy", "Assembly size", "Terminator data", "Annotation"):
+                self.assertIn(f'data-label="{column}"', home)
+            self.assertIn('2,742,269 bp', home)
+            self.assertIn('2 contigs', home)
+            self.assertIn('experimental endpoints</span>', home)
             self.assertIn('<a class="genome-table-name" href="genomes/GCF_000012525.1.html"><code>GCF_000012525.1</code></a>', home)
             for removed in ("study", "assay", "evidence", "signal"):
                 self.assertNotIn(f'data-filter-{removed}', home)
@@ -225,6 +231,15 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn('"source_id","loc","session","tracks","highlight"', old_assembly)
             self.assertIn('target.searchParams.set(k,v)', old_assembly)
             self.assertIn('"loc"', old_assembly)
+
+            (site / "assets").mkdir(exist_ok=True)
+            build_batter_browser.build(site)
+            combined = (site / "genomes.html").read_text(encoding="utf-8")
+            self.assertEqual(len(re.findall(r'<th[ >]', combined)), 6)
+            self.assertEqual(len(re.findall(r'<td[ >]', combined)), 6)
+            self.assertIn('data-sort="predictions" title="Sort by predictions">Terminator data', combined)
+            catalogue = json.loads((site / "assets/batter-browser.json").read_text(encoding="utf-8"))
+            self.assertEqual(catalogue["reference_sizes"]["GCF_000012525.1"], [2742269, 2])
 
     def test_taxonomy_requires_an_entry_for_each_genome(self) -> None:
         with temporary_directory() as temp:

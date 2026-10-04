@@ -1,6 +1,5 @@
 """Add the uploaded BATTER augmentation to the existing genome directory."""
 import json
-import shutil
 import re
 from pathlib import Path
 from build_v0_4_site import page
@@ -9,14 +8,18 @@ from build_v0_4_site import page
 def build(site_root):
     catalogue = Path(__file__).resolve().parents[1] / "data/registry/batter-browser.json"
     data = json.loads(catalogue.read_text(encoding="utf-8"))
-    shutil.copyfile(catalogue, site_root / "assets/batter-browser.json")
+    overlays_path = catalogue.parent / "batter-overlays.json"
+    overlays = json.loads(overlays_path.read_text(encoding="utf-8")) if overlays_path.exists() else {"genomes": {}}
+    if overlays.get("revision") == data["revision"]:
+        data["reference_sizes"] = {genome: [sum(contig["length"] for contig in item["batter_contigs"].values()), len(item["batter_contigs"])]
+                                   for genome, item in overlays["genomes"].items()}
+    (site_root / "assets/batter-browser.json").write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     directory = site_root / "genomes.html"
     html = directory.read_text(encoding="utf-8")
     selector = '''<label>Data type<select data-genome-dataset><option value="">All data</option><option value="experimental">Experimental</option><option value="prediction">Prediction</option><option value="augmentation">Augmentation</option></select></label>'''
     html = html.replace('<label class="mobile-sort">', selector + '<label class="mobile-sort">', 1)
     html = html.replace('</select></label>\n    <button class="mobile-sort-direction"', '<option value="predictions">Predictions</option><option value="training">Training regions</option></select></label>\n    <button class="mobile-sort-direction"', 1)
-    html = html.replace('</tr></thead>', '<th class="number" aria-sort="none"><button type="button" data-sort="predictions">Predictions</button></th><th class="number" aria-sort="none"><button type="button" data-sort="training">Training regions</button></th></tr></thead>', 1)
-    html = html.replace('</td>\n</tr>', '</td><td data-label="Predictions" class="number" data-prediction-count>0</td><td data-label="Training regions" class="number" data-augmentation-count>0</td>\n</tr>')
+    html = html.replace('data-sort="endpoints" title="Sort by experimental endpoints">Terminator data', 'data-sort="predictions" title="Sort by predictions">Terminator data', 1)
     html = re.sub(r'of (\d+) genomes', r'of <span data-total-count>\1</span> genomes', html, count=1)
     html = html.replace('data-genome-search-form>', 'data-genome-search-form inert>', 1)
     html = html.replace('<div class="genome-result-count" role="status">', '<p class="genome-load-status" data-genome-load-status role="status">Loading genomes…</p><div class="genome-result-count" role="status" hidden>', 1)
@@ -48,8 +51,6 @@ def build(site_root):
             text = text.replace('<section class="browser-panel"', section + '<section class="browser-panel"', 1)
             text = text.replace('src="../assets/genome-page.js"', 'src="../assets/batter-browser.js"')
             path.write_text(text, encoding="utf-8")
-    overlays_path = catalogue.parent / "batter-overlays.json"
-    overlays = json.loads(overlays_path.read_text(encoding="utf-8")) if overlays_path.exists() else {"genomes": {}}
     registry = {"revision": data["revision"], "experimental": experimental,
                 "overlays": overlays["genomes"] if overlays.get("revision") == data["revision"] else {}}
     (site_root / "assets/genome-browsers.json").write_text(json.dumps(registry, indent=2), encoding="utf-8")
