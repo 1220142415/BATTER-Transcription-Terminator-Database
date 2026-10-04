@@ -251,7 +251,7 @@ class V04SiteBuildTests(unittest.TestCase):
             combined = (site / "genomes.html").read_text(encoding="utf-8")
             self.assertEqual(len(re.findall(r'<th[ >]', combined)), 7)
             self.assertEqual(len(re.findall(r'<td[ >]', combined)), 7)
-            self.assertIn('data-sort="predictions" title="Sort by predictions">Terminator data', combined)
+            self.assertIn('data-sort="endpoints" title="Sort by experimental endpoints">Terminator data', combined)
             catalogue = json.loads((site / "assets/batter-browser.json").read_text(encoding="utf-8"))
             self.assertEqual(catalogue["columns"][12], "source_collection")
             self.assertEqual(next(row[12] for row in catalogue["genomes"] if row[0] == "2228664028"), "IMG")

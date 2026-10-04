@@ -272,15 +272,15 @@ def nav(current: str = "home", depth: int = 0) -> str:
 
 
 def page(title: str, content: str, *, current: str = "", scripts: tuple[str, ...] = (), depth: int = 0) -> str:
-    version_counts = "BTED v0.4.0 · Bacterial transcript 3′ ends"
+    footer_label = "BTED · Bacterial transcript 3′ ends"
     prefix = "../" * depth
     content = content.replace("<main", '<main id="main-content" tabindex="-1"', 1)
     script_tags = "".join(f'<script src="{esc(src)}" defer></script>' for src in scripts)
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="BTED v0.4.0 genome-first bacterial transcript 3′ end data"><title>{esc(title)} · BTED</title>
+<meta name="description" content="Experimental 3′ ends, BATTER predictions and training regions, organized by genome."><title>{esc(title)} · BTED</title>
 <link rel="icon" href="{prefix}assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="{prefix}css/style.css"></head>
-<body><a class="skip-link" href="#main-content">Skip to content</a>{nav(current, depth)}{content}<footer class="site-footer"><div class="footer-inner"><span>{esc(version_counts)}</span><nav class="footer-links" aria-label="Footer navigation"><a href="{prefix}genomes.html">Genomes</a><a href="{prefix}methodology.html">Data notes</a><a href="{prefix}usage.html">Usage</a><a href="https://github.com/1220142415/BATTER-Transcription-Terminator-Database">GitHub ↗</a></nav></div></footer>{script_tags}</body></html>
+<body><a class="skip-link" href="#main-content">Skip to content</a>{nav(current, depth)}{content}<footer class="site-footer"><div class="footer-inner"><span>{esc(footer_label)}</span><nav class="footer-links" aria-label="Footer navigation"><a href="{prefix}genomes.html">Genomes</a><a href="{prefix}methodology.html">Data notes</a><a href="{prefix}usage.html">Usage</a><a href="https://github.com/1220142415/BATTER-Transcription-Terminator-Database">GitHub ↗</a></nav></div></footer>{script_tags}</body></html>
 '''
 
 
@@ -313,7 +313,7 @@ def home_content(genomes: list[dict[str, object]], computational_genomes=()) -> 
                (len({row["pmid"] for row in published}), "Experimental publications"))
     summary = "".join(f'<div><strong>{count:,}</strong><span>{label}</span></div>' for count, label in metrics)
     return f'''<main class="home-page">
-<section class="hero hero-compact"><div class="page-shell hero-inner"><div class="hero-copy"><p class="eyebrow">BTED · {RELEASE_VERSION}</p><h1>Bacterial transcript<br>3′-end database</h1><p>Experimental 3′ ends, predictions and training data, organized by genome.</p><div class="hero-actions"><a class="button primary" href="genomes.html">Browse genomes <span aria-hidden="true">→</span></a><a class="button" href="#batter-reference">BATTER paper</a></div></div>
+<section class="hero hero-compact"><div class="page-shell hero-inner"><div class="hero-copy"><h1>Bacterial transcript<br>3′-end database</h1><p>Experimental 3′ ends, BATTER predictions and training regions, organized by genome.</p><div class="hero-actions"><a class="button primary" href="genomes.html">Browse genomes <span aria-hidden="true">→</span></a><a class="button" href="#batter-reference">BATTER paper</a></div></div>
 <figure class="hero-diagram"><div class="diagram-heading"><span class="eyebrow">Transcription termination</span></div><img src="assets/termination-motif.svg" width="520" height="310" alt="RNA stem-loop, U-rich tail and transcript 3′ end aligned with a schematic signal peak."><figcaption>Intrinsic termination example · schematic, not measured data.</figcaption></figure></div></section>
 <section class="page-shell home-summary" aria-label="Release statistics">{summary}</section>
 <div class="page-shell home-content"><p class="home-data-note"><span class="catalog-status">Upload in progress</span> Experimental records are counted per study. Augmentation counts exclude training windows.</p>
@@ -380,7 +380,7 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
   <td data-label="Annotation"><span class="genome-annotation{' unavailable' if not has_annotation else ''}">{'Available' if has_annotation else 'Not cataloged'}</span></td>
 </tr>''')
     content = f'''<main>
-<section class="page-shell genome-results" id="genome-directory"><div class="page-heading"><div><p class="eyebrow">BTED {RELEASE_VERSION}</p><h1>Genome catalog</h1><p>Search by genome ID, organism or study.</p></div><a class="text-link" href="methodology.html">Data notes <span aria-hidden="true">↗</span></a></div>
+<section class="page-shell genome-results" id="genome-directory"><div class="page-heading"><div><h1>Genome catalog</h1><p>Search by genome ID, organism or study.</p></div><a class="text-link" href="methodology.html">Data notes <span aria-hidden="true">↗</span></a></div>
   <div class="genome-directory-panel"><form class="genome-filters-form" role="search" aria-label="Search and filter genomes" data-genome-search-form><div class="genome-filter-bar">
     <label class="genome-filter-search"><span>Search genomes</span><span class="genome-filter-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input type="search" placeholder="Genome ID or species" title="Also searches study titles and PMID" autocomplete="off" data-genome-search></span></label>
     <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Genome ID</option><option value="organism">Organism</option><option value="size">Assembly size</option><option value="endpoints">Experimental endpoints</option></select></label>
@@ -615,7 +615,7 @@ location.replace(target.href);
         script = f'''const q=new URLSearchParams(location.search);const target=new URL("../genomes/{quote(assembly)}.html",document.baseURI);target.searchParams.set("source_id",{json.dumps(source_id)});["loc","session","tracks","highlight"].forEach(k=>{{const v=q.get(k);if(v)target.searchParams.set(k,v);}});location.replace(target.href);'''
         _write(old_records / f"{source_id}.html", redirect_html("Genome page", destination=f"../genomes/{assembly}.html", query_script=script))
 
-    methodology = '''<main class="page-shell notes-page"><p class="breadcrumbs"><a href="index.html">Home</a><span aria-hidden="true">/</span><span>Data notes</span></p><div class="page-heading"><div><p class="eyebrow">BTED v0.4.0</p><h1>Data notes</h1><p>Sources, coordinates and downloads.</p></div></div>
+    methodology = '''<main class="page-shell notes-page"><p class="breadcrumbs"><a href="index.html">Home</a><span aria-hidden="true">/</span><span>Data notes</span></p><div class="page-heading"><div><h1>Data notes</h1><p>Sources, coordinates and downloads.</p></div></div>
 <div class="notes-layout"><nav class="notes-nav" aria-label="On this page"><span class="eyebrow">Contents</span><a href="#organization">Data</a><a href="#evidence">Evidence and coordinates</a><a href="#files">File formats</a><a href="#browser-guide">Genome browser</a></nav><div class="notes-content">
 <section id="organization"><h2>Data</h2><p>BTED groups experimental 3′ ends, predictions and training regions by genome. Each genome page lists studies, tracks and downloads.</p><p>The <a href="genomes.html">genome catalog</a> supports search and filters. Computational data are still being uploaded.</p></section>
 <section id="evidence"><h2>Evidence and coordinates</h2><p class="evidence-callout">A reported 3′ end is not necessarily a functional terminator.</p><dl class="evidence-guide"><div><dt>Experimental records</dt><dd>Study-reported 3′ ends, kept separate by source. BigWig files contain experimental signal.</dd></div><div><dt>Predictions</dt><dd>Model predictions.</dd></div><div><dt>Augmentation / Rfam</dt><dd>Training regions. Context windows are shown separately and excluded from region counts.</dd></div></dl><p><strong>Genome ID</strong> is the original database record; <strong>GEM OTU</strong> is a species-level cluster. <strong>Genome source</strong> is the original database or study; <strong>Sequence source</strong> identifies the input FASTA.</p><p>Prediction coordinates refer to the representative FASTA, not all members of its OTU. An NCBI accession alone does not confirm sequence identity.</p><p>Study GFF3 files use 1-based coordinates. Tracks share a coordinate view only when their reference sequences are verified as compatible; other references use separate views.</p></section>

@@ -52,7 +52,6 @@ def build(site_root):
     selector = '''<label>Data type<select data-genome-dataset><option value="">All data</option><option value="experimental">Experimental</option><option value="prediction">Prediction</option><option value="augmentation">Augmentation / Rfam</option></select></label>'''
     html = html.replace('<label class="mobile-sort">', selector + '<label class="mobile-sort">', 1)
     html = html.replace('</select></label>\n    <button class="mobile-sort-direction"', '<option value="predictions">Predictions</option><option value="training">Training regions</option></select></label>\n    <button class="mobile-sort-direction"', 1)
-    html = html.replace('data-sort="endpoints" title="Sort by experimental endpoints">Terminator data', 'data-sort="predictions" title="Sort by predictions">Terminator data', 1)
     html = html.replace('data-genome-search-form>', 'data-genome-search-form inert>', 1)
     html = html.replace('<div class="genome-result-count" role="status">', '<p class="genome-load-status" data-genome-load-status role="status">Loading genomes…</p><div class="genome-result-count" role="status" hidden>', 1)
     html = html.replace('<tbody data-genome-results>', '<tbody data-genome-results hidden>', 1)

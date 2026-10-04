@@ -31,8 +31,8 @@
   const sortFields = new Set(["accession", "organism", "size", "endpoints", ...(dataType ? ["predictions", "training"] : [])]);
   const numericFields = new Set(["size", "endpoints", "predictions", "training"]);
   const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
-  let sortField = "accession";
-  let direction = "asc";
+  let sortField = "endpoints";
+  let direction = "desc";
   let page = 0;
   const pageSize = 25;
   let catalogueReady = !dataType;
@@ -52,8 +52,10 @@
     })));
     if (dataType) dataType.value = validOption(dataType, params.get("dataset") || "");
     filters.forEach(([param, select]) => { select.value = validOption(select, params.get(param) || ""); });
-    sortField = sortFields.has(params.get("sort")) ? params.get("sort") : "accession";
-    direction = (params.get("direction") || params.get("order")) === "desc" ? "desc" : "asc";
+    const explicitSort = sortFields.has(params.get("sort"));
+    sortField = explicitSort ? params.get("sort") : "endpoints";
+    const order = params.get("direction") || params.get("order");
+    direction = ["asc", "desc"].includes(order) ? order : explicitSort ? "asc" : "desc";
     if (mobileSort) mobileSort.value = sortField;
   }
 
@@ -65,8 +67,10 @@
     taxonomy.forEach(select => { if (select.value) url.searchParams.set(select.dataset.taxonomyRank, select.value); });
     if (dataType?.value) url.searchParams.set("dataset", dataType.value);
     filters.forEach(([param, select]) => { if (select.value) url.searchParams.set(param, select.value); });
-    if (sortField !== "accession") url.searchParams.set("sort", sortField);
-    if (direction !== "asc") url.searchParams.set("direction", direction);
+    if (sortField !== "endpoints" || direction !== "desc") {
+      url.searchParams.set("sort", sortField);
+      url.searchParams.set("direction", direction);
+    }
     window.history.replaceState({}, "", url);
   }
 
@@ -190,8 +194,8 @@
     updateTaxa();
     if (dataType) dataType.value = "";
     filters.forEach(([, select]) => { select.value = ""; });
-    sortField = "accession";
-    direction = "asc";
+    sortField = "endpoints";
+    direction = "desc";
     changed();
   });
   window.addEventListener("popstate", () => { page = 0; readUrl(); render(); });

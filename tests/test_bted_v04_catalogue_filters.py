@@ -60,7 +60,7 @@ process.stdout.write(JSON.stringify({initial,narrowed,shared,restored,switched,c
         self.assertNotIn('study=', data['narrowed']['href'])
         self.assertNotIn('assay=', data['narrowed']['href'])
         self.assertIn('order=O2', data['shared'])
-        self.assertIn('direction=desc', data['shared'])
+        self.assertNotIn('direction=', data['shared'])
         self.assertEqual(data['restored'], {'visible':['GCF_B'],'order':'O2','direction':'Descending'})
         self.assertEqual(data['switched'], {'visible':['GCF_C'],'children':['','','','']})
         self.assertEqual(len(data['cleared']['visible']), 3)
@@ -70,6 +70,31 @@ process.stdout.write(JSON.stringify({initial,narrowed,shared,restored,switched,c
         self.assertEqual(data['sorted'], ['GCF_B','GCF_C','GCF_A'])
         self.assertEqual(data['multiword'], ['GCF_A'])
         self.assertEqual(data['noMatch'], {'count':'0','empty':False})
+
+    def test_experimental_first_default_preserves_manual_sort_and_reset(self):
+        data = self.run_js(r'''
+href='https://bted.example/genomes.html';
+const dataset=control();dataset.options=['','experimental','prediction','augmentation'].map(value=>({value}));
+Object.assign(elements,{'[data-genome-dataset]':dataset,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control()});
+global.fetch=async()=>({ok:true,json:async()=>({genomes:Array.from({length:30},(_,i)=>
+  [String(i).padStart(3,'0'),'000',`OTU-${i}`,'Predicted','MAG',0,0,0,0,'unavailable',1000,'p__P1','IMG'])})});
+const ids=()=>tbody.children.map(r=>r.dataset.sortAccession||r.children[0].children[0].children[0].textContent);
+run();setImmediate(()=>{
+  const initial={ids:ids().slice(0,4),count:count.textContent,range:elements['[data-result-range]'].textContent,dataset:dataset.value,sort:sortSelect.value,direction:direction.textContent};
+  buttons.find(b=>b.dataset.sort==='accession').click();const manual=ids().slice(0,3);listeners.popstate();const restored=ids().slice(0,3);
+  clear.fire('click');const reset=ids().slice(0,3);
+  choose('phylum','P1');choose('class','C1');choose('order','O1');listeners.popstate();const filtered=ids();
+  href='https://bted.example/genomes.html?sort=accession';listeners.popstate();const legacy=ids().slice(0,3);
+  href='https://bted.example/genomes.html?sort=endpoints&direction=asc';listeners.popstate();const ascending=ids().slice(0,3);
+  process.stdout.write(JSON.stringify({initial,manual,restored,reset,filtered,legacy,ascending}));
+});
+''')
+        self.assertEqual(data['initial'], {'ids':['GCF_B','GCF_C','GCF_A','000'], 'count':'33',
+                         'range':'Showing 1–25', 'dataset':'', 'sort':'endpoints', 'direction':'Descending'})
+        self.assertEqual(data['reset'], ['GCF_B','GCF_C','GCF_A'])
+        self.assertEqual(data['filtered'], ['GCF_A'])
+        for state in ('manual', 'restored', 'legacy', 'ascending'):
+            self.assertEqual(data[state], ['000','001','002'])
 
     def test_unified_catalogue_deduplicates_counts_and_retries(self):
         data = self.run_js(r'''
