@@ -19,14 +19,18 @@ def phylum_content(records, experimental):
     genomes = {row[0].upper(): next((taxon[3:] for taxon in row[11].split(";") if taxon.startswith("p__")), "") for row in records}
     genomes.update(experimental)
     counts = Counter(phylum or "Unclassified" for phylum in genomes.values())
-    top = sorted(((name, count) for name, count in counts.items() if name != "Unclassified"), key=lambda item: (-item[1], item[0]))[:8]
+    classified = sorted(((name, count) for name, count in counts.items() if name != "Unclassified"), key=lambda item: (-item[1], item[0]))
+    top = classified[:8]
+    other = sum(count for _name, count in classified[8:])
+    if other:
+        top.append(("Other phyla", other))
     top.append(("Unclassified", counts["Unclassified"]))
     largest = max(1, *(count for _name, count in top))
     bars = []
     for name, count in top:
-        label = esc(name) if name == "Unclassified" else f'<a href="genomes.html?phylum={quote(name, safe="")}">{esc(name)}</a>'
+        label = esc(name) if name in {"Other phyla", "Unclassified"} else f'<a href="genomes.html?phylum={quote(name, safe="")}">{esc(name)}</a>'
         bars.append(f'<div class="home-phylum-row"><span>{label}</span><div class="home-phylum-bar" aria-hidden="true"><i style="width:{count / largest * 100:.2f}%"></i></div><strong>{count:,}</strong></div>')
-    return f'''<section class="home-phyla" aria-labelledby="home-phyla-heading"><div><p class="eyebrow">Taxonomic coverage</p><h2 id="home-phyla-heading">Top phyla in this release</h2><p>{len(genomes):,} catalog genomes. Unclassified genomes are shown separately.</p><small>Current catalog · Upload in progress</small></div><div class="home-phyla-chart" aria-label="Genome count by phylum">{''.join(bars)}</div></section>'''
+    return f'''<section class="home-phyla" aria-labelledby="home-phyla-heading"><div><p class="eyebrow">Taxonomic coverage</p><h2 id="home-phyla-heading">Genome distribution by phylum</h2><p>{len(genomes):,} catalog genomes. The top 8 phyla are shown individually; remaining classified genomes are grouped as Other phyla. Unclassified means no phylum is recorded.</p><small>Current catalog · Upload in progress</small></div><div class="home-phyla-chart" aria-label="Genome count by phylum">{''.join(bars)}</div></section>'''
 
 
 def build(site_root):

@@ -256,7 +256,7 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertEqual(catalogue["columns"][12], "source_collection")
             self.assertEqual(next(row[12] for row in catalogue["genomes"] if row[0] == "2228664028"), "IMG")
             self.assertEqual(catalogue["reference_sizes"]["GCF_000012525.1"], [2742269, 2])
-            self.assertIn('Top phyla in this release', (site / "index.html").read_text(encoding="utf-8"))
+            self.assertIn('Genome distribution by phylum', (site / "index.html").read_text(encoding="utf-8"))
 
     def test_home_phyla_deduplicate_assemblies_and_keep_unclassified(self) -> None:
         records = [[f"GCF_{i}", *([""] * 10), f"p__Group{i}"] for i in range(10)]
@@ -265,10 +265,16 @@ class V04SiteBuildTests(unittest.TestCase):
         self.assertIn('12 catalog genomes', chart)
         self.assertIn('phylum=Group1', chart)
         self.assertIn('<strong>3</strong>', chart)
-        self.assertEqual(chart.count('class="home-phylum-row"'), 9)
+        self.assertEqual(chart.count('class="home-phylum-row"'), 10)
+        self.assertIn('<span>Other phyla</span>', chart)
+        self.assertNotIn('phylum=Other', chart)
+        self.assertEqual(sum(int(value.replace(',', '')) for value in re.findall(r'<strong>([\d,]+)</strong>', chart)), 12)
         self.assertIn('<span>Unclassified</span>', chart)
         self.assertNotIn('phylum=Unclassified', chart)
         self.assertIn('width:100.00%', chart)
+        small_chart = build_batter_browser.phylum_content(records[:3], {})
+        self.assertNotIn('<span>Other phyla</span>', small_chart)
+        self.assertEqual(sum(int(value) for value in re.findall(r'<strong>(\d+)</strong>', small_chart)), 3)
 
     def test_taxonomy_requires_an_entry_for_each_genome(self) -> None:
         with temporary_directory() as temp:
