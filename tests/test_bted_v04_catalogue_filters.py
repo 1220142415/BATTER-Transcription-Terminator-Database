@@ -20,7 +20,7 @@ const search=control(),clear=control(),form=control(),count=control(),empty=cont
 const taxonomy=['phylum','class','order','family','genus'].map(rank=>{const select=control();select.dataset.taxonomyRank=rank;return select;});
 const tbody={children:[],querySelectorAll(){return rows;},append(node){this.children=this.children.filter(n=>n!==node);this.children.push(node);},replaceChildren(){this.children=[];}};
 const buttons=['accession','organism','size','endpoints','predictions','training'].map(value=>({dataset:{sort:value},listeners:{},addEventListener(type,fn){this.listeners[type]=fn;},click(){this.listeners.click();},closest(){return {setAttribute(){}};}}));
-const elements={'[data-genome-search-form]':form,'[data-genome-search]':search,'[data-genome-results]':tbody,'[data-visible-count]':count,'[data-empty]':empty,'[data-clear-filters]':clear,'[data-sort-select]':sortSelect,'[data-sort-direction]':direction};
+const elements={'[data-genome-search-form]':form,'[data-genome-search]':search,'[data-genome-results]':tbody,'[data-visible-count]':count,'[data-result-range]':control(),'[data-empty]':empty,'[data-clear-filters]':clear,'[data-sort-select]':sortSelect,'[data-sort-direction]':direction};
 global.document={createElement:()=>control(),querySelector:key=>elements[key]??null,querySelectorAll:key=>key==='[data-sort]'?buttons:key==='[data-taxonomy-rank]'?taxonomy:[]};
 let href='https://bted.example/genomes.html?taxon=phylum:P1&study=unused&assay=unused';const listeners={};
 global.window={location:{get href(){return href;},get search(){return new URL(href).search;}},history:{replaceState(_s,_t,url){href=String(url);}},addEventListener(type,fn){listeners[type]=fn;}};
@@ -73,7 +73,7 @@ process.stdout.write(JSON.stringify({initial,narrowed,shared,restored,switched,c
         data = self.run_js(r'''
 href='https://bted.example/genomes.html?q=GCF_B';
 const dataset=control();dataset.options=['','experimental','prediction','augmentation'].map(value=>({value}));
-Object.assign(elements,{'[data-genome-dataset]':dataset,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control(),'[data-total-count]':control()});
+Object.assign(elements,{'[data-genome-dataset]':dataset,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control()});
 let catalogueFetches=0;global.fetch=async()=>{catalogueFetches++;return {ok:true,json:async()=>({genomes:[
 ['GCF_B','000','OTU-1','Beta','isolate',5,5,1,1,'matched',12,'d__Bacteria;p__P1;c__C2;o__O2;f__F2;g__Beta'],
 ['GCF_Z','000','OTU-2','Zeta','MAG',9,9,0,0,'unavailable',20,'d__Bacteria;p__P3;c__C4;o__O4;f__F4;g__Zeta'],
@@ -91,10 +91,11 @@ setImmediate(()=>{
   buttons.find(b=>b.dataset.sort==='training').click();buttons.find(b=>b.dataset.sort==='training').click();const trainingOrder=ids();
   buttons.find(b=>b.dataset.sort==='size').click();const sizeAscending=ids();buttons.find(b=>b.dataset.sort==='size').click();const sizeDescending=ids();
   const fetchesAfterFiltering=catalogueFetches;elements['[data-genome-retry]'].fire('click');
-  setImmediate(()=>process.stdout.write(JSON.stringify({total:elements['[data-total-count]'].textContent,states,mixed,synthetic,noFeatures,mismatchAnnotation,predictionOrder,trainingOrder,sizeAscending,sizeDescending,fetchesAfterFiltering,catalogueFetches,retriedTraining:rows[1].dataset.sortTraining,status:elements['[data-genome-load-status]'].textContent})));
+  setImmediate(()=>process.stdout.write(JSON.stringify({total:count.textContent,range:elements['[data-result-range]'].textContent,states,mixed,synthetic,noFeatures,mismatchAnnotation,predictionOrder,trainingOrder,sizeAscending,sizeDescending,fetchesAfterFiltering,catalogueFetches,retriedTraining:rows[1].dataset.sortTraining,status:elements['[data-genome-load-status]'].textContent})));
 });
 ''')
         self.assertEqual(data['total'], '5')
+        self.assertEqual(data['range'], 'Showing 1–5')
         self.assertTrue(all(s == {'count':'1','nodes':1,'duplicate':1} for s in data['states']))
         self.assertEqual(data['mixed'], {'predictions':'12','training':'6'})
         self.assertEqual(data['synthetic'], {'count':'1','nodes':1,'columns':['Assembly','Organism','Taxonomy','Assembly size','Terminator data','Annotation'],'assembly':'GCF_Z','href':'genomes/GCF_Z','size':['20,000 bp','1 contig'],'counts':['0','20','9'],'annotation':'Missing'})
@@ -114,7 +115,7 @@ setImmediate(()=>{
 href='https://bted.example/genomes.html';
 const dataset=control();dataset.options=[{value:''}];
 const resultCount=control();resultCount.hidden=true;tbody.hidden=true;
-Object.assign(elements,{'[data-genome-dataset]':dataset,'.genome-result-count':resultCount,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control(),'[data-total-count]':control()});
+Object.assign(elements,{'[data-genome-dataset]':dataset,'.genome-result-count':resultCount,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control()});
 let rejectFetch;global.fetch=()=>new Promise((_resolve,reject)=>{rejectFetch=reject;});run();
 search.fire('input');
 const loading={nodes:tbody.children.length,inert:form.inert,hidden:tbody.hidden,countHidden:resultCount.hidden,count:count.textContent};
@@ -129,6 +130,31 @@ setImmediate(()=>process.stdout.write(JSON.stringify({loading,recovered:{nodes:t
         self.assertFalse(data['recovered']['countHidden'])
         self.assertFalse(data['recovered']['retryHidden'])
         self.assertIn('Experimental genomes remain available', data['recovered']['status'])
+
+    def test_result_totals_and_ranges_follow_filters_and_pagination(self):
+        data = self.run_js(r'''
+href='https://bted.example/genomes.html';
+const dataset=control();dataset.options=['','experimental','prediction','augmentation'].map(value=>({value}));
+Object.assign(elements,{'[data-genome-dataset]':dataset,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control()});
+global.fetch=async()=>({ok:true,json:async()=>({genomes:Array.from({length:50},(_,i)=>[`GCF_X${i}`, '000', `OTU-${i}`, `Species ${i}`, 'MAG', i%2,0,0,0,'unavailable',1,'p__P9;c__C9;o__O9;f__F9;g__G9'])})});run();
+setImmediate(()=>{
+  const state=()=>({total:count.textContent,range:elements['[data-result-range]'].textContent});
+  const all=state();elements['[data-genome-next]'].fire('click');const next=state();
+  dataset.value='experimental';dataset.fire('change');const experimental=state();
+  dataset.value='augmentation';dataset.fire('change');const augmentation=state();
+  clear.fire('click');choose('phylum','P9');choose('class','C9');const taxonomyResult=state();
+  search.value='Species 49';search.fire('input');const searchResult=state();
+  search.value='no such genome';search.fire('input');const noMatches=state();
+  process.stdout.write(JSON.stringify({all,next,experimental,augmentation,taxonomyResult,searchResult,noMatches}));
+});
+''')
+        self.assertEqual(data['all'], {'total':'53','range':'Showing 1–25'})
+        self.assertEqual(data['next'], {'total':'53','range':'Showing 26–50'})
+        self.assertEqual(data['experimental'], {'total':'3','range':'Showing 1–3'})
+        self.assertEqual(data['augmentation'], {'total':'25','range':'Showing 1–25'})
+        self.assertEqual(data['taxonomyResult'], {'total':'50','range':'Showing 1–25'})
+        self.assertEqual(data['searchResult'], {'total':'1','range':'Showing 1–1'})
+        self.assertEqual(data['noMatches'], {'total':'0','range':'Showing 0–0'})
 
 if __name__ == '__main__':
     unittest.main()

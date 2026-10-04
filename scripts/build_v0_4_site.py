@@ -377,7 +377,7 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
   </div><fieldset class="genome-taxonomy-panel"><legend>Taxonomy</legend><div class="genome-taxonomy-fields">
     {''.join(f'<label>{rank.capitalize()}<select data-taxonomy-rank="{rank}"{" disabled" if rank != "phylum" else ""}><option value="">All</option></select></label>' for rank in TAXONOMY_RANKS)}
   </div></fieldset></form>
-  <div class="genome-result-count" role="status"><span data-visible-count>{count}</span> of {count} genomes</div>
+  <div class="genome-result-count" role="status"><span><span data-visible-count>{count:,}</span> genomes</span><span data-result-range></span></div>
   <div class="genome-table-scroll"><table class="genome-directory-table"><thead><tr>
     <th aria-sort="ascending"><button type="button" data-sort="accession">Assembly</button></th>
     <th aria-sort="none"><button type="button" data-sort="organism">Organism</button></th>

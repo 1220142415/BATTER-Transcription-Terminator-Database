@@ -1,6 +1,5 @@
 """Add the uploaded BATTER augmentation to the existing genome directory."""
 import json
-import re
 from pathlib import Path
 from build_v0_4_site import page
 
@@ -20,7 +19,6 @@ def build(site_root):
     html = html.replace('<label class="mobile-sort">', selector + '<label class="mobile-sort">', 1)
     html = html.replace('</select></label>\n    <button class="mobile-sort-direction"', '<option value="predictions">Predictions</option><option value="training">Training regions</option></select></label>\n    <button class="mobile-sort-direction"', 1)
     html = html.replace('data-sort="endpoints" title="Sort by experimental endpoints">Terminator data', 'data-sort="predictions" title="Sort by predictions">Terminator data', 1)
-    html = re.sub(r'of (\d+) genomes', r'of <span data-total-count>\1</span> genomes', html, count=1)
     html = html.replace('data-genome-search-form>', 'data-genome-search-form inert>', 1)
     html = html.replace('<div class="genome-result-count" role="status">', '<p class="genome-load-status" data-genome-load-status role="status">Loading genomes…</p><div class="genome-result-count" role="status" hidden>', 1)
     html = html.replace('<tbody data-genome-results>', '<tbody data-genome-results hidden>', 1)

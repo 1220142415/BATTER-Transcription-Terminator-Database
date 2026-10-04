@@ -5,6 +5,7 @@
   const search = document.querySelector("[data-genome-search]");
   const tbody = document.querySelector("[data-genome-results]");
   const count = document.querySelector("[data-visible-count]");
+  const resultRange = document.querySelector("[data-result-range]");
   const empty = document.querySelector("[data-empty]");
   const clear = document.querySelector("[data-clear-filters]");
   const dataType = document.querySelector("[data-genome-dataset]");
@@ -113,11 +114,10 @@
   function render() {
     if (!catalogueReady) return;
     const query = search.value.trim().toLocaleLowerCase();
-    let visible = 0;
     const matched = [];
     rows.sort(compareRows).forEach((row) => {
       row.hidden = !sourceMatches(row, query);
-      if (!row.hidden) { visible += 1; matched.push(row); }
+      if (!row.hidden) matched.push(row);
       if (!dataType) tbody.append(row);
     });
     if (dataType) {
@@ -126,10 +126,14 @@
       for (const row of matched.slice(page * pageSize, (page + 1) * pageSize)) tbody.append(row.node || genomeRow(row));
       previous.disabled = page === 0; next.disabled = (page + 1) * pageSize >= matched.length;
       pageNumber.textContent = matched.length ? `${page + 1} / ${Math.ceil(matched.length / pageSize)}` : "";
-      document.querySelector("[data-total-count]").textContent = rows.length.toLocaleString("en-US");
     }
-    if (count) count.textContent = String(visible);
-    if (empty) empty.hidden = visible !== 0;
+    if (count) count.textContent = matched.length.toLocaleString("en-US");
+    if (resultRange) {
+      const start = matched.length ? (dataType ? page * pageSize + 1 : 1) : 0;
+      const end = dataType ? Math.min((page + 1) * pageSize, matched.length) : matched.length;
+      resultRange.textContent = `Showing ${start.toLocaleString("en-US")}–${end.toLocaleString("en-US")}`;
+    }
+    if (empty) empty.hidden = matched.length !== 0;
     sortButtons.forEach((button) => {
       const th = button.closest("th");
       if (th) th.setAttribute("aria-sort", button.dataset.sort === sortField
