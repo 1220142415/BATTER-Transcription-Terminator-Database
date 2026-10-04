@@ -240,6 +240,19 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn('data-sort="predictions" title="Sort by predictions">Terminator data', combined)
             catalogue = json.loads((site / "assets/batter-browser.json").read_text(encoding="utf-8"))
             self.assertEqual(catalogue["reference_sizes"]["GCF_000012525.1"], [2742269, 2])
+            self.assertIn('Top phyla in this release', (site / "index.html").read_text(encoding="utf-8"))
+
+    def test_home_phyla_deduplicate_assemblies_and_keep_unclassified(self) -> None:
+        records = [[f"GCF_{i}", *([""] * 10), f"p__Group{i}"] for i in range(10)]
+        records += [["GCF_UNKNOWN", *([""] * 10), "d__Bacteria;p__"]]
+        chart = build_batter_browser.phylum_content(records, {"GCF_0": "Group1", "GCF_EXPERIMENT": "Group1"})
+        self.assertIn('12 catalog genomes', chart)
+        self.assertIn('phylum=Group1', chart)
+        self.assertIn('<strong>3</strong>', chart)
+        self.assertEqual(chart.count('class="home-phylum-row"'), 9)
+        self.assertIn('<span>Unclassified</span>', chart)
+        self.assertNotIn('phylum=Unclassified', chart)
+        self.assertIn('width:100.00%', chart)
 
     def test_taxonomy_requires_an_entry_for_each_genome(self) -> None:
         with temporary_directory() as temp:

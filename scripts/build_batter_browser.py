@@ -1,7 +1,32 @@
 """Add the uploaded BATTER augmentation to the existing genome directory."""
 import json
+from collections import Counter
+from html.parser import HTMLParser
 from pathlib import Path
-from build_v0_4_site import page
+from urllib.parse import quote
+from build_v0_4_site import esc, page
+
+
+class GenomePhyla(HTMLParser):
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "tr" and "data-genome-row" in attrs:
+            self.genomes[attrs["data-sort-accession"].upper()] = attrs.get("data-taxonomy-phylum", "")
+
+
+def phylum_content(records, experimental):
+    # Use the directory's experimental taxonomy for overlapping assemblies.
+    genomes = {row[0].upper(): next((taxon[3:] for taxon in row[11].split(";") if taxon.startswith("p__")), "") for row in records}
+    genomes.update(experimental)
+    counts = Counter(phylum or "Unclassified" for phylum in genomes.values())
+    top = sorted(((name, count) for name, count in counts.items() if name != "Unclassified"), key=lambda item: (-item[1], item[0]))[:8]
+    top.append(("Unclassified", counts["Unclassified"]))
+    largest = max(1, *(count for _name, count in top))
+    bars = []
+    for name, count in top:
+        label = esc(name) if name == "Unclassified" else f'<a href="genomes.html?phylum={quote(name, safe="")}">{esc(name)}</a>'
+        bars.append(f'<div class="home-phylum-row"><span>{label}</span><div class="home-phylum-bar" aria-hidden="true"><i style="width:{count / largest * 100:.2f}%"></i></div><strong>{count:,}</strong></div>')
+    return f'''<section class="home-phyla" aria-labelledby="home-phyla-heading"><div><p class="eyebrow">Taxonomic coverage</p><h2 id="home-phyla-heading">Top phyla in this release</h2><p>{len(genomes):,} catalog genomes. Unclassified genomes are shown separately.</p><small>Current catalog · Upload in progress</small></div><div class="home-phyla-chart" aria-label="Genome count by phylum">{''.join(bars)}</div></section>'''
 
 
 def build(site_root):
@@ -15,6 +40,11 @@ def build(site_root):
     (site_root / "assets/batter-browser.json").write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     directory = site_root / "genomes.html"
     html = directory.read_text(encoding="utf-8")
+    phyla = GenomePhyla()
+    phyla.genomes = {}
+    phyla.feed(html)
+    home = site_root / "index.html"
+    home.write_text(home.read_text(encoding="utf-8").replace('<section class="home-reference"', phylum_content(data["genomes"], phyla.genomes) + '\n<section class="home-reference"', 1), encoding="utf-8")
     selector = '''<label>Data type<select data-genome-dataset><option value="">All data</option><option value="experimental">Experimental</option><option value="prediction">Prediction</option><option value="augmentation">Augmentation</option></select></label>'''
     html = html.replace('<label class="mobile-sort">', selector + '<label class="mobile-sort">', 1)
     html = html.replace('</select></label>\n    <button class="mobile-sort-direction"', '<option value="predictions">Predictions</option><option value="training">Training regions</option></select></label>\n    <button class="mobile-sort-direction"', 1)

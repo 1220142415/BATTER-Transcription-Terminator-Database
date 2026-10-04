@@ -586,6 +586,21 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-height: calc(100v
 .home-summary span { color: var(--muted); font-size: 12px; }
 .home-content { padding-top: 18px; padding-bottom: 50px; }
 .home-data-note { margin: 0 0 28px; color: var(--muted); font-size: 12px; }
+.home-phyla { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); gap: 36px; margin-bottom: 28px; padding: 28px; background: var(--white); border: 1px solid var(--line); border-radius: 10px; }
+.home-phyla h2 { margin: 5px 0 12px; color: var(--navy-dark); font-size: 24px; letter-spacing: -.025em; }
+.home-phyla p:not(.eyebrow) { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.home-phyla small { color: var(--muted); font-size: 11px; }
+.home-phyla-chart { display: grid; gap: 12px; }
+.home-phylum-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 55px; align-items: center; gap: 12px; font-size: 12px; }
+.home-phylum-row a { color: var(--navy); text-decoration: none; }
+.home-phylum-row a:hover { text-decoration: underline; }
+.home-phylum-row strong { color: var(--navy); text-align: right; font-variant-numeric: tabular-nums; }
+.home-phylum-bar { height: 9px; border-radius: 5px; background: var(--soft); overflow: hidden; }
+.home-phylum-bar i { display: block; height: 100%; background: #8c83bd; border-radius: inherit; }
+@media (max-width: 800px) {
+  .home-phyla { grid-template-columns: 1fr; gap: 22px; padding: 22px 18px; }
+  .home-phylum-row { grid-template-columns: 130px minmax(0, 1fr) 50px; gap: 8px; font-size: 11px; }
+}
 .home-reference { display: grid; grid-template-columns: 1fr 2.4fr; gap: 40px; padding: 30px; border: 1px solid var(--line); border-radius: 10px; background: var(--white); }
 .home-reference h2 { margin: 4px 0 8px; font-size: 27px; color: var(--navy-dark); }
 .home-reference p { margin-top: 0; color: var(--muted); font-size: 14px; }
