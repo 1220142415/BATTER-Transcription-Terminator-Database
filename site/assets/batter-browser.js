@@ -30,6 +30,25 @@
       if ($("[data-batter-title]")) $("[data-batter-title]").textContent = name;
       if ($("[data-batter-id]")) $("[data-batter-id]").textContent = `Genome ID: ${id}${data.otu_id ? ` · GEM OTU: ${data.otu_id}` : ""} · ${data.genome_type}`;
       if ($("[data-batter-reference]")) $("[data-batter-reference]").textContent = `Sequence source: ${data.reference.source}. ${format(data.reference.contigs)} contigs · ${format(data.reference.bases)} bp.`;
+      const provenance = $("[data-batter-provenance]");
+      if (provenance) {
+        const heading = document.createElement("h2"), facts = document.createElement("dl"), note = document.createElement("p");
+        heading.textContent = "Reference and coordinate provenance";
+        const source = ({ "NCBI-RefSeq": "NCBI RefSeq", "NCBI-MAG": "NCBI GenBank", "NCBI-SAG": "NCBI GenBank" })[data.source_collection] || data.source_collection || "Not cataloged";
+        for (const [label, value] of [["Genome ID", id], ["GEM OTU", data.otu_id], ["Genome source", source], ["Sequence source", data.reference.source], ["Input FASTA", data.reference.source_path]]) {
+          if (!value) continue;
+          const item = document.createElement("div"), term = document.createElement("dt"), description = document.createElement("dd");
+          term.textContent = label; description.textContent = value; item.append(term, description); facts.append(item);
+        }
+        note.textContent = "Prediction coordinates refer to this representative genome FASTA, not all members of its GEM OTU. A Genome ID alone does not establish sequence identity with an NCBI assembly version.";
+        provenance.replaceChildren(heading, facts, note);
+        if (data.reference.source_sha256) {
+          const details = document.createElement("details"), summary = document.createElement("summary"), checksum = document.createElement("code");
+          summary.textContent = "Original FASTA SHA-256"; checksum.textContent = data.reference.source_sha256;
+          details.append(summary, checksum); provenance.append(details);
+        }
+        provenance.hidden = false;
+      }
       const counts = data.feature_counts;
       const summary = $("[data-batter-summary]"); summary.replaceChildren();
       for (const [key, label] of [["tes_prediction", "predicted regions"], ["otu_augmentation_span", "augmented spans"], ["rfam_training_span", "Rfam spans"], ["otu_augmentation_window", "training windows"]]) {

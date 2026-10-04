@@ -3,7 +3,7 @@
   const $ = (id) => document.getElementById(id);
   const number = (value) => Number(value).toLocaleString("en");
   const SVG = "http://www.w3.org/2000/svg";
-  const colors = ["#dddaf4", "#bcb7e6", "#948bd3", "#7369bf", "#51469e"];
+  const colors = ["#eadbe6", "#d5b6cc", "#bb8cac", "#995f86", "#753e64"];
   const ranges = ["7", "30", "90", "365", "0"];
   let activeRequest;
   let mapData;
@@ -48,7 +48,7 @@
       const row = measured.get(country.code);
       const index = row?.views > 0 ? Math.min(4, Math.floor(Math.log1p(row.views) / Math.log1p(max) * 5)) : -1;
       const name = row?.name || ({ HK: "Hong Kong, China", MO: "Macao, China", TW: "Taiwan, China" }[country.code]) || country.name;
-      svg.append(svgNode("path", { d: country.d, fill: index < 0 ? "#ececf3" : colors[index], class: "usage-map-country" }, `${name}: ${number(row?.views || 0)} page views`));
+      svg.append(svgNode("path", { d: country.d, fill: index < 0 ? "#f1ebef" : colors[index], class: "usage-map-country" }, `${name}: ${number(row?.views || 0)} page views`));
     }
     $("usage-map").replaceChildren(svg);
     $("usage-map-max").textContent = `${number(max)} views`;
@@ -59,7 +59,7 @@
     const svg = svgNode("svg", { viewBox: `0 0 ${report.daily.length * 4} 100`, preserveAspectRatio: "none", role: "img", "aria-label": `Daily page views, ${report.startDay} to ${report.endDay}. Highest daily count: ${number(max)}.` });
     report.daily.forEach((row, index) => {
       const height = row.views / max * 96;
-      svg.append(svgNode("rect", { x: index * 4, y: 100 - height, width: 3, height, fill: "#7369bf" }, `${row.day}: ${number(row.views)} page views`));
+      svg.append(svgNode("rect", { x: index * 4, y: 100 - height, width: 3, height, fill: "#995f86" }, `${row.day}: ${number(row.views)} page views`));
     });
     $("usage-trend").replaceChildren(svg);
     $("usage-start").textContent = report.startDay;

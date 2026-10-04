@@ -23,7 +23,7 @@ class ReleaseDocumentationTests(unittest.TestCase):
     def test_docs_and_readme_point_to_current_release(self) -> None:
         docs = sorted(p.relative_to(ROOT).as_posix() for p in (ROOT / "docs").rglob("*.md"))
         self.assertEqual(docs, [
-            "docs/PROMOTER_COMPARISON.md", "docs/SOURCES.md", "docs/USAGE_ANALYTICS.md",
+            "docs/PROMOTER_COMPARISON.md", "docs/SOURCES.md", "docs/UI_REVIEW.md", "docs/USAGE_ANALYTICS.md",
             "docs/deployment.md", "docs/releases/v0.4.0.md",
         ])
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

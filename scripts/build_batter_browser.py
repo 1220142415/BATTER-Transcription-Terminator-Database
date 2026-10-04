@@ -59,11 +59,13 @@ def build(site_root):
 <p class="breadcrumbs"><a href="../genomes.html">Genomes</a><span>/</span><span>Genome data</span></p>
 <section class="genome-title"><div><p class="eyebrow">Genome data</p><h1 data-batter-title>Loading genome…</h1><p class="assembly-id" data-batter-id></p><p data-batter-reference class="muted"></p></div></section>
 <section class="genome-summary" aria-label="Genome data summary" data-batter-summary></section>
-<section class="browser-panel" data-genome-browser style="--browser-frame-height:820px">
+<section class="genome-provenance" aria-label="Reference and coordinate provenance" data-batter-provenance hidden></section>
+<nav class="section-nav" aria-label="On this page"><a href="#genome-browser">Genome browser</a><a href="#genome-downloads">Downloads</a><a href="../methodology.html">Data guide ↗</a></nav>
+<section class="browser-panel" id="genome-browser" data-genome-browser style="--browser-frame-height:820px">
 <div class="browser-panel-heading"><div><p class="eyebrow">Genome browser</p><h2>Explore this genome</h2><p>Orange: predictions. Blue: augmentation. Purple: Rfam. Pale: training windows.</p></div><div class="browser-actions"><button class="browser-open" type="button" data-share-view disabled>Share view</button><button class="browser-open" type="button" data-retry-browser>Reload</button><a class="browser-open" data-batter-full hidden>Open full browser ↗</a></div></div>
 <p class="browser-share-status" data-browser-status role="status" aria-live="polite">Loading genome data…</p><p class="browser-share-status" data-share-status role="status"></p><input class="browser-share-manual" data-share-manual aria-label="Share link" readonly hidden>
 <iframe data-browser-frame title="Genome browser" loading="lazy" referrerpolicy="no-referrer" hidden></iframe></section>
-<section class="genome-downloads"><div><p class="eyebrow">Genome files</p><h2>Downloads</h2><p>Published predictions and training data. Upload in progress.</p></div><div class="genome-download-actions" data-batter-downloads></div></section></main>'''
+<section class="genome-downloads" id="genome-downloads"><div><p class="eyebrow">Genome files</p><h2>Downloads</h2><p>Published predictions and training data. Upload in progress.</p></div><div class="genome-download-actions" data-batter-downloads></div></section></main>'''
     generic_page = page("Genome", content, current="genomes", scripts=("../assets/batter-browser.js",), depth=1)
     (site_root / "genomes/genome.html").write_text(generic_page, encoding="utf-8")
     (site_root / "genomes/batter.html").write_text(generic_page, encoding="utf-8")  # Existing shared links.
@@ -75,7 +77,7 @@ def build(site_root):
         if path.stem in ids:
             text = path.read_text(encoding="utf-8")
             text = text.replace('data-genome-page data-assembly=', 'data-batter-genome data-preserve-default-view="true" data-genome-page data-assembly=', 1)
-            section = '''<section class="genome-summary" aria-label="Computational data summary" data-batter-summary></section><section class="genome-downloads"><div><h2>Prediction and augmentation</h2><p>Orange: predictions. Blue: augmented spans. Pale: training windows.</p></div><div class="genome-download-actions" data-batter-downloads></div></section>'''
+            section = '''<section class="genome-summary" aria-label="Computational data summary" data-batter-summary></section><section class="genome-provenance" aria-label="Reference and coordinate provenance" data-batter-provenance hidden></section><section class="genome-downloads"><div><h2>Prediction and augmentation</h2><p>Orange: predictions. Blue: augmented spans. Pale: training windows.</p></div><div class="genome-download-actions" data-batter-downloads></div></section>'''
             text = text.replace('<section class="browser-panel"', section + '<section class="browser-panel"', 1)
             text = text.replace('src="../assets/genome-page.js"', 'src="../assets/batter-browser.js"')
             path.write_text(text, encoding="utf-8")
