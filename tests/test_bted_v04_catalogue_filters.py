@@ -9,6 +9,7 @@ HARNESS = r"""
 const fs=require('fs'), vm=require('vm');
 function control(value='') {return {value,options:[{value:''}],listeners:{},children:[],dataset:{},textContent:'',
   parentElement:{classList:{toggle(){}}},
+  querySelector(){return this.children.find(node=>Object.hasOwn(node.dataset,'gemOtu'))??null;},
   addEventListener(type,fn){this.listeners[type]=fn;},fire(type){this.listeners[type]?.({preventDefault(){}});},
   append(...nodes){this.children.push(...nodes);this.options.push(...nodes);},replaceChildren(...nodes){this.children=[...nodes];this.options=[...nodes];}};}
 const source=(study,assay,search,published='yes')=>({dataset:{study,assay,search,published}});
@@ -81,24 +82,24 @@ let catalogueFetches=0;global.fetch=async()=>{catalogueFetches++;return {ok:true
 ],reference_sizes:{GCF_B:[10000,2],GCF_Z:[20000,1]}})};};run();
 setImmediate(()=>{
   const states=[];for(const value of ['experimental','prediction','augmentation','']){dataset.value=value;dataset.fire('change');states.push({count:count.textContent,nodes:tbody.children.length,duplicate:tbody.children.filter(r=>r===rows[1]).length});}
-  const mixed={predictions:rows[1].cells['[data-prediction-count]'].textContent,training:rows[1].cells['[data-augmentation-count]'].textContent};
+  const mixed={otu:rows[1].cells['[data-label="Genome ID"]'].children[0].textContent,predictions:rows[1].cells['[data-prediction-count]'].textContent,training:rows[1].cells['[data-augmentation-count]'].textContent};
   search.value='';search.fire('input');choose('phylum','P3');choose('class','C4');choose('order','O4');choose('family','F4');choose('genus','Zeta');
   const cells=tbody.children[0].children;
-  const synthetic={count:count.textContent,nodes:tbody.children.length,columns:cells.map(c=>c.dataset.label),assembly:cells[0].children[0].children[0].textContent,href:cells[0].children[0].href,source:cells[1].textContent,size:cells[4].children.map(c=>c.textContent),counts:cells[5].children[0].children.map(c=>c.children[0].textContent),annotation:cells[6].children[0].textContent};
+  const synthetic={count:count.textContent,nodes:tbody.children.length,columns:cells.map(c=>c.dataset.label),assembly:cells[0].children[0].children[0].textContent,href:cells[0].children[0].href,otu:cells[0].children[1].textContent,source:cells[1].textContent,size:cells[4].children.map(c=>c.textContent),counts:cells[5].children[0].children.map(c=>c.children[0].textContent),annotation:cells[6].children[0].textContent};
   clear.fire('click');search.value='GCF_W';search.fire('input');const noFeatures=count.textContent;const mismatchAnnotation=tbody.children[0].children[6].children[0].textContent;
   const ids=()=>tbody.children.map(r=>r.dataset.sortAccession||r.children[0].children[0].children[0].textContent);
   clear.fire('click');buttons.find(b=>b.dataset.sort==='predictions').click();buttons.find(b=>b.dataset.sort==='predictions').click();const predictionOrder=ids();
   buttons.find(b=>b.dataset.sort==='training').click();buttons.find(b=>b.dataset.sort==='training').click();const trainingOrder=ids();
   buttons.find(b=>b.dataset.sort==='size').click();const sizeAscending=ids();buttons.find(b=>b.dataset.sort==='size').click();const sizeDescending=ids();
   const fetchesAfterFiltering=catalogueFetches;elements['[data-genome-retry]'].fire('click');
-  setImmediate(()=>process.stdout.write(JSON.stringify({total:count.textContent,range:elements['[data-result-range]'].textContent,states,mixed,synthetic,noFeatures,mismatchAnnotation,predictionOrder,trainingOrder,sizeAscending,sizeDescending,fetchesAfterFiltering,catalogueFetches,retriedTraining:rows[1].dataset.sortTraining,status:elements['[data-genome-load-status]'].textContent})));
+  setImmediate(()=>process.stdout.write(JSON.stringify({total:count.textContent,range:elements['[data-result-range]'].textContent,states,mixed,synthetic,noFeatures,mismatchAnnotation,predictionOrder,trainingOrder,sizeAscending,sizeDescending,fetchesAfterFiltering,catalogueFetches,retriedTraining:rows[1].dataset.sortTraining,retriedOtuLabels:rows[1].cells['[data-label="Genome ID"]'].children.length,status:elements['[data-genome-load-status]'].textContent})));
 });
 ''')
         self.assertEqual(data['total'], '5')
         self.assertEqual(data['range'], 'Showing 1–5')
         self.assertTrue(all(s == {'count':'1','nodes':1,'duplicate':1} for s in data['states']))
-        self.assertEqual(data['mixed'], {'predictions':'12','training':'6'})
-        self.assertEqual(data['synthetic'], {'count':'1','nodes':1,'columns':['Genome ID','Reference source','Organism','Taxonomy','Assembly size','Terminator data','Annotation'],'assembly':'GCF_Z','href':'genomes/GCF_Z','source':'IMG','size':['20,000 bp','1 contig'],'counts':['0','20','9'],'annotation':'Missing'})
+        self.assertEqual(data['mixed'], {'otu':'GEM OTU: OTU-1','predictions':'12','training':'6'})
+        self.assertEqual(data['synthetic'], {'count':'1','nodes':1,'columns':['Genome ID','Genome source','Organism','Taxonomy','Assembly size','Terminator data','Annotation'],'assembly':'GCF_Z','href':'genomes/GCF_Z','otu':'GEM OTU: OTU-2','source':'IMG','size':['20,000 bp','1 contig'],'counts':['0','20','9'],'annotation':'Missing'})
         self.assertEqual(data['noFeatures'], '1')
         self.assertEqual(data['mismatchAnnotation'], 'Incompatible')
         self.assertEqual(data['fetchesAfterFiltering'], 1)
@@ -108,6 +109,7 @@ setImmediate(()=>{
         self.assertEqual(data['sizeAscending'], ['GCF_B','GCF_Z','GCF_A','GCF_C','GCF_W'])
         self.assertEqual(data['sizeDescending'], ['GCF_Z','GCF_B','GCF_A','GCF_C','GCF_W'])
         self.assertEqual(data['retriedTraining'], '6')
+        self.assertEqual(data['retriedOtuLabels'], 1)
         self.assertIn('OTU augmentation and Rfam', data['status'])
 
     def test_waits_for_full_catalogue_and_recovers_when_fetch_fails(self):

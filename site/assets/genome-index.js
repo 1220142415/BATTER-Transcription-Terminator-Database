@@ -192,12 +192,13 @@
     const record = row.batter;
     const tr = document.createElement("tr");
     const href = `genomes/${encodeURIComponent(record[0])}`;
-    for (const label of ["Genome ID", "Reference source", "Organism", "Taxonomy", "Assembly size", "Terminator data", "Annotation"]) {
+    for (const label of ["Genome ID", "Genome source", "Organism", "Taxonomy", "Assembly size", "Terminator data", "Annotation"]) {
       const td = document.createElement("td"); td.dataset.label = label;
       if (label === "Genome ID") {
         const link = document.createElement("a"), code = document.createElement("code");
         link.className = "genome-table-name"; link.href = href; code.textContent = record[0]; link.append(code); td.append(link);
-      } else if (label === "Reference source") {
+        showOtu(td, record[2]);
+      } else if (label === "Genome source") {
         td.textContent = referenceSource(record[12]);
       } else if (label === "Organism") {
         const name = document.createElement("span"); name.className = "genome-organism"; name.textContent = record[3]; td.append(name);
@@ -221,6 +222,14 @@
       tr.append(td);
     }
     return tr;
+  }
+
+  function showOtu(cell, otu) {
+    let label = cell.querySelector("[data-gem-otu]");
+    if (!otu) { label?.remove(); return; }
+    if (!label) { label = document.createElement("small"); label.dataset.gemOtu = ""; cell.append(label); }
+    label.textContent = `GEM OTU: ${otu}`;
+    label.title = "Species-level cluster; coordinates refer to this representative genome, not all cluster members.";
   }
 
   function referenceSource(source) {
@@ -276,7 +285,8 @@
         if (record[10] > 0) row.dataset.genomeSearch += " batter predictions 42402588";
         if (record[5] + record[7] > 0) row.dataset.genomeSearch += " batter augmentation training 42402588";
         if (row.node) {
-          row.node.querySelector('[data-label="Reference source"]').textContent = referenceSource(record[12]);
+          row.node.querySelector('[data-label="Genome source"]').textContent = referenceSource(record[12]);
+          showOtu(row.node.querySelector('[data-label="Genome ID"]'), record[2]);
           for (const [selector, value] of [["[data-prediction-count]", record[10]], ["[data-augmentation-count]", record[5] + record[7]]]) {
             const number = row.node.querySelector(selector); number.textContent = value.toLocaleString("en-US"); number.parentElement.classList.toggle("unavailable", !value);
           }

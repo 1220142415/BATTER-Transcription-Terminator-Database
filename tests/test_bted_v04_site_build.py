@@ -203,9 +203,9 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn('data-taxonomy-genus="Cyanobacterium"', home)
             for removed in ("Phylum", "Studies", "Methods", "Signal", "Open"):
                 self.assertNotIn(f'data-label="{removed}"', home)
-            for column in ("Genome ID", "Reference source", "Organism", "Taxonomy", "Assembly size", "Terminator data", "Annotation"):
+            for column in ("Genome ID", "Genome source", "Organism", "Taxonomy", "Assembly size", "Terminator data", "Annotation"):
                 self.assertIn(f'data-label="{column}"', home)
-            self.assertIn('<td data-label="Reference source">NCBI RefSeq</td>', home)
+            self.assertIn('<td data-label="Genome source">NCBI RefSeq</td>', home)
             self.assertIn('2,742,269 bp', home)
             self.assertIn('2 contigs', home)
             self.assertIn('experimental endpoints</span>', home)

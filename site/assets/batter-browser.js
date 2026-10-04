@@ -28,8 +28,8 @@
       const name = data.taxonomy.split(";").find(taxon => taxon.startsWith("s__"))?.slice(3) || id;
       document.title = `${name} · BTED`;
       if ($("[data-batter-title]")) $("[data-batter-title]").textContent = name;
-      if ($("[data-batter-id]")) $("[data-batter-id]").textContent = `${id} · ${data.otu_id} · ${data.genome_type}`;
-      if ($("[data-batter-reference]")) $("[data-batter-reference]").textContent = `Reference: ${data.reference.source}. ${format(data.reference.contigs)} contigs · ${format(data.reference.bases)} bp.`;
+      if ($("[data-batter-id]")) $("[data-batter-id]").textContent = `Genome ID: ${id}${data.otu_id ? ` · GEM OTU: ${data.otu_id}` : ""} · ${data.genome_type}`;
+      if ($("[data-batter-reference]")) $("[data-batter-reference]").textContent = `Sequence source: ${data.reference.source}. ${format(data.reference.contigs)} contigs · ${format(data.reference.bases)} bp.`;
       const counts = data.feature_counts;
       const summary = $("[data-batter-summary]"); summary.replaceChildren();
       for (const [key, label] of [["tes_prediction", "predicted regions"], ["otu_augmentation_span", "augmented spans"], ["rfam_training_span", "Rfam spans"], ["otu_augmentation_window", "training windows"]]) {
