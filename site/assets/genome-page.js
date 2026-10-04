@@ -250,7 +250,7 @@
       const objectUrl = URL.createObjectURL(blob);
       const download = document.createElement("a");
       download.href = objectUrl;
-      download.download = `BTED-v0.4.0-${assembly}.zip`;
+      download.download = `BTED-${root.dataset.releaseLabel || "v0.4.0"}-${assembly}.zip`;
       document.body.append(download);
       download.click();
       download.remove();

@@ -261,23 +261,70 @@ def get_asset_url(asset_map: dict[str, dict[str, object]], logical_path: str, *,
 
 def nav(current: str = "home", depth: int = 0) -> str:
     active_home = ' aria-current="page"' if current == "home" else ""
+    active_batter = ' aria-current="page"' if current == "batter" else ""
     prefix = "../" * depth
     return f'''<header class="site-header"><div class="header-inner">
   <a class="brand" href="{prefix}index.html"><span class="brand-mark">BTED</span><span class="brand-name">Bacterial Transcript 3′ End Database</span></a>
-  <nav class="site-nav" aria-label="Primary navigation"><a href="{prefix}index.html"{active_home}>Genomes</a><a href="{prefix}methodology.html">Data notes</a></nav>
+  <nav class="site-nav" aria-label="Primary navigation"><a href="{prefix}index.html"{active_home}>Experimental data</a><a href="{prefix}batter-genomes.html"{active_batter}>Genome directory</a><a href="{prefix}methodology.html">Data notes</a></nav>
 </div></header>'''
 
 
-def page(title: str, content: str, *, current: str = "", scripts: tuple[str, ...] = (), depth: int = 0) -> str:
+def page(title: str, content: str, *, current: str = "", scripts: tuple[str, ...] = (), styles: tuple[str, ...] = (), depth: int = 0) -> str:
     version_counts = "BTED v0.4.0 · genome-first experimental endpoint data"
     prefix = "../" * depth
     script_tags = "".join(f'<script src="{esc(src)}" defer></script>' for src in scripts)
+    style_tags = "".join(f'<link rel="stylesheet" href="{esc(prefix + src)}">' for src in styles)
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="BTED v0.4.0 genome-first bacterial transcript 3′ end data"><title>{esc(title)} · BTED</title>
-<link rel="icon" href="{prefix}assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="{prefix}css/style.css"></head>
+<link rel="icon" href="{prefix}assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="{prefix}css/style.css">{style_tags}</head>
 <body>{nav(current, depth)}{content}<footer class="site-footer"><div class="footer-inner"><span>{esc(version_counts)}</span><a href="https://github.com/1220142415/BATTER-Transcription-Terminator-Database">GitHub</a></div></footer>{script_tags}</body></html>
 '''
+
+
+def batter_catalog_content() -> str:
+    taxonomy = "".join(
+        f'<label>{label}<select id="batter-{rank}" data-taxonomy-rank="{rank}"{(" disabled" if index else "")}><option value="">All {plural}</option></select><span class="batter-taxonomy-loading" id="batter-{rank}-loading" role="status" hidden>Loading {label.lower()} options…</span></label>'
+        for index, (rank, label, plural) in enumerate((
+            ("phylum", "Phylum", "phyla"), ("class", "Class", "classes"), ("order", "Order", "orders"),
+            ("family", "Family", "families"), ("genus", "Genus", "genera"), ("species", "Species", "species"),
+        ))
+    )
+    return f'''<main class="page-shell batter-catalog">
+<section class="batter-hero"><div><p class="eyebrow">BTED + BATTER · GENOME DIRECTORY</p><h1>Search all genomes</h1><p>Browse experimental bacterial 3′ end records and BATTER predictions and training data in one directory. Records are combined only when their complete genome IDs match. Open a genome record to see available evidence, file status, and browser access.</p><p class="batter-experimental-link"><a href="index.html">Open the BTED experimental catalogue →</a></p></div><p class="batter-preview-tag">Local preview</p></section>
+<section class="batter-stat-grid" aria-label="Catalogue summary">
+  <div><span>Unique genome IDs</span><strong data-batter-stat="genome_count">—</strong></div>
+  <div><span>Experimental assemblies</span><strong data-batter-stat="experimental_genome_count">—</strong></div>
+  <div><span>BATTER genomes</span><strong data-batter-stat="batter_genome_count">—</strong></div>
+  <div><span>Present in both</span><strong data-batter-stat="both_genome_count">—</strong></div>
+</section>
+<p class="batter-provenance-note">Classification comes from BATTER when available. Experimental-only genomes show <strong>Not provided</strong> for BATTER classification. The source table has <strong><span data-batter-stat="no_augmentation_genome_count">—</span> genomes with no OTU augmentation records</strong>; this is shown on each affected record.</p>
+<section class="batter-evidence-grid" aria-label="Record types">
+  <article class="batter-experimental-note"><p class="batter-card-kicker">Experimental evidence</p><h2>Study 3′ ends</h2><p>Study tracks remain separate and list their sources, record counts, and public file status.</p></article>
+  <article><p class="batter-card-kicker">BATTER predictions</p><h2>Predicted candidates</h2><p>Model predictions are computational candidates, not experimental measurements.</p></article>
+  <article><p class="batter-card-kicker">Training data</p><h2>OTU augmentation</h2><p>Training augmentation records remain separate from experiments and predictions.</p></article>
+  <article><p class="batter-card-kicker">Training data</p><h2>Rfam training records</h2><p>Rfam-derived examples are listed separately from the other record types.</p></article>
+</section>
+<section class="batter-directory" id="batter-directory">
+  <div class="batter-section-heading"><div><p class="eyebrow">UNIFIED CATALOGUE</p><h2>Find a genome</h2><p>Combine text search, collection membership, source, genome type, taxonomy, and pagination. Filters and page position are saved in the URL.</p></div></div>
+  <div class="batter-filter-panel">
+    <label class="batter-search-label" for="batter-search">Search complete genome ID, OTU, organism, source, or taxonomy</label>
+    <input id="batter-search" type="search" autocomplete="off" placeholder="For example: 2228664028_1, GCF_000009765.2, or Synechococcus">
+    <div class="batter-filter-row">
+      <label>Collection<select id="batter-membership"><option value="all">All genomes</option><option value="experimental">Experimental only</option><option value="batter">BATTER only</option><option value="both">Present in both</option></select></label>
+      <label>BATTER original source<select id="batter-source"><option value="">All original sources</option></select></label>
+      <label>BATTER genome type<select id="batter-type"><option value="">All types</option></select></label>
+      <label>Rows per page<select id="batter-page-size"><option>25</option><option selected>50</option><option>100</option></select></label>
+    </div>
+    <fieldset class="batter-taxonomy-filters"><legend>Taxonomy · choose ranks from broad to specific</legend><div>{taxonomy}</div></fieldset>
+    <div class="batter-filter-actions"><button class="button" id="batter-clear" type="button">Clear filters</button><p id="batter-result-summary" role="status" aria-live="polite">Loading the genome catalogue…</p></div>
+    <div class="batter-error" id="batter-request-error" role="alert" hidden><span id="batter-error-message"></span> <button class="button" id="batter-retry" type="button">Retry</button></div>
+  </div>
+  <div class="batter-table-wrap"><table class="batter-table"><thead><tr><th scope="col"><button class="batter-sort-button" type="button" data-batter-sort="genome_id" data-sort-label="Genome ID">Genome ID <span data-sort-icon aria-hidden="true">↕</span></button></th><th scope="col">Classification</th><th scope="col">Experimental 3′ ends</th><th scope="col"><button class="batter-sort-button" type="button" data-batter-sort="predictions" data-sort-label="BATTER predictions">BATTER predictions <span data-sort-icon aria-hidden="true">↕</span></button></th><th scope="col"><button class="batter-sort-button" type="button" data-batter-sort="otu_augmentation" data-sort-label="OTU augmentation">OTU augmentation <span data-sort-icon aria-hidden="true">↕</span></button></th><th scope="col"><button class="batter-sort-button" type="button" data-batter-sort="rfam_training" data-sort-label="Rfam training">Rfam training <span data-sort-icon aria-hidden="true">↕</span></button></th><th scope="col">Local browser</th></tr></thead><tbody id="batter-results"><tr><td colspan="7">Loading the genome catalogue…</td></tr></tbody></table></div>
+  <nav class="batter-pagination" aria-label="Genome result pages"><button class="button" id="batter-previous" type="button" disabled>Previous</button><p id="batter-page-summary">Page —</p><label>Go to page <input id="batter-page-jump" type="number" min="1" value="1"></label><button class="button" id="batter-next" type="button" disabled>Next</button></nav>
+</section>
+<section class="batter-detail" id="batter-detail" hidden><p class="batter-back-link"><a id="batter-back" href="batter-genomes.html">← Back to search results</a></p><div id="batter-detail-content"><p role="status">Loading genome details…</p></div></section>
+</main>'''
 
 
 def _publication_link(pmid: str) -> str:
@@ -610,6 +657,7 @@ location.replace(target.href);
 </main>'''
     _write(site_root / "methodology.html", page("Data notes", methodology))
     _write(site_root / "about.html", redirect_html("Data notes", destination="methodology.html", query_script="location.replace(new URL('methodology.html', document.baseURI).href);"))
+    write_batter_catalog_page(site_root)
     _write(site_root / "accession-range-demo.html", redirect_html(
         "Genome search", destination="index.html",
         query_script="""const params=new URLSearchParams(location.search);const value=params.get("accession")||params.get("search");const target=new URL("index.html",document.baseURI);if(value)target.searchParams.set("search",value);location.replace(target.href);""",
@@ -627,6 +675,21 @@ location.replace(target.href);
         ),
         "release_files": len(files),
     }
+
+
+def write_batter_catalog_page(site_root: Path) -> None:
+    """Write the standalone BATTER catalogue shell without a static genome dump."""
+    site_root.mkdir(parents=True, exist_ok=True)
+    _write(
+        site_root / "batter-genomes.html",
+        page(
+            "Unified genome directory",
+            batter_catalog_content(),
+            current="batter",
+            scripts=("assets/batter-catalog.js",),
+            styles=("css/batter-catalog.css",),
+        ),
+    )
 
 
 def materialize_browser_tracks(release_root: Path, output_root: Path) -> list[dict[str, object]]:

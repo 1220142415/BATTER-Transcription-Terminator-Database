@@ -65,6 +65,8 @@ def main() -> int:
     parser.add_argument("--bundle-dir", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--batch-size", type=int, default=1000)
+    parser.add_argument("--allow-local-preview", action="store_true",
+                        help="Accept locally verified v0.5 assets without claiming remote publication")
     args = parser.parse_args()
     if args.batch_size < 1:
         parser.error("--batch-size must be positive")
@@ -78,7 +80,8 @@ def main() -> int:
     output.mkdir(parents=True, exist_ok=True)
 
     manifest = json.loads((bundle / "manifest.json").read_text(encoding="utf-8"))
-    if manifest.get("asset_origin", {}).get("asset_origin_status") != "verified":
+    origin_status = manifest.get("asset_origin", {}).get("asset_origin_status")
+    if origin_status != "verified" and not (args.allow_local_preview and origin_status == "local_verified"):
         parser.error("the D1 preview requires a verified asset-origin bundle")
     release_version = str(manifest["release_version"])
     release = jsonl(bundle / "release_versions.jsonl")[0]
@@ -221,7 +224,11 @@ def main() -> int:
         raw = [a for a in accessions if a.get("source_id_ref") == source_id]
         bed = bed_by_source.get(source_id)
         study_gff3 = asset_by_path.get(str(source.get("record_root") or ""))
-        source_track_gff3 = asset_by_path.get(f"tracks/{source_id}/endpoints.gff3")
+        source_track_gff3 = asset_by_path.get(f"tracks/{source_id}/endpoints.gff3") or next((
+            asset for asset in assets if asset.get("source_id_ref") == source_id
+            and asset.get("asset_kind") == "gff3"
+            and str(asset.get("logical_path", "")).endswith("/endpoints.gff3.gz")
+        ), None)
         endpoint_gff3 = source_track_gff3 or study_gff3
         # v0.3 source BEDs are generated into the Pages/Worker static tree.
         # v0.4 stores endpoint features by genome and PMID. A published feature
