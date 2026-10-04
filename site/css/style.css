@@ -610,6 +610,7 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-height: calc(100v
 .genome-filter-bar { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(180px, .45fr) 42px; gap: 14px; align-items: end; margin: 0; padding: 18px; }
 .genome-filters-form label { display: grid; gap: 7px; min-width: 0; color: var(--muted); font-size: 12px; font-weight: 600; }
 .genome-filters-form select, .genome-filters-form input { width: 100%; min-width: 0; height: 42px; padding: 0 10px; color: var(--ink); background: var(--white); border: 1px solid #d1d2e2; border-radius: 5px; font: inherit; font-size: 13px; text-transform: none; }
+.genome-filters-form select:disabled { color: #9294a4; background: #f0f1f6; border-color: var(--line); cursor: not-allowed; }
 .genome-taxonomy-panel { min-width: 0; margin: 0 18px 18px; padding: 12px 14px 14px; border: 1px solid var(--line); border-radius: 7px; background: #fafafe; }
 .genome-taxonomy-panel legend { padding: 0 6px; color: var(--navy); font-size: 13px; font-weight: 700; }
 .genome-taxonomy-fields { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }

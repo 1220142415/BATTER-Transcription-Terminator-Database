@@ -373,7 +373,7 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
     <button class="mobile-sort-direction" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
     <button class="genome-filter-reset" type="button" data-clear-filters aria-label="Clear filters" title="Clear filters"><span aria-hidden="true">↺</span></button>
   </div><fieldset class="genome-taxonomy-panel"><legend>Taxonomy</legend><div class="genome-taxonomy-fields">
-    {''.join(f'<label>{rank.capitalize()}<select data-taxonomy-rank="{rank}"><option value="">All</option></select></label>' for rank in TAXONOMY_RANKS)}
+    {''.join(f'<label>{rank.capitalize()}<select data-taxonomy-rank="{rank}"{" disabled" if rank != "phylum" else ""}><option value="">All</option></select></label>' for rank in TAXONOMY_RANKS)}
   </div></fieldset></form>
   <div class="genome-result-count" role="status"><span data-visible-count>{count}</span> of {count} genomes</div>
   <div class="genome-table-scroll"><table class="genome-directory-table"><thead><tr>

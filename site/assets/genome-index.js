@@ -62,11 +62,13 @@
 
   function updateTaxa(selection = {}) {
     let matching = rows;
+    let missingParent = false;
     for (const select of taxonomy) {
       const rank = select.dataset.taxonomyRank;
       const key = `taxonomy${rank[0].toUpperCase()}${rank.slice(1)}`;
       const selected = selection[rank] ?? select.value;
-      const values = [...new Set(matching.map(row => row.dataset[key]).filter(Boolean))].sort(collator.compare);
+      select.disabled = missingParent;
+      const values = missingParent ? [] : [...new Set(matching.map(row => row.dataset[key]).filter(Boolean))].sort(collator.compare);
       const all = document.createElement("option"); all.value = ""; all.textContent = "All";
       select.replaceChildren(all);
       for (const value of values) {
@@ -74,6 +76,7 @@
       }
       select.value = values.includes(selected) ? selected : "";
       if (select.value) matching = matching.filter(row => row.dataset[key] === select.value);
+      else missingParent = true;
     }
   }
 

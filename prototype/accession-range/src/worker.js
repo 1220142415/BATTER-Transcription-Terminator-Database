@@ -92,10 +92,31 @@ function pageResult(data, page, pageSize, total) {
   };
 }
 
+const d1Lookups = new WeakMap();
+
+async function cachedD1Lookup(database, key, load) {
+  let entries = d1Lookups.get(database);
+  if (!entries) { entries = new Map(); d1Lookups.set(database, entries); }
+  const now = Date.now();
+  const existing = entries.get(key);
+  if (existing?.expiresAt > now) return existing.task;
+  const entry = { expiresAt: now + 60000, task: Promise.resolve().then(load) };
+  entries.delete(key); entries.set(key, entry);
+  while (entries.size > 512) entries.delete(entries.keys().next().value);
+  try {
+    const value = await entry.task;
+    if (!value && entries.get(key) === entry) entries.delete(key);
+    return value;
+  } catch (error) {
+    if (entries.get(key) === entry) entries.delete(key);
+    throw error;
+  }
+}
+
 async function currentRelease(env) {
-  return env.BTED_DB.prepare(
+  return cachedD1Lookup(env.BTED_DB, `release:${CURRENT_RELEASE_VERSION}`, () => env.BTED_DB.prepare(
     "SELECT * FROM release_versions WHERE release_version = ? AND is_current = 1 LIMIT 1",
-  ).bind(CURRENT_RELEASE_VERSION).first();
+  ).bind(CURRENT_RELEASE_VERSION).first());
 }
 
 function releasePayload(release) {
@@ -217,9 +238,9 @@ function assetUrl(request, assetKey, route = "/api/assets/") {
 }
 
 async function publicAsset(env, releaseVersion, assetKey) {
-  return env.BTED_DB.prepare(
+  return cachedD1Lookup(env.BTED_DB, `asset:${releaseVersion}:${assetKey}`, () => env.BTED_DB.prepare(
     "SELECT asset_key, release_version, assembly_accession, source_id, asset_kind, logical_path, origin_host, content_type, byte_size, sha256, supports_range, redistribution_status, is_public FROM assets WHERE asset_key = ? AND release_version = ? AND active = 1 AND is_public = 1",
-  ).bind(assetKey, releaseVersion).first();
+  ).bind(assetKey, releaseVersion).first());
 }
 
 async function allAssets(env, releaseVersion, accession, sourceId) {
@@ -1142,11 +1163,45 @@ async function purgeUsage(env, time) {
   ]);
 }
 
+async function cachedPublicApi(request, ctx, load) {
+  const url = new URL(request.url);
+  const ttl = url.pathname === "/api/usage" ? 60
+    : /^\/api\/(stats|catalogue|sources|assemblies|endpoints)(\/[^/]+(\/jbrowse-config)?)?$/.test(url.pathname) ? 300 : 0;
+  const cache = globalThis.caches?.default;
+  if (!ttl || request.method !== "GET" || request.headers.has("range") || !cache) return load();
+  const keyUrl = new URL(url);
+  keyUrl.searchParams.set("__bted_cache", `public-api-20261004-v1:${CURRENT_RELEASE_VERSION}`);
+  keyUrl.searchParams.sort();
+  const key = new Request(keyUrl);
+  try {
+    const hit = await cache.match(key);
+    if (hit) {
+      const headers = new Headers(hit.headers); headers.set("x-bted-cache", "HIT");
+      return new Response(hit.body, { status: hit.status, headers });
+    }
+  } catch { /* Cache failures must not block the public API. */ }
+  const response = await load();
+  if (response.status !== 200 || !response.headers.get("content-type")?.startsWith("application/json")
+      || /no-store|private/i.test(response.headers.get("cache-control") || "")) return response;
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", `public, max-age=${Math.min(ttl, 60)}, s-maxage=${ttl}`);
+  headers.set("x-bted-cache", "MISS");
+  const cached = new Response(response.body, { status: response.status, headers });
+  const task = cache.put(key, cached.clone()).catch(() => {});
+  if (ctx?.waitUntil) ctx.waitUntil(task); else await task;
+  return cached;
+}
+
 export default {
   async scheduled(controller, env, ctx) {
     ctx.waitUntil(purgeUsage(env, controller.scheduledTime));
   },
   async fetch(request, env, ctx) {
+    return cachedPublicApi(request, ctx, () => routeRequest(request, env, ctx));
+  },
+};
+
+async function routeRequest(request, env, ctx) {
     const url = new URL(request.url);
     if (!["GET", "HEAD"].includes(request.method)) return json({ error: "method_not_allowed" }, 405, { allow: "GET, HEAD" });
     if (url.pathname.startsWith("/downloads/v0.2.0/")) return retiredReleaseResponse("v0.2.0");
@@ -1214,5 +1269,4 @@ export default {
       return endId ? endpointDetail(env, selected.release, endId) : json({ error: "invalid_endpoint_id" }, 400);
     }
     return json({ error: "not_found" }, 404);
-  },
-};
+}

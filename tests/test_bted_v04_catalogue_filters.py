@@ -38,21 +38,22 @@ class GenomeFiltersTests(unittest.TestCase):
     def test_cascading_taxonomy_search_sort_reset_and_shared_urls(self):
         data = self.run_js(r'''
 run();
-const initial={visible:visible(),classes:taxonomy[1].options.map(o=>o.value)};
-choose('class','C2');const narrowed={visible:visible(),orders:taxonomy[2].options.map(o=>o.value),href};
+const initial={visible:visible(),classes:taxonomy[1].options.map(o=>o.value),disabled:taxonomy.map(s=>s.disabled)};
+choose('class','C2');const narrowed={visible:visible(),orders:taxonomy[2].options.map(o=>o.value),disabled:taxonomy.map(s=>s.disabled),href};
 choose('order','O2');buttons.find(b=>b.dataset.sort==='endpoints').click();buttons.find(b=>b.dataset.sort==='endpoints').click();
 const shared=href;listeners.popstate();const restored={visible:visible(),order:taxonomy[2].value,direction:direction.textContent};
 choose('phylum','P2');const switched={visible:visible(),children:taxonomy.slice(1).map(s=>s.value)};
-clear.fire('click');const cleared={visible:visible(),href};
-choose('genus','Beta');const directGenus=visible();clear.fire('click');
+clear.fire('click');const cleared={visible:visible(),disabled:taxonomy.map(s=>s.disabled),href};
+choose('genus','Beta');const blockedGenus={visible:visible(),selected:taxonomy[4].value};clear.fire('click');
 buttons.find(b=>b.dataset.sort==='endpoints').click();buttons.find(b=>b.dataset.sort==='endpoints').click();const sorted=tbody.children.map(r=>r.dataset.sortAccession);
 search.value='study Alpha';search.fire('input');const multiword=visible();
 search.value='no match';search.fire('input');const noMatch={count:count.textContent,empty:empty.hidden};
-process.stdout.write(JSON.stringify({initial,narrowed,shared,restored,switched,cleared,directGenus,sorted,multiword,noMatch}));
+process.stdout.write(JSON.stringify({initial,narrowed,shared,restored,switched,cleared,blockedGenus,sorted,multiword,noMatch}));
 ''')
-        self.assertEqual(data['initial'], {'visible':['GCF_A','GCF_B'],'classes':['','C1','C2']})
+        self.assertEqual(data['initial'], {'visible':['GCF_A','GCF_B'],'classes':['','C1','C2'],'disabled':[False,False,True,True,True]})
         self.assertEqual(data['narrowed']['visible'], ['GCF_B'])
         self.assertEqual(data['narrowed']['orders'], ['', 'O2'])
+        self.assertEqual(data['narrowed']['disabled'], [False,False,False,True,True])
         self.assertNotIn('study=', data['narrowed']['href'])
         self.assertNotIn('assay=', data['narrowed']['href'])
         self.assertIn('order=O2', data['shared'])
@@ -60,8 +61,9 @@ process.stdout.write(JSON.stringify({initial,narrowed,shared,restored,switched,c
         self.assertEqual(data['restored'], {'visible':['GCF_B'],'order':'O2','direction':'Descending'})
         self.assertEqual(data['switched'], {'visible':['GCF_C'],'children':['','','','']})
         self.assertEqual(len(data['cleared']['visible']), 3)
+        self.assertEqual(data['cleared']['disabled'], [False,True,True,True,True])
         self.assertNotIn('phylum=', data['cleared']['href'])
-        self.assertEqual(data['directGenus'], ['GCF_B'])
+        self.assertEqual(data['blockedGenus'], {'visible':['GCF_A','GCF_B','GCF_C'],'selected':''})
         self.assertEqual(data['sorted'], ['GCF_B','GCF_C','GCF_A'])
         self.assertEqual(data['multiword'], ['GCF_A'])
         self.assertEqual(data['noMatch'], {'count':'0','empty':False})
@@ -71,19 +73,19 @@ process.stdout.write(JSON.stringify({initial,narrowed,shared,restored,switched,c
 href='https://bted.example/genomes.html?q=GCF_B';
 const dataset=control();dataset.options=['','experimental','prediction','augmentation'].map(value=>({value}));
 Object.assign(elements,{'[data-genome-dataset]':dataset,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control(),'[data-total-count]':control()});
-global.fetch=async()=>({ok:true,json:async()=>({genomes:[
+let catalogueFetches=0;global.fetch=async()=>{catalogueFetches++;return {ok:true,json:async()=>({genomes:[
 ['GCF_B','000','OTU-1','Beta','isolate',5,5,1,1,'matched',12,'d__Bacteria;p__P1;c__C2;o__O2;f__F2;g__Beta'],
 ['GCF_Z','000','OTU-2','Zeta','MAG',9,9,0,0,'unavailable',20,'d__Bacteria;p__P3;c__C4;o__O4;f__F4;g__Zeta'],
 ['GCF_W','000','OTU-3','Empty','MAG',0,0,0,0,'unavailable',0,''],
-]})});run();
+]})};};run();
 setImmediate(()=>{
   const states=[];for(const value of ['experimental','prediction','augmentation','']){dataset.value=value;dataset.fire('change');states.push({count:count.textContent,nodes:tbody.children.length,duplicate:tbody.children.filter(r=>r===rows[1]).length});}
   const mixed={studies:rows[1].cells['[data-label="Studies"]'].textContent,methods:rows[1].cells['[data-label="Methods"]'].textContent};
   search.value='';search.fire('input');choose('phylum','P3');choose('class','C4');choose('order','O4');choose('family','F4');choose('genus','Zeta');
   const synthetic={count:count.textContent,nodes:tbody.children.length,studies:tbody.children[0].children[3].textContent,methods:tbody.children[0].children[4].textContent};
   clear.fire('click');search.value='GCF_W';search.fire('input');const noFeatures=count.textContent;
-  elements['[data-genome-retry]'].fire('click');
-  setImmediate(()=>process.stdout.write(JSON.stringify({total:elements['[data-total-count]'].textContent,states,mixed,synthetic,noFeatures,retriedStudies:rows[1].dataset.sortStudies,status:elements['[data-genome-load-status]'].textContent})));
+  const fetchesAfterFiltering=catalogueFetches;elements['[data-genome-retry]'].fire('click');
+  setImmediate(()=>process.stdout.write(JSON.stringify({total:elements['[data-total-count]'].textContent,states,mixed,synthetic,noFeatures,fetchesAfterFiltering,catalogueFetches,retriedStudies:rows[1].dataset.sortStudies,status:elements['[data-genome-load-status]'].textContent})));
 });
 ''')
         self.assertEqual(data['total'], '5')
@@ -91,6 +93,8 @@ setImmediate(()=>{
         self.assertEqual(data['mixed'], {'studies':'2','methods':'BATTER-TPE \u00b7 Term-seq \u00b7 Training augmentation'})
         self.assertEqual(data['synthetic'], {'count':'1','nodes':1,'studies':'1','methods':'BATTER-TPE \u00b7 Training augmentation'})
         self.assertEqual(data['noFeatures'], '1')
+        self.assertEqual(data['fetchesAfterFiltering'], 1)
+        self.assertEqual(data['catalogueFetches'], 2)
         self.assertEqual(data['retriedStudies'], '2')
         self.assertIn('Each genome is listed once', data['status'])
 
