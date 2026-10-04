@@ -368,7 +368,7 @@ export default class BTEDTrackPlugin {
         ]),
         links([['PubMed', about.pubmed_url], ['DOI', about.doi_url]]),
       ]);
-      const evidence = kind === 'reference' ? null : section(kind === 'signal' ? 'Experimental signal' : kind === 'augmentation' ? 'Training augmentation' : 'Endpoint evidence', [
+      const evidence = kind === 'reference' ? null : section(kind === 'signal' ? 'Experimental signal' : kind === 'augmentation' ? 'Training augmentation' : kind === 'prediction' ? 'Model prediction' : 'Endpoint evidence', [
         facts([
           ['Source', about.source_id], ['Method', about.assay], ['Strand', about.strand],
           ['Endpoints', kind === 'endpoint' ? about.record_count : ''],

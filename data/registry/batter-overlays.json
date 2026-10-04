@@ -1,0 +1,60 @@
+{
+  "revision": "6588c4242246fcfd40086a08a94fe3a6c378c029",
+  "genomes": {
+    "GCF_000009765.2": {
+      "compatible": true,
+      "experimental_reference_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000009765.2/reference/reference.fna",
+      "experimental_reference_sha256": "2d22f1800172bfa66fdec21e15cc00dadb930cd811db47eb2220e407853c36db",
+      "batter_reference_sha256": "c1a98ea877e5e1c6444cd78260632e6f191283b0e018d5eab6c9032d984ee77d",
+      "experimental_contigs": {
+        "BA000030.4": {
+          "length": 9025608,
+          "sha256": "761c3351aa80f9ff284f79f6512c98fe4c616bb24d51255fd1b1bc228a944efc"
+        }
+      },
+      "batter_contigs": {
+        "NC_003155.5": {
+          "length": 9025608,
+          "sha256": "761c3351aa80f9ff284f79f6512c98fe4c616bb24d51255fd1b1bc228a944efc"
+        },
+        "NC_004719.1": {
+          "length": 94287,
+          "sha256": "96301c9c83e9cf1c033561ae826b1a570d740e52e06c7e6de4aa30a6196e2885"
+        }
+      },
+      "aliases": {
+        "BA000030.4": "NC_003155.5"
+      }
+    },
+    "GCF_000012525.1": {
+      "compatible": true,
+      "experimental_reference_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/eea5b7225975b224a1c837f60c4fa10497fef022/v0.4.0/browser/GCF_000012525.1/reference.fna",
+      "experimental_reference_sha256": "49785d1244f4be5c526c613cd6bbcd8373aaec1f5a98fe827ee99f636df32ed9",
+      "batter_reference_sha256": "e358579a5dafdbb053b4eae9fd529ef0c7ef8cb5480869a967e09d1b9069b4a7",
+      "experimental_contigs": {
+        "NC_007604.1": {
+          "length": 2695903,
+          "sha256": "5fb438ec6391898e01a7774c114b37d7852c64cd115de2c1628cefecb6d5f4a6"
+        },
+        "NC_007595.1": {
+          "length": 46366,
+          "sha256": "9f1b678c071fbd420be196f0e1bf86c9abcbe0a966f0faa2fc9b4cf078381f05"
+        }
+      },
+      "batter_contigs": {
+        "NC_007604.1": {
+          "length": 2695903,
+          "sha256": "5fb438ec6391898e01a7774c114b37d7852c64cd115de2c1628cefecb6d5f4a6"
+        },
+        "NC_007595.1": {
+          "length": 46366,
+          "sha256": "9f1b678c071fbd420be196f0e1bf86c9abcbe0a966f0faa2fc9b4cf078381f05"
+        }
+      },
+      "aliases": {
+        "NC_007604.1": "NC_007604.1",
+        "NC_007595.1": "NC_007595.1"
+      }
+    }
+  }
+}

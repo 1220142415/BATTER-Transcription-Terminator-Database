@@ -869,7 +869,7 @@ async function staticAsset(request, env) {
   return json({ error: "static_assets_not_configured" }, 404);
 }
 
-const BATTER_FILES = new Set(["reference.fa.gz", "reference.fa.gz.fai", "reference.fa.gz.gzi", "augmentation.gff3.gz", "augmentation.gff3.gz.tbi", "genes.gff3.gz", "genes.gff3.gz.tbi"]);
+const BATTER_FILES = new Set(["reference.fa.gz", "reference.fa.gz.fai", "reference.fa.gz.gzi", "augmentation.gff3.gz", "augmentation.gff3.gz.tbi", "prediction.gff3.gz", "prediction.gff3.gz.tbi", "genes.gff3.gz", "genes.gff3.gz.tbi"]);
 const batterCatalogues = new WeakMap();
 
 async function batterCatalogue(request, env) {
@@ -884,6 +884,35 @@ async function batterCatalogue(request, env) {
     task.catch(() => batterCatalogues.delete(env.ASSETS));
   }
   return batterCatalogues.get(env.ASSETS);
+}
+
+async function genomeBrowserRegistry(request, env) {
+  const response = await env.ASSETS.fetch(new Request(new URL("/assets/genome-browsers.json", request.url)));
+  if (!response.ok) throw new Error("genome_browser_registry_unavailable");
+  return response.json();
+}
+
+export function combineGenomeTracks(config, experimental, verified, metadata) {
+  const id = metadata.genome_id;
+  const matching = verified?.compatible && verified.batter_reference_sha256 === metadata.files["reference.fa.gz"].sha256
+    && verified.experimental_reference_url === experimental.assemblies[0].sequence.adapter.fastaLocation.uri;
+  config.configuration = experimental.configuration;
+  config.metadata.combined_reference_status = matching ? "matching_sequences" : "separate_views";
+  if (!matching) {
+    config.assemblies.push(...experimental.assemblies);
+    config.tracks.push(...experimental.tracks);
+    config.defaultSession.views.push(...experimental.defaultSession.views);
+    return config;
+  }
+  const aliases = Object.entries(verified.aliases || {}).filter(([alias, ref]) => alias !== ref).map(([alias, ref]) => `${ref}\t${alias}`).join("\n");
+  if (aliases) config.assemblies[0].refNameAliases = { adapter: { type: "RefNameAliasAdapter", location: { uri: "data:text/plain," + encodeURIComponent(aliases + "\n"), locationType: "UriLocation" } } };
+  const tracks = experimental.tracks.filter(track => !config.tracks.some(existing => existing.metadata?.btedAbout?.kind === "reference") || track.metadata?.btedAbout?.kind !== "reference")
+    .map(track => ({ ...track, assemblyNames: [id] }));
+  config.tracks.push(...tracks);
+  const available = new Set(tracks.map(track => track.trackId));
+  const sessionTracks = experimental.defaultSession.views.flatMap(view => view.tracks).filter(track => available.has(track.configuration));
+  config.defaultSession.views[0].tracks.push(...sessionTracks);
+  return config;
 }
 
 async function batterFileBytes(url, file) {
@@ -919,7 +948,7 @@ async function batterConfig(request, metadata) {
   }
   const tracks = [];
   function addTrack(trackId, name, file, renderer, height, explanation) {
-    tracks.push({ type: "FeatureTrack", trackId, name, assemblyNames: [id], category: ["BATTER training data"],
+    tracks.push({ type: "FeatureTrack", trackId, name, assemblyNames: [id], category: [trackId === "batter_prediction" ? "Model prediction" : trackId === "batter_genes" ? "Reference annotation" : "Training augmentation"],
       adapter: { type: "Gff3TabixAdapter", gffGzLocation: uri(file), index: { location: uri(file + ".tbi"), indexType: "TBI" } },
       displays: [{ type: "LinearBasicDisplay", displayId: trackId + "_display", height, showLabels: false, renderer: { type: "SvgFeatureRenderer", ...renderer } }],
       metadata: { btedAbout: { kind: trackId === "batter_genes" ? "reference" : "augmentation", title: "BATTER", assembly: id, evidence: "Computational training augmentation", record_count: augmented, explanation, doi_url: "https://doi.org/10.1186/s40168-026-02454-1", gff3_url: uri(file).uri },
@@ -931,12 +960,17 @@ async function batterConfig(request, metadata) {
   if (augmented || counts.otu_augmentation_window || counts.rfam_training_window) {
     addTrack("batter_augmentation", "Training windows and terminator spans", "augmentation.gff3.gz", { color1: "jexl:btedAugmentationColor(feature)", color2: "jexl:btedAugmentationColor(feature)", height: 14 }, 140, "Dark blue: OTU augmented spans. Purple: Rfam training spans. Pale: sequence windows. Windows are context, not additional terminators.");
   }
+  if (counts.tes_prediction > 0) {
+    addTrack("batter_prediction", "BATTER · predicted terminator regions", "prediction.gff3.gz", { color1: "#d97706", color2: "#d97706", height: 14 }, 100, "Published BATTER-TPE genome-wide predictions. Scores are model outputs.");
+    const about = tracks.at(-1).metadata.btedAbout;
+    about.kind = "prediction"; about.evidence = "Model prediction"; about.record_count = counts.tes_prediction;
+  }
   const sessionTracks = [{ id: "batter_sequence", type: "ReferenceSequenceTrack", configuration: reference.trackId, displays: [{ type: "LinearReferenceSequenceDisplay", configuration: reference.trackId + "-LinearReferenceSequenceDisplay", showTranslation: true, heightPreConfig: 120 }] },
     ...tracks.map(track => ({ id: track.trackId, type: "FeatureTrack", configuration: track.trackId, displays: [{ type: "LinearBasicDisplay", configuration: track.displays[0].displayId }] }))];
   return { plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL("/jbrowse/plugins/bted-track-plugin.js", request.url).href }],
     assemblies: [{ name: id, sequence: reference }], tracks,
-    defaultSession: { name: "BATTER augmentation · " + id, views: [{ id: "batter_view", type: "LinearGenomeView", bpPerPx: 1, offsetPx: start, displayedRegions: [{ refName: ref, start: 0, end: contigs.get(ref), assemblyName: id, reversed: false }], tracks: sessionTracks }] },
-    metadata: { revision: metadata.revision, evidence_class: "training_augmentation" } };
+    defaultSession: { name: "BTED genome · " + id, views: [{ id: "batter_view", type: "LinearGenomeView", bpPerPx: 1, offsetPx: start, displayedRegions: [{ refName: ref, start: 0, end: contigs.get(ref), assemblyName: id, reversed: false }], tracks: sessionTracks }] },
+    metadata: { revision: metadata.revision } };
 }
 
 async function batterApi(request, env, match) {
@@ -960,7 +994,19 @@ async function batterApi(request, env, match) {
       metadata.browser_files[file] = { ...entry, url: base + file, fallback_url: `/api/batter/${encodeURIComponent(id)}/files/${file}?revision=${catalogue.revision}` };
     }
     for (const file of ["reference.fa.gz", "reference.fa.gz.fai", "reference.fa.gz.gzi"]) if (!metadata.browser_files[file]) throw new Error("reference_not_uploaded");
-    if (match[2] === "config") return json(await batterConfig(request, metadata), 200, { "cache-control": url.searchParams.has("revision") ? "public, max-age=86400" : "no-cache" });
+    if (match[2] === "config") {
+      let config = await batterConfig(request, metadata);
+      const registry = await genomeBrowserRegistry(request, env);
+      const path = registry.experimental?.[id];
+      if (path) {
+        if (!/^\/jbrowse\/assemblies\/[A-Za-z0-9_.-]+\.config\.json$/.test(path)) throw new Error("invalid_experimental_config_path");
+        const experimentalResponse = await env.ASSETS.fetch(new Request(new URL(path, request.url)));
+        if (!experimentalResponse.ok) throw new Error("experimental_config_unavailable");
+        const verified = registry.revision === catalogue.revision ? registry.overlays?.[id] : null;
+        config = combineGenomeTracks(config, await experimentalResponse.json(), verified, metadata);
+      }
+      return json(config, 200, { "cache-control": "no-cache" });
+    }
     if (match[2] !== "files") return json(metadata, 200, { "cache-control": "no-cache" });
     const file = decodePath(match[3]);
     const asset = metadata.browser_files[file];
@@ -1005,8 +1051,9 @@ function usagePath(request) {
   if (path === "/" || path === "/index" || path === "/index.html") return "/";
   if (path === "/genomes" || path === "/genomes.html") return "/genomes";
   if (path === "/methodology" || path === "/methodology.html") return "/methodology";
-  const genome = /^\/genomes\/(GCF_[0-9]+\.[0-9]+)(?:\.html)?$/.exec(path);
-  return genome ? `/genomes/${genome[1]}` : null;
+  const genome = /^\/genomes\/([A-Za-z0-9_.-]+)$/.exec(path);
+  const id = genome?.[1].replace(/\.html$/, "");
+  return id && !["batter", "genome"].includes(id) ? `/genomes/${id}` : null;
 }
 
 function countableUsage(request, response) {
@@ -1104,7 +1151,19 @@ export default {
     if (!["GET", "HEAD"].includes(request.method)) return json({ error: "method_not_allowed" }, 405, { allow: "GET, HEAD" });
     if (url.pathname.startsWith("/downloads/v0.2.0/")) return retiredReleaseResponse("v0.2.0");
     if (!url.pathname.startsWith("/api/")) {
-      const response = await staticAsset(request, env);
+      let assetRequest = request;
+      const genomePage = /^\/genomes\/([A-Za-z0-9_.-]+)(?:\.html)?$/.exec(url.pathname);
+      if (genomePage && !["batter", "genome"].includes(genomePage[1])) {
+        const id = genomePage[1].replace(/\.html$/, "");
+        try {
+          const catalogue = await batterCatalogue(request, env);
+          if (catalogue.genomes.has(id)) {
+            const registry = await genomeBrowserRegistry(request, env);
+            if (!registry.experimental?.[id]) assetRequest = new Request(new URL("/genomes/genome", request.url), request);
+          }
+        } catch { /* Existing static experimental pages remain available. */ }
+      }
+      const response = await staticAsset(assetRequest, env);
       if (env.BTED_ANALYTICS === "on" && env.BTED_DB && ctx && countableUsage(request, response)) {
         ctx.waitUntil(recordUsage(request, env).catch(() => console.error("BTED usage write failed")));
       }

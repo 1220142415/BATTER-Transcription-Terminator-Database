@@ -5,7 +5,7 @@ import { gzipSync } from "node:zlib";
 import test from "node:test";
 
 const source = readFileSync(new URL("../prototype/accession-range/src/worker.js", import.meta.url), "utf8");
-const { default: worker } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
+const { default: worker, combineGenomeTracks } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
 const catalogue = JSON.parse(readFileSync(new URL("../data/registry/batter-browser.json", import.meta.url)));
 const id = "GCF_000006605.1", revision = catalogue.revision;
 const nativeFetch = globalThis.fetch;
@@ -18,9 +18,10 @@ function environment({ empty = false, annotation = "matched" } = {}) {
     "augmentation.gff3.gz": Buffer.concat([gzipSync(empty ? "##gff-version 3\n" : "##gff-version 3\nchr1\tBATTER\ttraining_sequence_window\t8320\t8893\t.\t-\t.\tID=W\nchr1\tBATTER\taugmented_terminator_span\t8580\t8636\t.\t-\t.\tID=S\n"), gzipSync("")]),
     "augmentation.gff3.gz.tbi": Buffer.alloc(8),
     "genes.gff3.gz": gzipSync("##gff-version 3\n"), "genes.gff3.gz.tbi": Buffer.alloc(8),
+    "prediction.gff3.gz": gzipSync("##gff-version 3\nchr1\tBATTER\tpredicted_terminator_region\t10\t30\t0.9\t+\t.\tID=P\n"), "prediction.gff3.gz.tbi": Buffer.alloc(8),
   };
   const metadata = { genome_id: id, batch: "000", otu_id: "OTU-44316", reference: { contigs: 1, bases: 10000 }, annotation: { status: annotation },
-    feature_counts: { otu_augmentation_span: empty ? 0 : 1, otu_augmentation_window: empty ? 0 : 1, rfam_training_span: 0, rfam_training_window: 0 },
+    feature_counts: { tes_prediction: 1, otu_augmentation_span: empty ? 0 : 1, otu_augmentation_window: empty ? 0 : 1, rfam_training_span: 0, rfam_training_window: 0 },
     files: Object.fromEntries(Object.entries(files).map(([name, bytes]) => [name, { bytes: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") }])) };
   const calls = [];
   globalThis.fetch = async (url, options = {}) => {
@@ -33,7 +34,7 @@ function environment({ empty = false, annotation = "matched" } = {}) {
     if (range) return new Response(bytes.subarray(0, 6), { status: 206, headers: { "content-length": "6", "content-range": `bytes 0-5/${bytes.length}` } });
     return new Response(bytes, { headers: { "content-length": String(bytes.length) } });
   };
-  return { calls, metadata, ASSETS: { fetch: async () => Response.json(catalogue) } };
+  return { calls, metadata, ASSETS: { fetch: async request => request.url.endsWith("genome-browsers.json") ? Response.json({ revision, experimental: {}, overlays: {} }) : Response.json(catalogue) } };
 }
 const request = path => new Request("https://bted.example/api/batter/" + path);
 
@@ -48,7 +49,8 @@ test("indexed augmentation uses its own bgzip reference, opens the first window,
     assert.equal(config.defaultSession.views[0].offsetPx, 8119);
     assert.equal(config.defaultSession.views[0].tracks[0].type, "ReferenceSequenceTrack");
     assert.equal(config.defaultSession.views[0].tracks[0].displays[0].showTranslation, true);
-    assert.deepEqual(config.tracks.map(track => track.trackId), ["batter_genes", "batter_augmentation"]);
+    assert.deepEqual(config.tracks.map(track => track.trackId), ["batter_genes", "batter_augmentation", "batter_prediction"]);
+    assert.equal(config.tracks[2].metadata.btedAbout.evidence, "Model prediction");
     assert.equal(config.tracks[1].adapter.type, "Gff3TabixAdapter");
     assert.equal(config.tracks[1].metadata.btedAbout.evidence, "Computational training augmentation");
   } finally { globalThis.fetch = nativeFetch; }
@@ -60,10 +62,29 @@ test("empty augmentation and unmatched annotation do not create misleading track
     const response = await worker.fetch(request(id + "/config"), env);
     assert.equal(response.status, 200);
     const config = await response.json();
-    assert.deepEqual(config.tracks, []);
+    assert.deepEqual(config.tracks.map(track => track.trackId), ["batter_prediction"]);
     assert.equal(config.defaultSession.views[0].offsetPx, 0);
     assert.ok(!env.calls.some(call => call.url.endsWith("augmentation.gff3.gz")));
   } finally { globalThis.fetch = nativeFetch; }
+});
+
+test("same-genome tracks merge using verified sequence aliases; mismatched references remain separate views", () => {
+  const metadata = { genome_id: id, files: { "reference.fa.gz": { sha256: "a".repeat(64) } } };
+  const base = () => ({ assemblies: [{ name: id }], tracks: [{ trackId: "batter_augmentation", metadata: {} }], defaultSession: { views: [{ id: "batter_view", tracks: [] }] }, metadata: {} });
+  const experimental = { assemblies: [{ name: "experimental_ref", sequence: { adapter: { fastaLocation: { uri: "https://example.org/reference.fa" } } } }],
+    tracks: [{ trackId: "experimental_endpoints", assemblyNames: ["experimental_ref"], metadata: {} }], defaultSession: { views: [{ id: "experimental_view", tracks: [{ configuration: "experimental_endpoints" }] }] } };
+  const verified = { compatible: true, batter_reference_sha256: "a".repeat(64), experimental_reference_url: "https://example.org/reference.fa", aliases: { BA000030: "NC_003155" } };
+  const merged = combineGenomeTracks(base(), experimental, verified, metadata);
+  assert.equal(merged.assemblies.length, 1);
+  assert.equal(merged.defaultSession.views.length, 1);
+  assert.deepEqual(merged.tracks[1].assemblyNames, [id]);
+  assert.equal(merged.defaultSession.views[0].tracks[0].configuration, "experimental_endpoints");
+  assert.equal(decodeURIComponent(merged.assemblies[0].refNameAliases.adapter.location.uri), "data:text/plain,NC_003155\tBA000030\n");
+  const separated = combineGenomeTracks(base(), experimental, { ...verified, batter_reference_sha256: "b".repeat(64) }, metadata);
+  assert.equal(separated.assemblies.length, 2);
+  assert.equal(separated.defaultSession.views.length, 2);
+  assert.equal(separated.metadata.combined_reference_status, "separate_views");
+  assert.deepEqual(separated.tracks[1].assemblyNames, ["experimental_ref"]);
 });
 
 test("file proxy preserves ranges and rejects unknown IDs, arbitrary files and revision mixing", async () => {

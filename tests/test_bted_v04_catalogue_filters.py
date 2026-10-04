@@ -51,6 +51,46 @@ process.stdout.write(JSON.stringify({initial,cleared,sorted,searched,multiword,i
 
 
 class GenomeFiltersTests(unittest.TestCase):
+    def test_unified_catalogue_deduplicates_and_filters_without_creating_all_rows(self) -> None:
+        prefix = HARNESS.split("vm.runInThisContext")[0]
+        script = prefix + r'''
+href='https://bted.example/genomes.html?q=GCF_B';
+function element(){return {dataset:{},children:[],textContent:'',append(...nodes){this.children.push(...nodes);}};}
+document.createElement=element;
+const dataset=control();dataset.options=['','experimental','prediction','augmentation'].map(value=>({value}));
+const taxonomy=control();taxonomy.options=[{value:''}];
+for(const select of [dataset,taxonomy,study,assay,evidence,signal])select.append=function(node){this.options.push(node);};
+Object.assign(elements,{'[data-genome-dataset]':dataset,'[data-filter-taxonomy]':taxonomy,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':element(),'[data-genome-load-status]':element(),'[data-genome-retry]':control(),'[data-total-count]':element()});
+tbody.replaceChildren=function(){this.children=[];};
+for(const row of rows)row.querySelector=()=>element();
+global.fetch=async()=>({ok:true,json:async()=>({genomes:[
+['GCF_B','000','OTU-1','Beta','isolate',5,5,1,1,'matched',12,'d__Bacteria;p__P;g__Beta'],
+['GCF_Z','000','OTU-2','Zeta','MAG',9,9,0,0,'unavailable',20,'d__Bacteria;p__P;g__Zeta'],
+]})});
+vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
+setImmediate(()=>{
+  const total=elements['[data-total-count]'].textContent;
+  const states=[];
+  for(const value of ['experimental','prediction','augmentation','']){
+    dataset.value=value;dataset.fire('change');
+    states.push({type:value,count:count.textContent,nodes:tbody.children.length,duplicate:tbody.children.filter(row=>row===rows[1]).length});
+  }
+  search.value='GCF_Z';search.fire('input');
+  const synthetic={count:count.textContent,nodes:tbody.children.length};
+  study.value='A';study.fire('change');
+  process.stdout.write(JSON.stringify({total,states,synthetic,inconsistent:count.textContent,status:elements['[data-genome-load-status]'].textContent}));
+});
+'''
+        result = subprocess.run(["node", "-e", script, str(ROOT / "site/assets/genome-index.js")], cwd=ROOT,
+                                capture_output=True, text=True, encoding="utf-8", check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data = json.loads(result.stdout)
+        self.assertEqual(data["total"], "4")
+        self.assertTrue(all(state["count"] == "1" and state["nodes"] == 1 and state["duplicate"] == 1 for state in data["states"]))
+        self.assertEqual(data["synthetic"], {"count": "1", "nodes": 1})
+        self.assertEqual(data["inconsistent"], "0")
+        self.assertIn("Each genome is listed once", data["status"])
+
     def test_same_source_filter_sort_and_url_state(self) -> None:
         result = subprocess.run(
             ["node", "-e", HARNESS, str(ROOT / "site/assets/genome-index.js")],

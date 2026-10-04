@@ -2,6 +2,8 @@
 import argparse
 import csv
 import json
+import gzip
+import hashlib
 import re
 import urllib.request
 from pathlib import Path
@@ -10,7 +12,7 @@ REVISION = "6588c4242246fcfd40086a08a94fe3a6c378c029"
 ROOT = Path(__file__).resolve().parents[1]
 COLUMNS = ["genome_id", "batch", "otu_id", "organism", "genome_type",
            "otu_augmentation_span", "otu_augmentation_window", "rfam_training_span",
-           "rfam_training_window", "annotation_status"]
+           "rfam_training_window", "annotation_status", "tes_prediction", "taxonomy"]
 
 
 def build(tables, revision):
@@ -28,10 +30,66 @@ def build(tables, revision):
             values += [int(row[key]) for key in COLUMNS[5:9]]
             if any(v < 0 for v in values[5:]):
                 raise ValueError("Negative feature count")
-            genomes.append(values + [row["annotation_status"]])
+            genomes.append(values + [row["annotation_status"], int(row["tes_prediction"]), row["taxonomy"]])
     if not genomes:
         raise ValueError("No uploaded genomes found")
     return {"revision": revision, "partial": True, "columns": COLUMNS, "genomes": genomes}
+
+
+def sequence_hashes(data):
+    sequences = {}
+    name, sequence = None, []
+    for line in data.decode("ascii").splitlines() + [">"]:
+        if line.startswith(">"):
+            if name:
+                if name in sequences:
+                    raise ValueError("Duplicate FASTA sequence ID")
+                bases = "".join(sequence).upper().encode("ascii")
+                sequences[name] = {"length": len(bases), "sha256": hashlib.sha256(bases).hexdigest()}
+            name, sequence = line[1:].split(" ", 1)[0], []
+        else:
+            sequence.append(line.strip())
+    return sequences
+
+
+def verify_overlaps(catalogue, cache_dir):
+    release = json.loads((ROOT / "data/public/v0.4.0/release.json").read_text(encoding="utf-8"))
+    ids = {genome["assembly"] for genome in release["genomes"]}
+    with (ROOT / "data/registry/browser_assets.v0.4.0.tsv").open(encoding="utf-8") as handle:
+        assets = list(csv.DictReader(handle, delimiter="\t"))
+    result = {"revision": catalogue["revision"], "genomes": {}}
+    def download(url, name, expected=None):
+        path = cache_dir / name
+        if not path.exists():
+            with urllib.request.urlopen(url, timeout=120) as response:
+                path.write_bytes(response.read())
+        data = path.read_bytes()
+        if expected and hashlib.sha256(data).hexdigest() != expected:
+            raise ValueError(f"Checksum mismatch: {name}")
+        return data
+    for row in catalogue["genomes"]:
+        genome, batch = row[:2]
+        if genome not in ids:
+            continue
+        asset = next(item for item in assets if item["asset_kind"] == "fasta" and genome in item["logical_path"].split("/"))
+        base = f"https://huggingface.co/datasets/liurulong/terminator/resolve/{catalogue['revision']}/v0.5.0/batter/batches/{batch}/genomes/{genome}/"
+        metadata = json.loads(download(base + "metadata.json", f"{catalogue['revision']}-{genome}-metadata.json"))
+        batter_sha = metadata["files"]["reference.fa.gz"]["sha256"]
+        batter = sequence_hashes(gzip.decompress(download(base + "reference.fa.gz", f"{batter_sha}.fa.gz", batter_sha)))
+        experimental = sequence_hashes(download(asset["url"], f"{asset['sha256']}.fna", asset["sha256"]))
+        aliases = {}
+        for ref, digest in experimental.items():
+            candidates = [name for name, value in batter.items() if value == digest]
+            if batter.get(ref) == digest:
+                aliases[ref] = ref
+            elif len(candidates) == 1:
+                aliases[ref] = candidates[0]
+        compatible = bool(experimental) and len(aliases) == len(experimental)
+        result["genomes"][genome] = {"compatible": compatible, "experimental_reference_url": asset["url"],
+            "experimental_reference_sha256": asset["sha256"], "batter_reference_sha256": batter_sha,
+            "experimental_contigs": experimental, "batter_contigs": batter, "aliases": aliases}
+        print(f"{genome}: {'matching reference sequences' if compatible else 'different references; separate views'}")
+    (ROOT / "data/registry/batter-overlays.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def main():
@@ -39,6 +97,7 @@ def main():
     parser.add_argument("--revision", default=REVISION)
     parser.add_argument("--batches", type=int, default=40)
     parser.add_argument("--download", action="store_true")
+    parser.add_argument("--verify-overlaps", action="store_true")
     parser.add_argument("--cache-dir", type=Path, default=ROOT / "dist")
     parser.add_argument("--output", type=Path, default=ROOT / "data/registry/batter-browser.json")
     args = parser.parse_args()
@@ -56,8 +115,10 @@ def main():
         tables.append((batch, path))
     catalogue = build(tables, args.revision)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(catalogue, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    args.output.write_text(json.dumps(catalogue, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8", newline="\n")
     print(f"Indexed {len(catalogue['genomes']):,} genomes at {args.revision}")
+    if args.verify_overlaps:
+        verify_overlaps(catalogue, args.cache_dir)
 
 
 if __name__ == "__main__":
