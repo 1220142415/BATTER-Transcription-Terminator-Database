@@ -16,7 +16,7 @@ const vm = require('vm');
 function control(value = '') {
   return { value, options: [{value:''},{value:'A'},{value:'B'},{value:'Term-seq'},{value:'Rend-seq'},{value:'yes'},{value:'no'}], listeners:{}, addEventListener(type, fn){this.listeners[type]=fn;}, fire(type){this.listeners[type]?.({preventDefault(){}});} };
 }
-function source(study, assay, signal, search) { return {dataset:{study,assay,signal,evidence:'author_called_endpoint',search}}; }
+function source(study, assay, signal, search) { return {dataset:{study,assay,signal,published:'yes',evidence:'author_called_endpoint',search}}; }
 function row(accession, organism, endpoints, sources) {
   return {dataset:{genomeSearch:`${accession} ${organism}`.toLowerCase(),sortAccession:accession,sortOrganism:organism,sortStudies:'1',sortEndpoints:String(endpoints),sortSignal:sources.some(s=>s.dataset.signal==='yes')?'1':'0'},hidden:false,querySelectorAll(){return sources;}};
 }
@@ -62,7 +62,8 @@ const taxonomy=control();taxonomy.options=[{value:''}];
 for(const select of [dataset,taxonomy,study,assay,evidence,signal])select.append=function(node){this.options.push(node);};
 Object.assign(elements,{'[data-genome-dataset]':dataset,'[data-filter-taxonomy]':taxonomy,'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':element(),'[data-genome-load-status]':element(),'[data-genome-retry]':control(),'[data-total-count]':element()});
 tbody.replaceChildren=function(){this.children=[];};
-for(const row of rows)row.querySelector=()=>element();
+for(const row of rows){row.cells={};row.querySelector=selector=>row.cells[selector]??=element();}
+rows[1].querySelectorAll().push({...source('AUDIT','Review only','no','audit'),dataset:{...source('AUDIT','Review only','no','audit').dataset,published:'no'}});
 global.fetch=async()=>({ok:true,json:async()=>({genomes:[
 ['GCF_B','000','OTU-1','Beta','isolate',5,5,1,1,'matched',12,'d__Bacteria;p__P;g__Beta'],
 ['GCF_Z','000','OTU-2','Zeta','MAG',9,9,0,0,'unavailable',20,'d__Bacteria;p__P;g__Zeta'],
@@ -76,9 +77,12 @@ setImmediate(()=>{
     states.push({type:value,count:count.textContent,nodes:tbody.children.length,duplicate:tbody.children.filter(row=>row===rows[1]).length});
   }
   search.value='GCF_Z';search.fire('input');
-  const synthetic={count:count.textContent,nodes:tbody.children.length};
+  const synthetic={count:count.textContent,nodes:tbody.children.length,studies:tbody.children[0].children[3].textContent,methods:tbody.children[0].children[4].textContent};
+  const mixed={studies:rows[1].cells['[data-label="Studies"]'].textContent,methods:rows[1].cells['[data-label="Methods"]'].textContent};
   study.value='A';study.fire('change');
-  process.stdout.write(JSON.stringify({total,states,synthetic,inconsistent:count.textContent,status:elements['[data-genome-load-status]'].textContent}));
+  const inconsistent=count.textContent;
+  elements['[data-genome-retry]'].fire('click');
+  setImmediate(()=>process.stdout.write(JSON.stringify({total,states,synthetic,mixed,inconsistent,retriedStudies:rows[1].dataset.sortStudies,status:elements['[data-genome-load-status]'].textContent})));
 });
 '''
         result = subprocess.run(["node", "-e", script, str(ROOT / "site/assets/genome-index.js")], cwd=ROOT,
@@ -87,7 +91,9 @@ setImmediate(()=>{
         data = json.loads(result.stdout)
         self.assertEqual(data["total"], "4")
         self.assertTrue(all(state["count"] == "1" and state["nodes"] == 1 and state["duplicate"] == 1 for state in data["states"]))
-        self.assertEqual(data["synthetic"], {"count": "1", "nodes": 1})
+        self.assertEqual(data["synthetic"], {"count": "1", "nodes": 1, "studies": "1", "methods": "BATTER-TPE · Training augmentation"})
+        self.assertEqual(data["mixed"], {"studies": "2", "methods": "BATTER-TPE · Term-seq · Training augmentation"})
+        self.assertEqual(data["retriedStudies"], "2")
         self.assertEqual(data["inconsistent"], "0")
         self.assertIn("Each genome is listed once", data["status"])
 

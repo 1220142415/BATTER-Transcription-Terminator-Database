@@ -349,6 +349,7 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
             source_tags.append(
                 f'<span hidden data-source-filter data-search="{esc(source_search)}" '
                 f'data-study="{esc(row["pmid"])}" data-assay="{esc(row.get("assay", ""))}" '
+                f'data-published="{"yes" if is_published_status(row.get("release_status")) else "no"}" '
                 f'data-evidence="{esc(row.get("evidence_class") or "audit_only")}" '
                 f'data-signal="{"yes" if has_signal else "no"}"></span>'
             )

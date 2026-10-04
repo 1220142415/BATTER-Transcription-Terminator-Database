@@ -174,7 +174,7 @@
     const tr = document.createElement("tr");
     const href = `genomes/${encodeURIComponent(record[0])}`;
     const labels = ["Organism", "Assembly", "Phylum", "Studies", "Methods", "Endpoints", "Predicted", "Training spans", "Signal", "Open"];
-    const values = [record[3], `${record[0]} · ${record[2]}`, row.dataset.taxonomyPhylum || "Not assigned", "1", "BATTER", "0", Number(record[10]).toLocaleString("en-US"), (record[5] + record[7]).toLocaleString("en-US"), "No signal", "Open genome"];
+    const values = [record[3], `${record[0]} · ${record[2]}`, row.dataset.taxonomyPhylum || "Not assigned", row.dataset.sortStudies, row.methods, "0", Number(record[10]).toLocaleString("en-US"), (record[5] + record[7]).toLocaleString("en-US"), "No signal", "Open genome"];
     values.forEach((value, i) => {
       const td = document.createElement("td"); td.dataset.label = labels[i];
       if (i === 0 || i === 9) { const link = document.createElement("a"); link.textContent = value; link.href = href; td.append(link); }
@@ -192,7 +192,6 @@
       if (!response.ok) throw new Error();
       const records = (await response.json()).genomes;
       const indexed = new Map(rows.map(row => [row.dataset.sortAccession.toUpperCase(), row]));
-      for (const row of rows) row.node = row;
       const taxa = new Set();
       for (const record of records) {
         let row = indexed.get(record[0].toUpperCase());
@@ -208,9 +207,14 @@
         row.batter = record;
         row.dataset.genomeSearch += ` ${record[0]} ${record[2]} ${record[3]} ${record[11] || ""}`.toLowerCase();
         row.sources ||= Array.from(row.querySelectorAll("[data-source-filter]"));
-        if (record[10] > 0) row.sources.push({ dataset: { search: "batter predictions 42402588", study: "42402588", assay: "BATTER-TPE", evidence: "model_prediction", signal: "no" } });
-        if (record[5] + record[7] > 0) row.sources.push({ dataset: { search: "batter augmentation training 42402588", study: "42402588", assay: "Training augmentation", evidence: "training_augmentation", signal: "no" } });
+        if (record[10] > 0 && !row.sources.some(source => source.dataset.evidence === "model_prediction")) row.sources.push({ dataset: { search: "batter predictions 42402588", study: "42402588", assay: "BATTER-TPE", published: "yes", evidence: "model_prediction", signal: "no" } });
+        if (record[5] + record[7] > 0 && !row.sources.some(source => source.dataset.evidence === "training_augmentation")) row.sources.push({ dataset: { search: "batter augmentation training 42402588", study: "42402588", assay: "Training augmentation", published: "yes", evidence: "training_augmentation", signal: "no" } });
+        const published = row.sources.filter(source => source.dataset.published === "yes");
+        row.dataset.sortStudies = String(new Set(published.map(source => source.dataset.study)).size);
+        row.methods = [...new Set(published.map(source => source.dataset.assay).filter(Boolean))].sort().join(" · ") || "—";
         if (row.node) {
+          row.node.querySelector('[data-label="Studies"]').textContent = row.dataset.sortStudies;
+          row.node.querySelector('[data-label="Methods"]').textContent = row.methods;
           row.node.querySelector("[data-prediction-count]").textContent = Number(record[10]).toLocaleString("en-US");
           row.node.querySelector("[data-augmentation-count]").textContent = (record[5] + record[7]).toLocaleString("en-US");
         }
