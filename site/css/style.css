@@ -763,3 +763,9 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-height: calc(100v
   .study-card { padding: 15px 12px; }
   .study-downloads .download-card { min-height: 36px; }
 }
+/* The genome directory shares its layout across experimental and training data. */
+.dataset-picker { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; font-weight: 600; }
+.dataset-picker select { min-width: 230px; padding: 10px 12px; border: 1px solid #d5dfe8; border-radius: 8px; background: #fff; color: inherit; font: inherit; }
+.batter-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 18px; }
+[data-batter-search] { width: 100%; }
+[hidden] { display: none !important; }

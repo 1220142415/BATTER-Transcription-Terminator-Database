@@ -869,6 +869,123 @@ async function staticAsset(request, env) {
   return json({ error: "static_assets_not_configured" }, 404);
 }
 
+const BATTER_FILES = new Set(["reference.fa.gz", "reference.fa.gz.fai", "reference.fa.gz.gzi", "augmentation.gff3.gz", "augmentation.gff3.gz.tbi", "genes.gff3.gz", "genes.gff3.gz.tbi"]);
+const batterCatalogues = new WeakMap();
+
+async function batterCatalogue(request, env) {
+  if (!batterCatalogues.has(env.ASSETS)) {
+    const task = env.ASSETS.fetch(new Request(new URL("/assets/batter-browser.json", request.url))).then(async response => {
+      if (!response.ok) throw new Error("catalogue_unavailable");
+      const data = await response.json();
+      if (!/^[0-9a-f]{40}$/.test(data.revision) || !Array.isArray(data.genomes)) throw new Error("catalogue_invalid");
+      return { revision: data.revision, genomes: new Map(data.genomes.map(row => [row[0], row])) };
+    });
+    batterCatalogues.set(env.ASSETS, task);
+    task.catch(() => batterCatalogues.delete(env.ASSETS));
+  }
+  return batterCatalogues.get(env.ASSETS);
+}
+
+async function batterFileBytes(url, file) {
+  const response = await fetch(url, { cf: { cacheTtl: 86400, cacheEverything: true } });
+  if (!response.ok) throw new Error("file_not_uploaded");
+  if (file.bytes > 16 * 1024 * 1024) throw new Error("file_too_large");
+  const bytes = await response.arrayBuffer();
+  const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(n => n.toString(16).padStart(2, "0")).join("");
+  if (bytes.byteLength !== file.bytes || hash !== file.sha256) throw new Error("file_checksum_mismatch");
+  return bytes;
+}
+
+async function batterConfig(request, metadata) {
+  const id = metadata.genome_id;
+  const uri = file => ({ uri: metadata.browser_files[file].url, locationType: "UriLocation" });
+  const reference = { type: "ReferenceSequenceTrack", trackId: "batter_refseq", name: "Reference sequence", adapter: { type: "BgzipFastaAdapter", fastaLocation: uri("reference.fa.gz"), faiLocation: uri("reference.fa.gz.fai"), gziLocation: uri("reference.fa.gz.gzi") } };
+  const fai = new TextDecoder().decode(await batterFileBytes(uri("reference.fa.gz.fai").uri, metadata.files["reference.fa.gz.fai"]));
+  const contigs = new Map(fai.trim().split(/\r?\n/).map(line => { const [ref, size] = line.split("\t"); return [ref, Number(size)]; }));
+  if ([...contigs.values()].some(length => !Number.isSafeInteger(length) || length < 1)) throw new Error("reference_index_invalid");
+  let ref = contigs.keys().next().value, start = 0;
+  const counts = metadata.feature_counts;
+  const augmented = counts.otu_augmentation_span + counts.rfam_training_span;
+  if (augmented || counts.otu_augmentation_window || counts.rfam_training_window) {
+    const bytes = await batterFileBytes(uri("augmentation.gff3.gz").uri, metadata.files["augmentation.gff3.gz"]);
+    // BGZF contains concatenated gzip members; Workers' DecompressionStream rejects the trailing members.
+    const { gunzipSync } = await import("node:zlib");
+    const text = gunzipSync(new Uint8Array(bytes)).toString("utf8");
+    const first = text.split(/\r?\n/).find(line => line && !line.startsWith("#"));
+    if (!first) throw new Error("augmentation_records_missing");
+    const fields = first.split("\t");
+    if (fields.length !== 9 || !contigs.has(fields[0]) || Number(fields[3]) < 1 || Number(fields[4]) > contigs.get(fields[0])) throw new Error("augmentation_reference_mismatch");
+    ref = fields[0]; start = Math.max(0, Number(fields[3]) - 201);
+  }
+  const tracks = [];
+  function addTrack(trackId, name, file, renderer, height, explanation) {
+    tracks.push({ type: "FeatureTrack", trackId, name, assemblyNames: [id], category: ["BATTER training data"],
+      adapter: { type: "Gff3TabixAdapter", gffGzLocation: uri(file), index: { location: uri(file + ".tbi"), indexType: "TBI" } },
+      displays: [{ type: "LinearBasicDisplay", displayId: trackId + "_display", height, showLabels: false, renderer: { type: "SvgFeatureRenderer", ...renderer } }],
+      metadata: { btedAbout: { kind: trackId === "batter_genes" ? "reference" : "augmentation", title: "BATTER", assembly: id, evidence: "Computational training augmentation", record_count: augmented, explanation, doi_url: "https://doi.org/10.1186/s40168-026-02454-1", gff3_url: uri(file).uri },
+        btedDownloads: [{ kind: "reference", label: name + " GFF3", url: uri(file).uri, filename: id + "." + file }] } });
+  }
+  if (metadata.annotation.status === "matched" && metadata.browser_files["genes.gff3.gz"] && metadata.browser_files["genes.gff3.gz.tbi"]) {
+    addTrack("batter_genes", "Reference gene annotation", "genes.gff3.gz", { color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)" }, 130, "Gene annotation matched to this reference.");
+  }
+  if (augmented || counts.otu_augmentation_window || counts.rfam_training_window) {
+    addTrack("batter_augmentation", "Training windows and terminator spans", "augmentation.gff3.gz", { color1: "jexl:btedAugmentationColor(feature)", color2: "jexl:btedAugmentationColor(feature)", height: 14 }, 140, "Dark blue: OTU augmented spans. Purple: Rfam training spans. Pale: sequence windows. Windows are context, not additional terminators.");
+  }
+  const sessionTracks = [{ id: "batter_sequence", type: "ReferenceSequenceTrack", configuration: reference.trackId, displays: [{ type: "LinearReferenceSequenceDisplay", configuration: reference.trackId + "-LinearReferenceSequenceDisplay", showTranslation: true, heightPreConfig: 120 }] },
+    ...tracks.map(track => ({ id: track.trackId, type: "FeatureTrack", configuration: track.trackId, displays: [{ type: "LinearBasicDisplay", configuration: track.displays[0].displayId }] }))];
+  return { plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL("/jbrowse/plugins/bted-track-plugin.js", request.url).href }],
+    assemblies: [{ name: id, sequence: reference }], tracks,
+    defaultSession: { name: "BATTER augmentation · " + id, views: [{ id: "batter_view", type: "LinearGenomeView", bpPerPx: 1, offsetPx: start, displayedRegions: [{ refName: ref, start: 0, end: contigs.get(ref), assemblyName: id, reversed: false }], tracks: sessionTracks }] },
+    metadata: { revision: metadata.revision, evidence_class: "training_augmentation" } };
+}
+
+async function batterApi(request, env, match) {
+  const url = new URL(request.url), id = decodePath(match[1]);
+  if (!id || !/^[A-Za-z0-9_.-]{1,128}$/.test(id) || url.searchParams.has("url")) return json({ error: "invalid_genome_request" }, 400);
+  try {
+    const catalogue = await batterCatalogue(request, env);
+    const row = catalogue.genomes.get(id);
+    if (!row) return json({ error: "genome_not_indexed" }, 404);
+    if (url.searchParams.has("revision") && url.searchParams.get("revision") !== catalogue.revision) return json({ error: "revision_changed_reload_page" }, 409);
+    const base = `https://huggingface.co/datasets/liurulong/terminator/resolve/${catalogue.revision}/v0.5.0/batter/batches/${row[1]}/genomes/${encodeURIComponent(id)}/`;
+    const response = await fetch(base + "metadata.json", { cf: { cacheTtl: 86400, cacheEverything: true } });
+    if (!response.ok) return json({ error: "genome_upload_unavailable" }, 503, { "cache-control": "no-store" });
+    const metadata = await response.json();
+    if (metadata.genome_id !== id || metadata.batch !== row[1] || metadata.otu_id !== row[2] || !metadata.feature_counts || !metadata.reference || !metadata.annotation || !metadata.files) throw new Error("metadata_mismatch");
+    metadata.revision = catalogue.revision;
+    metadata.browser_files = {};
+    for (const [file, entry] of Object.entries(metadata.files)) {
+      if (!BATTER_FILES.has(file)) continue;
+      if (!Number.isSafeInteger(entry.bytes) || entry.bytes < 0 || !SHA256_PATTERN.test(entry.sha256)) throw new Error("metadata_invalid_file");
+      metadata.browser_files[file] = { ...entry, url: base + file, fallback_url: `/api/batter/${encodeURIComponent(id)}/files/${file}?revision=${catalogue.revision}` };
+    }
+    for (const file of ["reference.fa.gz", "reference.fa.gz.fai", "reference.fa.gz.gzi"]) if (!metadata.browser_files[file]) throw new Error("reference_not_uploaded");
+    if (match[2] === "config") return json(await batterConfig(request, metadata), 200, { "cache-control": url.searchParams.has("revision") ? "public, max-age=86400" : "no-cache" });
+    if (match[2] !== "files") return json(metadata, 200, { "cache-control": "no-cache" });
+    const file = decodePath(match[3]);
+    const asset = metadata.browser_files[file];
+    if (!asset) return json({ error: "file_not_registered" }, 404);
+    const range = request.headers.get("range");
+    if (range && !/^bytes=(?:\d+-\d*|-\d+)$/.test(range)) return json({ error: "invalid_range" }, 416);
+    const upstream = await fetch(asset.url, { method: request.method, headers: range ? { range } : {} });
+    if (![200, 206].includes(upstream.status)) return json({ error: "file_upload_unavailable" }, upstream.status === 416 ? 416 : 503, { "cache-control": "no-store" });
+    const headers = new Headers();
+    for (const key of RESPONSE_HEADERS) if (upstream.headers.has(key)) headers.set(key, upstream.headers.get(key));
+    if (upstream.status === 206) {
+      const bounds = (headers.get("content-range") || "").match(/^bytes (\d+)-(\d+)\/(\d+)$/);
+      if (!bounds || Number(bounds[3]) !== asset.bytes || Number(bounds[2]) < Number(bounds[1]) || Number(headers.get("content-length")) !== Number(bounds[2]) - Number(bounds[1]) + 1) return json({ error: "upstream_range_mismatch" }, 502);
+    } else if (headers.has("content-length") && Number(headers.get("content-length")) !== asset.bytes) return json({ error: "upstream_length_mismatch" }, 502);
+    headers.set("accept-ranges", "bytes");
+    headers.set("cache-control", "public, max-age=86400");
+    headers.set("x-bted-sha256", asset.sha256);
+    headers.set("x-bted-revision", catalogue.revision);
+    return new Response(request.method === "HEAD" ? null : upstream.body, { status: upstream.status, headers });
+  } catch (error) {
+    console.error("BATTER browser:", error.message);
+    return json({ error: "batter_data_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+}
+
 // Views only, following RAPPTOR's document-load and bot filters. No IP, user
 // agent, query string, visitor identifier, or individual event is persisted.
 const USAGE_RETENTION_DAYS = 400;
@@ -994,6 +1111,8 @@ export default {
       return response;
     }
     if (url.pathname === "/api/usage") return usageReport(env, url);
+    const batterMatch = url.pathname.match(/^\/api\/batter\/([^/]+)(?:\/(config|files)(?:\/([^/]+))?)?$/);
+    if (batterMatch) return batterApi(request, env, batterMatch);
     const requestedRelease = url.searchParams.get("release_version");
     if (requestedRelease === "v0.2.0") {
       return retiredReleaseResponse(requestedRelease);

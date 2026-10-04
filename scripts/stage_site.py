@@ -19,6 +19,7 @@ from urllib.parse import quote, urlsplit
 
 from build_assembly_downloads import RELEASE_VERSION, build as build_assembly_downloads, load_sources
 from build_v0_3_site import build_site as build_v03_site
+from build_batter_browser import build as build_batter_browser
 import build_v0_4_site as v04_site
 from build_v0_4_site import SiteBuildError, build_site as build_v04_site, materialize_browser_tracks, read_release as read_v04_release
 
@@ -1756,6 +1757,8 @@ def assemble_v04(
         if not v04_base_url:
             copy_v04_local_assets(temp_stage, assets)
         build_v04_site(temp_stage, release_root, assets, browser_configs, track_ids)
+        if mode == "worker":
+            build_batter_browser(temp_stage)
 
         file_count, total_bytes = copy_worker_shell(package_root, temp_stage / "jbrowse")
         run_validator("validate-site.py", temp_stage)

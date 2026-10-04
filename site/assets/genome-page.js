@@ -95,7 +95,7 @@
           shareMessage({ type: "navigate", id, location: params.get("loc") });
         } else if (!["loc", "session", "tracks", "highlight"].some((key) => params.has(key))) {
           setShareStatus("");
-          showDefaultView();
+          if (!root.dataset.preserveDefaultView) showDefaultView();
         } else setShareStatus("");
       } catch (error) {
         setShareStatus(`${error.message} Showing the default view.`);

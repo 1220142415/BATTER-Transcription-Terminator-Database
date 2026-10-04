@@ -512,6 +512,8 @@ def main() -> int:
             ):
                 problems.append(f"{rel} 禁止的文件类型（原始数据/工作簿/压缩包/坐标文件）")
             size_limit = MAX_JBROWSE_FILE_BYTES if in_jbrowse else (MAX_DOWNLOAD_FILE_BYTES if in_downloads else MAX_FILE_BYTES)
+            if rel == "assets/batter-browser.json":
+                size_limit = MAX_DOWNLOAD_FILE_BYTES  # Compact metadata only; no genome/track files.
             if size > size_limit:
                 problems.append(f"{rel} 文件过大（{size} 字节 > {size_limit} 字节上限）")
 

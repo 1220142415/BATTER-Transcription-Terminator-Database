@@ -4,6 +4,7 @@
   "account_id": "406a94b19dd8bd8d9e851f8c5ed3a569",
   "main": "src/worker.js",
   "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": "../../dist/worker-site",
     "binding": "ASSETS",

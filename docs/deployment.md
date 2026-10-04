@@ -67,6 +67,23 @@ python scripts/serve_v04_preview.py --site dist/pages-site --port 8769 \
 
 ## Worker 与 D1
 
+### BATTER 训练增强浏览
+
+`Genomes` 页面通过 Dataset 选择实验基因组或 Training augmentation；共用原有浏览器、序列显示、轨道详情、下载和分享功能。增强数据来自 HF 准备分支 `v05-preparation-f5c55e9f129f`，当前固定提交 `6588c4242246fcfd40086a08a94fe3a6c378c029`，目录包含批次 000–039 的 40,000 个基因组。上传尚未完成，不能将此目录视为完整论文数据。
+
+`data/registry/batter-browser.json` 仅保存目录字段、统计数和固定版本；网页读取构建后的 `assets/batter-browser.json`。序列、GFF3 和索引仍在 HF，Worker 按目录定位每个基因组的 `metadata.json` 并生成 `/api/batter/<genome>/config`，无需先导入 D1。增强轨道只用该批次配套的 BGZF FASTA、FAI、GZI；同 accession 的实验参考不会自动混入。只展示 `matched` 注释。浅色窗口为序列上下文，深蓝为 OTU 增强区间，紫色为 Rfam 区间，统计分别计数，不把窗口计为额外终止子。基因组没有增强记录时保留序列浏览并显示空状态。
+
+浏览器优先直读 HF，网络异常才使用同版本、已登记文件的同源备份；保留 Range、取消请求和 SHA-256 元数据检查。Worker 生成配置前检查参考索引、增强文件的实际大小和 SHA-256。新增浏览入口不会执行模型预测，也不改动 HF 文件或实验 D1 表。
+
+上传新批次后，指定新 **40 位 HF 提交号** 和已上传批次数，刷新目录，再正常构建和部署 Worker：
+
+```powershell
+py -3.13 scripts/prepare_batter_browser.py --download --revision <HF提交号> --batches <已上传批次数>
+node --test --test-isolation=none tests/test_batter_browser.mjs
+```
+
+不要只更新版本号而复用旧的缓存表。离线重建当前目录可以运行 `prepare_batter_browser.py` 默认参数，使用 `dist/hf-v05-000-genomes.tsv` 至 `dist/hf-v05-039-genomes.tsv`。后续完整数据发布再调整目录的 `partial` 状态和 D1 导入；当前站点明确标示上传进行中。
+
 当前部署目标是 `1052596411@qq.com` 的 Cloudflare 账号（`406a94b19dd8bd8d9e851f8c5ed3a569`）。Worker 名称是 `bted`，D1 名称是 `bted-catalog`，数据库 ID 为 `c304fae8-cce6-4fc1-922d-e3bbc1c9b995`。这些标识不是密钥；登录凭据保存在本机 Wrangler 配置中，不提交到仓库。
 
 2026-10-03 首次发布地址：[bted.1052596411.workers.dev](https://bted.1052596411.workers.dev/)。线上健康、来源元数据原文比对、基因组与端点查询、JBrowse 配置、资产读取及 `206` Range 检查通过。D1 的发布状态仍标为 `preview`，便于在后续数据整理后再正式发布。

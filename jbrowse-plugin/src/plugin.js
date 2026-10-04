@@ -11,11 +11,13 @@ const BRIDGE_CHANNEL = 'bted-browser-v1';
 const nativeFetch = globalThis.fetch.bind(globalThis);
 const backupAssets = new Set();
 let releaseManifest;
+const batterManifests = new Map();
 export async function fetchBtedAsset(input, init = {}) {
   const url = input instanceof Request ? input.url : String(input);
   const method = init.method || (input instanceof Request ? input.method : 'GET');
   const match = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/[0-9a-f]{40}\/v0\.[34]\.0\/(.+)$/.exec(url);
-  if (!match || !['GET', 'HEAD'].includes(method)) return nativeFetch(input, init);
+  const batter = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/v0\.5\.0\/batter\/batches\/(\d{3})\/genomes\/([A-Za-z0-9_.-]+)\/([^/]+)$/.exec(url);
+  if ((!match && !batter) || !['GET', 'HEAD'].includes(method)) return nativeFetch(input, init);
   const signal = init.signal || (input instanceof Request ? input.signal : undefined);
   let originalError;
   if (!backupAssets.has(url)) {
@@ -27,6 +29,26 @@ export async function fetchBtedAsset(input, init = {}) {
     }
   }
   try {
+    if (batter) {
+      const key = `${batter[1]}/${batter[3]}`;
+      if (!batterManifests.has(key)) {
+        const promise = nativeFetch(`${globalThis.location.origin}/api/batter/${encodeURIComponent(batter[3])}?revision=${batter[1]}`, { signal, cache: 'no-cache' }).then(response => {
+          if (!response.ok) throw new Error('Augmentation metadata unavailable.');
+          return response.json();
+        });
+        batterManifests.set(key, promise);
+        promise.catch(() => batterManifests.delete(key));
+      }
+      const metadata = await batterManifests.get(key);
+      const asset = metadata.browser_files?.[batter[4]];
+      if (metadata.revision !== batter[1] || metadata.batch !== batter[2] || asset?.url !== url ||
+          !asset.fallback_url?.startsWith(`/api/batter/${encodeURIComponent(batter[3])}/files/`)) throw new Error('No matching augmentation backup.');
+      const backupRequest = new Request(new URL(asset.fallback_url, `${globalThis.location.origin}/`), input instanceof Request ? input : init);
+      const response = await nativeFetch(backupRequest, init);
+      if (!response.ok || response.headers.get('x-bted-sha256') !== asset.sha256 || response.headers.get('x-bted-revision') !== batter[1]) throw new Error('Augmentation backup mismatched.');
+      backupAssets.add(url);
+      return response;
+    }
     releaseManifest ||= nativeFetch(`${globalThis.location.origin}/assets/data-release.json`, { cache: 'no-cache' }).then(response => {
       if (!response.ok) throw new Error('Data manifest unavailable.');
       return response.json();
@@ -88,6 +110,14 @@ export function strandColor(feature) {
   if (value === '+' || value === 1 || value === '1') return PLUS;
   if (value === '-' || value === -1 || value === '-1') return MINUS;
   return UNKNOWN;
+}
+
+export function augmentationColor(feature) {
+  const attributes = feature?.get?.('attributes') || {};
+  const value = attributes.dataset_class;
+  const dataset = Array.isArray(value) ? value[0] : value;
+  if (feature?.get?.('type') === 'training_sequence_window') return dataset === 'rfam_training_window' ? '#ddd6fe' : '#bfdbfe';
+  return dataset === 'rfam_training_span' ? '#7c3aed' : '#1d4ed8';
 }
 
 function value(input) {
@@ -206,6 +236,7 @@ export default class BTEDTrackPlugin {
 
   install(pluginManager) {
     pluginManager.jexl.addFunction('btedStrandColor', strandColor);
+    pluginManager.jexl.addFunction('btedAugmentationColor', augmentationColor);
     const React = pluginManager.jbrequire('react');
     const { readConfObject, getConf, ConfigurationSchema } = pluginManager.jbrequire('@jbrowse/core/configuration');
     const { getContainingTrack, getContainingView, getSession } = pluginManager.jbrequire('@jbrowse/core/util');
@@ -337,7 +368,7 @@ export default class BTEDTrackPlugin {
         ]),
         links([['PubMed', about.pubmed_url], ['DOI', about.doi_url]]),
       ]);
-      const evidence = kind === 'reference' ? null : section(kind === 'signal' ? 'Experimental signal' : 'Endpoint evidence', [
+      const evidence = kind === 'reference' ? null : section(kind === 'signal' ? 'Experimental signal' : kind === 'augmentation' ? 'Training augmentation' : 'Endpoint evidence', [
         facts([
           ['Source', about.source_id], ['Method', about.assay], ['Strand', about.strand],
           ['Endpoints', kind === 'endpoint' ? about.record_count : ''],
