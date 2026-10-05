@@ -596,8 +596,8 @@ def genome_content(
 <p class="breadcrumbs"><a href="../genomes.html">Genomes</a><span aria-hidden="true">/</span><span>{esc(assembly)}</span></p>
 <section class="genome-title"><div><p class="eyebrow">Reference genome</p><h1>{esc(species or assembly)}</h1><p class="assembly-id">{esc(assembly)}</p></div></section>
 {genome_summary(total_records if published else None, len(studies), computational)}
-{overview}
 {browser_html}
+{overview}
 <section class="genome-studies" id="genome-studies"><div class="section-heading"><div><h2>Studies</h2><p>Experimental records for this genome, grouped by paper.</p></div></div>{''.join(source_cards) if source_cards else '<p class="empty-state">No published study records.</p>'}{''.join(unpublished_cards)}</section>
 {genome_downloads}
 </main>'''
