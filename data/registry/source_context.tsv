@@ -1,0 +1,26 @@
+source_id	sample_strain	genotype	conditions	replicate_type	replicate_label	reused_data_with	shared_raw_data_accessions
+BATTER_S1_001	K-12 MG1655						
+BATTER_S1_002							
+BATTER_S1_003	168						
+BATTER_S1_004	ML76		PYE medium				
+BATTER_S1_005	NBRC 15636						
+BATTER_S1_006	TIGR4						
+BATTER_S1_007	TK24					BATTER_S1_013	PRJEB31507
+BATTER_S1_008	PAO1 derivative MPK0493	ΔlasI ΔrhlI	With or without added 3OC12-HSL and C4-HSL				
+BATTER_S1_009	ZM4						
+BATTER_S1_010	MA-4680						
+BATTER_S1_011	NBRC 13350						
+BATTER_S1_012	M145						
+BATTER_S1_013	TK24					BATTER_S1_007	PRJEB31507
+BATTER_S1_014	NBRC 108819						
+BATTER_S1_015	ATCC 27064					BATTER_S1_017	SRX6937123;SRX6937124
+BATTER_S1_016	ATCC 15439						
+BATTER_S1_017	ATCC 27064					BATTER_S1_015	SRX6937123;SRX6937124
+BATTER_S1_018	PCC 7338						
+BATTER_S1_019	PCC 6803						
+BATTER_S1_020	3937						
+BATTER_S1_021	B31 A3; PA003	B31 A3 derivative lacking cp9	Logarithmic and temperature-shifted stationary phases	biological	Three replicates per phase		
+BATTER_S1_022							
+BTED_EXT_2026_102	PCC 7942	WT		technical	Replicates 1 and 2, combined		
+BTED_EXT_2026_103	PCC 7942	Δmfd (Synpcc7942_1326::KanR)		biological	Replicate 1		
+BTED_EXT_2026_104	PCC 7942	Δmfd (Synpcc7942_1326::KanR)		biological	Replicate 2		

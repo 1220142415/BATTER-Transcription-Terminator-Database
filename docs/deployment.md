@@ -69,7 +69,7 @@ python scripts/serve_v04_preview.py --site dist/pages-site --port 8769 \
 
 ### BATTER 训练增强浏览
 
-`Genomes` 用一张基因组表，通过 Data type 筛选全部、实验、预测和数据增强，同一完整组装编号只显示一行。主表参照 promoter 展示 Genome ID、Genome source、Organism、Taxonomy、Assembly size、Terminator data、Annotation 七列，点击 Genome ID 进入详情。Terminator data 在同一格分行显示实验端点、预测和增强／Rfam 区间，并按有无数据使用颜色标签。Taxonomy 在独立筛选区按门→纲→目→科→属逐级选择；文章、方法和信号信息在详情及轨道说明中查看。增强／Rfam 为 OTU 增强区间与 Rfam 训练区间之和，不计上下文窗口。实验参考大小由已有 contig 登记汇总，计算参考大小仅采用与固定 HF 版本一致的叠加核查记录；未收录的大小显示 Not cataloged，排序时放在已收录记录之后，不按文件大小或实验端点推断。注释状态区分可用、坐标不兼容、缺失和未收录。实验与计算数据共用同一个基因组页面和 JBrowse；模型预测只展示已经发布的结果，不执行预测任务。计算数据来自 HF 准备分支 `v05-preparation-f5c55e9f129f`，当前固定提交 `6588c4242246fcfd40086a08a94fe3a6c378c029`，目录包含批次 000–039 的 40,000 个基因组。上传尚未完成，不能将此目录视为完整论文数据。
+`Genomes` 用一张基因组表，通过 Data type 筛选全部、实验、预测和数据增强，同一完整组装编号只显示一行。主表参照 promoter 展示 Genome ID、Genome source、Organism、Taxonomy、Assembly size、Terminator data、Annotation 七列，点击 Genome ID 进入详情。Terminator data 在同一格分行显示实验端点、预测和增强／Rfam 区间，并按有无数据使用颜色标签。Taxonomy 在独立筛选区按门→纲→目→科→属→种逐级选择；文章、方法和信号信息在详情及轨道说明中查看。增强／Rfam 为 OTU 增强区间与 Rfam 训练区间之和，不计上下文窗口。实验参考大小由已有 contig 登记汇总，计算参考大小仅采用与固定 HF 版本一致的叠加核查记录；未收录的大小显示 Not cataloged，排序时放在已收录记录之后，不按文件大小或实验端点推断。注释状态区分可用、坐标不兼容、缺失和未收录。实验与计算数据共用同一个基因组页面和 JBrowse；模型预测只展示已经发布的结果，不执行预测任务。计算数据来自 HF 准备分支 `v05-preparation-f5c55e9f129f`，当前固定提交 `6588c4242246fcfd40086a08a94fe3a6c378c029`，目录包含批次 000–039 的 40,000 个基因组。上传尚未完成，不能将此目录视为完整论文数据。
 
 Genome source 来自原始批次清单的 `source_collection`，保留数据库或研究来源；NCBI-MAG/SAG 在网页显示为 NCBI GenBank。Genome ID 为原始基因组编号；有计算目录映射时，在同一单元格的第二行显示 GEM OTU（物种聚类编号），实验条目不推断 OTU。详情页用 Sequence source 单独标明实际 FASTA 来源；原始数据库编号不代替序列版本与校验核对。当前目录每个 OTU 只保留一个代表基因组，但原始聚类可包含多个成员。编号、来源及版本共同用于追溯，OTU 不作为单个基因组的主键。
 
@@ -117,7 +117,7 @@ npx wrangler deploy --config prototype/accession-range/wrangler.jsonc
 
 当前 D1 投影包括 14 篇论文、21 个基因组、48 条 contig、25 个来源、35 个外部 accession、157 个资产登记和 29,460 条端点。25 个来源中 1 个仅保留审计信息，不包含公开端点。数据增强及全基因组预测尚未导入；基因关联和条件观测仍保存在发布补充文件中。
 
-2026-10-04 对照 promoter 增加查询缓存：基因组目录仍只加载静态清单，搜索、分类、排序和翻页不发起 D1 查询；分类按门→纲→目→科→属逐级解锁。Worker 用原生 Cache API 缓存公开元数据 JSON 300 秒、访问统计 JSON 60 秒，键包含主机、路径、排序后的完整查询参数、数据版本和缓存命名空间。版本或接口语义改变时更新 `cachedPublicApi` 的命名空间；直接更新 D1 后，旧元数据最多保留 5 分钟。健康检查、错误／不可缓存响应、HEAD、文件响应和 Range 请求不经过该响应缓存。
+2026-10-04 对照 promoter 增加查询缓存：基因组目录仍只加载静态清单，搜索、分类、排序和翻页不发起 D1 查询；分类按门→纲→目→科→属→种逐级解锁。Worker 用原生 Cache API 缓存公开元数据 JSON 300 秒、访问统计 JSON 60 秒，键包含主机、路径、排序后的完整查询参数、数据版本和缓存命名空间。版本或接口语义改变时更新 `cachedPublicApi` 的命名空间；直接更新 D1 后，旧元数据最多保留 5 分钟。健康检查、错误／不可缓存响应、HEAD、文件响应和 Range 请求不经过该响应缓存。
 
 发布信息和公开文件登记在 Worker 内按 D1 绑定隔离，缓存 60 秒，最多 512 项，并合并同一登记的并发查询。缓存缺失或失败时正常查询 D1；不存在的记录和查询错误不保留。JBrowse 的 Range、文件校验和访问计数沿用原流程；统计写入没有采样或去重。未引入 KV、Durable Objects、框架或依赖。
 

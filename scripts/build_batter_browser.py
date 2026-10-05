@@ -60,10 +60,10 @@ def build(site_root):
     directory.write_text(html, encoding="utf-8")
     content = '''<main class="page-shell genome-page" data-batter-genome data-genome-page data-preserve-default-view="true">
 <p class="breadcrumbs"><a href="../genomes.html">Genomes</a><span>/</span><span>Genome data</span></p>
-<section class="genome-title"><div><h1 data-batter-title>Loading genome…</h1><p class="assembly-id" data-batter-id></p><p data-batter-reference class="muted"></p></div></section>
+<section class="genome-title"><div><h1 data-batter-title>Loading genome…</h1><p class="assembly-id" data-batter-id></p></div></section>
 <section class="genome-summary" aria-label="Genome data summary" data-batter-summary></section>
 <section class="genome-provenance" aria-label="Reference and coordinate provenance" data-batter-provenance hidden></section>
-<nav class="section-nav" aria-label="On this page"><a href="#genome-browser">Genome browser</a><a href="#genome-downloads">Downloads</a><a href="../methodology.html">Data notes ↗</a></nav>
+<section class="genome-overview" aria-label="Genome taxonomy" data-batter-taxonomy hidden></section>
 <section class="browser-panel" id="genome-browser" data-genome-browser style="--browser-frame-height:820px">
 <div class="browser-panel-heading"><div><h2>Genome browser</h2><p>Orange: predictions. Blue: augmentation. Purple: Rfam. Pale: training windows.</p></div><div class="browser-actions"><button class="browser-open" type="button" data-share-view disabled>Share view</button><button class="browser-open" type="button" data-retry-browser>Reload</button><a class="browser-open" data-batter-full hidden>Open full browser ↗</a></div></div>
 <p class="browser-share-status" data-browser-status role="status" aria-live="polite">Loading genome data…</p><p class="browser-share-status" data-share-status role="status"></p><input class="browser-share-manual" data-share-manual aria-label="Share link" readonly hidden>

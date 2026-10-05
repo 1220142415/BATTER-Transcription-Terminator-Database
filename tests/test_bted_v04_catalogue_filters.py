@@ -71,6 +71,23 @@ process.stdout.write(JSON.stringify({initial,narrowed,shared,restored,switched,c
         self.assertEqual(data['multiword'], ['GCF_A'])
         self.assertEqual(data['noMatch'], {'count':'0','empty':False})
 
+    def test_species_filter_shared_url_and_parent_reset(self):
+        data = self.run_js(r'''
+const species=control();species.dataset.taxonomyRank='species';taxonomy.push(species);
+rows[0].dataset.taxonomySpecies='Alpha species';
+href='https://bted.example/genomes.html?phylum=P1&class=C1&order=O1&family=F1&genus=Alpha&species=Alpha+species';
+run();const restored={visible:visible(),value:species.value,disabled:species.disabled};
+choose('phylum','P2');const switched={value:species.value,href};
+clear.fire('click');listeners.popstate();const cleared={visible:visible(),value:species.value,href};
+process.stdout.write(JSON.stringify({restored,switched,cleared}));
+''')
+        self.assertEqual(data['restored'], {'visible': ['GCF_A'], 'value': 'Alpha species', 'disabled': False})
+        self.assertEqual(data['switched']['value'], '')
+        self.assertNotIn('species=', data['switched']['href'])
+        self.assertEqual(len(data['cleared']['visible']), 3)
+        self.assertEqual(data['cleared']['value'], '')
+        self.assertNotIn('species=', data['cleared']['href'])
+
     def test_experimental_first_default_preserves_manual_sort_and_reset(self):
         data = self.run_js(r'''
 href='https://bted.example/genomes.html';

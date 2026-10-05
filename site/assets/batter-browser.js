@@ -35,7 +35,7 @@
         const heading = document.createElement("h2"), facts = document.createElement("dl"), note = document.createElement("p");
         heading.textContent = "Reference details";
         const source = ({ "NCBI-RefSeq": "NCBI RefSeq", "NCBI-MAG": "NCBI GenBank", "NCBI-SAG": "NCBI GenBank" })[data.source_collection] || data.source_collection || "Not cataloged";
-        for (const [label, value] of [["Genome ID", id], ["GEM OTU", data.otu_id], ["Genome source", source], ["Sequence source", data.reference.source], ["Input FASTA", data.reference.source_path]]) {
+        for (const [label, value] of [["Genome ID", id], ["GEM OTU", data.otu_id], ["Genome source", source], ["Sequence source", data.reference.source], ["Genome type", data.genome_type], ["Reference length", `${format(data.reference.bases)} bp`], ["Contigs", format(data.reference.contigs)], ["Input FASTA", data.reference.source_path]]) {
           if (!value) continue;
           const item = document.createElement("div"), term = document.createElement("dt"), description = document.createElement("dd");
           term.textContent = label; description.textContent = value; item.append(term, description); facts.append(item);
@@ -49,11 +49,24 @@
         }
         provenance.hidden = false;
       }
+      const taxonomy = $("[data-batter-taxonomy]");
+      if (taxonomy) {
+        const header = document.createElement("div"), heading = document.createElement("h2"), source = document.createElement("span"), lineage = document.createElement("dl");
+        header.className = "taxonomy-heading"; heading.textContent = "Taxonomy";
+        source.append(link("GEM · GTDB classification", "https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv"));
+        header.append(heading, source); lineage.className = "taxonomy-lineage";
+        const ranks = Object.fromEntries((data.taxonomy || "").split(";").map(value => value.trim()).map(value => [value.slice(0, 1), value.slice(3)]));
+        for (const [key, label] of [["p", "Phylum"], ["c", "Class"], ["o", "Order"], ["f", "Family"], ["g", "Genus"], ["s", "Species"]]) {
+          const item = document.createElement("div"), term = document.createElement("dt"), value = document.createElement("dd");
+          term.textContent = label; value.textContent = ranks[key] || "Not assigned"; item.append(term, value); lineage.append(item);
+        }
+        taxonomy.replaceChildren(header, lineage); taxonomy.hidden = false;
+      }
       const counts = data.feature_counts;
       const summary = $("[data-batter-summary]"); summary.replaceChildren();
-      for (const [key, label] of [["tes_prediction", "predicted regions"], ["otu_augmentation_span", "augmented spans"], ["rfam_training_span", "Rfam spans"], ["otu_augmentation_window", "training windows"]]) {
+      for (const [count, label] of [[counts.tes_prediction, "predicted regions"], [counts.otu_augmentation_span, "OTU training regions"], [counts.rfam_training_span, "Rfam training regions"], [Number(counts.otu_augmentation_window || 0) + Number(counts.rfam_training_window || 0), "training windows"]]) {
         const item = document.createElement("div"), number = document.createElement("strong"), text = document.createElement("span");
-        number.textContent = format(counts[key]); text.textContent = label; item.append(number, text); summary.append(item);
+        number.textContent = format(count); text.textContent = label; item.append(number, text); summary.append(item);
       }
       const downloads = $("[data-batter-downloads]"); downloads.replaceChildren();
       for (const [file, label] of [["prediction.gff3.gz", "Prediction GFF3"], ["augmentation.gff3.gz", "Training GFF3"], ["reference.fa.gz", "Reference FASTA"], ["genes.gff3.gz", "Gene annotation"]]) {

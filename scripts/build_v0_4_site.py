@@ -18,7 +18,7 @@ from urllib.parse import quote
 
 RELEASE_VERSION = "v0.4.0"
 TAXONOMY_REGISTRY = Path(__file__).resolve().parents[1] / "data/registry/genome_taxonomy.tsv"
-TAXONOMY_RANKS = ("phylum", "class", "order", "family", "genus")
+TAXONOMY_RANKS = ("phylum", "class", "order", "family", "genus", "species")
 REQUIRED_METADATA_COLUMNS = (
     "source_id", "pmid", "species", "assembly", "title", "assay", "record_count",
     "evidence_class", "release_status", "article_license", "redistribution_status",
@@ -124,7 +124,10 @@ def load_genome_taxonomy(path: Path, genomes: list[dict[str, object]]) -> dict[s
         assembly = row["assembly"].strip()
         if not ASSEMBLY_RE.fullmatch(assembly) or assembly in taxonomy:
             raise SiteBuildError(f"Invalid or duplicate taxonomy assembly: {assembly!r}")
-        taxonomy[assembly] = {rank: row.get(rank, "").strip() for rank in TAXONOMY_RANKS}
+        taxonomy[assembly] = {
+            field: row.get(field, "").strip()
+            for field in (*TAXONOMY_RANKS, "reference_strain", "taxid", "taxonomy_source", "taxonomy_url", "retrieved_on")
+        }
     missing = sorted(str(genome["assembly"]) for genome in genomes if str(genome["assembly"]) not in taxonomy)
     if missing:
         raise SiteBuildError(f"Genome taxonomy is missing assemblies: {', '.join(missing)}")
@@ -324,7 +327,7 @@ def home_content(genomes: list[dict[str, object]], computational_genomes=()) -> 
 </main>'''
 
 
-def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[str, object]], taxonomy: dict[str, dict[str, str]]) -> str:
+def load_reference_sizes() -> dict[str, list[int]]:
     registry = Path(__file__).resolve().parents[1] / "data/registry"
     contigs = json.loads((registry / "reference_contigs.v0.2.0.json").read_text(encoding="utf-8"))["rows"]
     with (registry / "browser_refs/contigs.tsv").open(encoding="utf-8") as handle:
@@ -341,6 +344,11 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
         size = reference_sizes.setdefault(assembly, [0, 0])
         size[0] += length
         size[1] += 1
+    return reference_sizes
+
+
+def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[str, object]], taxonomy: dict[str, dict[str, str]]) -> str:
+    reference_sizes = load_reference_sizes()
     count = len(genomes)
     table_rows: list[str] = []
     for genome in genomes:
@@ -363,7 +371,7 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
             )
         genome_search = " ".join((assembly, species, *genome_taxonomy.values())).casefold()
         taxonomy_attributes = " ".join(
-            f'data-taxonomy-{rank}="{esc(value)}"' for rank, value in genome_taxonomy.items()
+            f'data-taxonomy-{rank}="{esc(genome_taxonomy.get(rank))}"' for rank in TAXONOMY_RANKS
         )
         href = f"genomes/{quote(assembly)}.html"
         table_rows.append(f'''<tr data-genome-row data-genome-search="{esc(genome_search)}"
@@ -421,11 +429,27 @@ def genome_content(
     asset_map: dict[str, dict[str, object]],
     track_ids: dict[str, str],
     jbrowse_config: str | None,
+    taxonomy: dict[str, str] | None = None,
+    source_context: dict[str, dict[str, str]] | None = None,
 ) -> str:
     assembly = str(genome["assembly"])
     rows: list[dict[str, str]] = genome["metadata_rows"]
     published = [row for row in rows if is_published_status(row.get("release_status"))]
-    species = next((row.get("species", "") for row in published if row.get("species")), "")
+    species = next((row.get("species", "") for row in rows if row.get("species")), "")
+    taxonomy = taxonomy or {}
+    source_context = source_context or {}
+    reference_size = load_reference_sizes().get(assembly)
+    overview_facts = [("Genome source", "NCBI RefSeq"), ("Reference strain", taxonomy.get("reference_strain") or "Not recorded")]
+    if reference_size:
+        overview_facts.extend([("Browser reference length", f"{reference_size[0]:,} bp"), ("Contigs", f"{reference_size[1]:,}")])
+    overview_fields = ''.join(f'<div><dt>{esc(label)}</dt><dd>{esc(value)}</dd></div>' for label, value in overview_facts)
+    taxonomy_fields = ''.join(f'<div><dt>{rank.capitalize()}</dt><dd>{esc(taxonomy.get(rank) or "Not assigned")}</dd></div>' for rank in TAXONOMY_RANKS)
+    taxonomy_source = esc(taxonomy.get("taxonomy_source") or "Classification source not recorded")
+    if taxonomy.get("taxonomy_url", "").startswith("https://www.ncbi.nlm.nih.gov/Taxonomy/"):
+        taxonomy_source = f'<a href="{esc(taxonomy["taxonomy_url"])}" target="_blank" rel="noopener">{taxonomy_source} · TaxID {esc(taxonomy.get("taxid"))}</a>'
+    taxonomy_date = f' · {esc(taxonomy["retrieved_on"])}' if taxonomy.get("retrieved_on") else ''
+    overview = f'''<section class="genome-overview" aria-labelledby="genome-overview-heading"><h2 id="genome-overview-heading">Genome overview</h2>
+<dl class="genome-facts">{overview_fields}</dl><div class="genome-taxonomy"><div class="taxonomy-heading"><h3>Taxonomy</h3><span>{taxonomy_source}{taxonomy_date}</span></div><dl class="taxonomy-lineage">{taxonomy_fields}</dl></div></section>'''
     studies = _group_studies(published)
     total_records = sum(int(row["record_count_number"]) for row in published)
     metadata_url = get_asset_url(asset_map, str(genome["metadata_path"]))
@@ -451,6 +475,15 @@ def genome_content(
             record_count = int(row["record_count_number"])
             evidence = row.get("evidence_class", "")
             source_has_signal = source_id in signal_sources
+            context = source_context.get(source_id, {})
+            context_fields = [("Strain", context.get("sample_strain")), ("Genotype", context.get("genotype")), ("Conditions", context.get("conditions"))]
+            replicate = context.get("replicate_label", "")
+            if replicate:
+                context_fields.append(("Replicates", f'{replicate} ({context.get("replicate_type", "")})'))
+            context_items = ''.join(f'<div><dt>{esc(label)}</dt><dd>{esc(value)}</dd></div>' for label, value in context_fields if value)
+            context_html = f'<dl class="source-context">{context_items}</dl>' if context_items else ''
+            shared_source = context.get("reused_data_with", "")
+            shared_note = f'<p class="source-reuse">Shares raw sequencing data with <a href="#source-{esc(shared_source)}">{esc(shared_source)}</a>; endpoint calls are kept by study.</p>' if shared_source and any(other["source_id"] == shared_source for other in rows) else ''
             raw_accessions = row.get("raw_data_accessions", "").strip()
             raw_link = f'<span class="source-raw">Raw data: {raw_data_links(raw_accessions)}</span>' if raw_accessions else ""
             caveat = SOURCE_PAGE_CAVEATS.get(source_id, "")
@@ -464,6 +497,7 @@ def genome_content(
             source_lines.append(f'''<div class="source-evidence" id="source-{esc(source_id)}" data-source-card="{esc(source_id)}">
   <div class="source-heading"><h4>{esc(source_id)}</h4><strong>{record_count:,} 3′ ends</strong></div>
   <p class="source-summary">{esc(row.get('assay', ''))} · {esc(evidence_label(evidence))}</p>
+  {context_html}{shared_note}
   {caveat_html}<p class="source-links">{raw_link}{signal_html}</p>
   <details class="source-notes"><summary>Source notes</summary><dl>{facts}</dl></details>
 </div>''')
@@ -520,12 +554,11 @@ def genome_content(
 
     metadata_link = f'<a class="button" data-package-file data-zip-path="{esc(assembly)}/metadata.tsv" href="{site_href(str(metadata_url), 1)}">Genome metadata.tsv</a>'
     genome_downloads = f'''<section class="genome-downloads" id="genome-downloads" aria-labelledby="genome-downloads-title"><div><h2 id="genome-downloads-title">Downloads</h2><p>Study files and metadata (ZIP).</p></div><div class="genome-download-actions"><button class="button primary" type="button" data-download-genome-package>Download ZIP</button>{metadata_link}<a class="button" href="https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/" target="_blank" rel="noopener">NCBI reference</a><p class="package-status" data-package-status role="status" aria-live="polite"></p></div></section>'''
-    browser_jump = '<a href="#genome-browser">Genome browser</a>' if jbrowse_config else ''
     content = f'''<main class="page-shell genome-page" data-genome-page data-assembly="{esc(assembly)}">
 <p class="breadcrumbs"><a href="../genomes.html">Genomes</a><span aria-hidden="true">/</span><span>{esc(assembly)}</span></p>
 <section class="genome-title"><div><p class="eyebrow">Reference genome</p><h1>{esc(species or assembly)}</h1><p class="assembly-id">{esc(assembly)}</p></div></section>
 <section class="genome-summary" aria-label="Genome data summary"><div><strong>{len(studies)}</strong><span>published {'study' if len(studies) == 1 else 'studies'}</span></div><div><strong>{len(published)}</strong><span>source {'record' if len(published) == 1 else 'records'}</span></div><div><strong>{total_records:,}</strong><span>3′ end records</span></div></section>
-<nav class="section-nav" aria-label="On this page">{browser_jump}<a href="#genome-studies">Studies</a><a href="#genome-downloads">Downloads</a></nav>
+{overview}
 {browser_html}
 <section class="genome-studies" id="genome-studies"><div class="section-heading"><div><h2>Studies</h2></div></div>{''.join(source_cards) if source_cards else '<p class="empty-state">No published study records.</p>'}{''.join(unpublished_cards)}</section>
 {genome_downloads}
@@ -554,6 +587,7 @@ def build_site(
     release, files = read_release(release_root)
     genomes = load_genomes(release_root, release, files)
     taxonomy = load_genome_taxonomy(taxonomy_path, genomes)
+    source_context = {row["source_id"]: row for row in read_tsv(TAXONOMY_REGISTRY.parent / "source_context.tsv", ("source_id",))}
     for relative in files:
         if relative not in asset_map:
             raise SiteBuildError(f"Published release file is missing from the browser allowlist: {relative}")
@@ -569,7 +603,7 @@ def build_site(
             site_root / "genomes" / f"{assembly}.html",
             page(
                 f"{next((row.get('species', '') for row in genome['metadata_rows'] if row.get('species')), assembly)} · {assembly}",
-                genome_content(genome, asset_map, track_ids, config),
+                genome_content(genome, asset_map, track_ids, config, taxonomy[assembly], source_context),
                 current="genomes",
                 scripts=("../assets/genome-page.js",),
                 depth=1,

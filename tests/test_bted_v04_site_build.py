@@ -198,7 +198,7 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn('href="genomes.html"', landing)
             self.assertIn('class="genome-directory-table"', home)
             self.assertIn('class="genome-taxonomy-panel"', home)
-            for rank in ("phylum", "class", "order", "family", "genus"):
+            for rank in ("phylum", "class", "order", "family", "genus", "species"):
                 self.assertIn(f'data-taxonomy-rank="{rank}"', home)
             self.assertIn('data-taxonomy-genus="Cyanobacterium"', home)
             for field in ('source', 'type', 'annotation'):
@@ -230,6 +230,14 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertNotIn("data-source-select", genome)
             self.assertIn("data-download-genome-package", genome)
             self.assertNotIn("genome-title-actions", genome)
+            self.assertNotIn('class="section-nav"', genome)
+            self.assertIn('class="genome-overview"', genome)
+            self.assertIn('Browser reference length</dt><dd>2,742,269 bp', genome)
+            self.assertIn('<dt>Phylum</dt><dd>Cyanobacteria', genome)
+            self.assertIn('<dt>Species</dt><dd>Not assigned', genome)
+            self.assertIn('class="source-context"', genome)
+            self.assertIn('Replicates 1 and 2, combined (technical)', genome)
+            self.assertLess(genome.index('class="genome-overview"'), genome.index('class="browser-panel"'))
             self.assertLess(genome.index('class="genome-studies"'), genome.index('class="genome-downloads"'))
             self.assertIn('data-zip-path="GCF_000012525.1/metadata.tsv"', genome)
             self.assertIn('data-zip-path="GCF_000012525.1/studies/PMID_42148773/endpoints.gff3.gz"', genome)
@@ -248,6 +256,9 @@ class V04SiteBuildTests(unittest.TestCase):
 
             (site / "assets").mkdir(exist_ok=True)
             build_batter_browser.build(site)
+            generic = (site / "genomes/genome.html").read_text(encoding="utf-8")
+            self.assertNotIn('class="section-nav"', generic)
+            self.assertIn('data-batter-taxonomy', generic)
             combined = (site / "genomes.html").read_text(encoding="utf-8")
             self.assertEqual(len(re.findall(r'<th[ >]', combined)), 7)
             self.assertEqual(len(re.findall(r'<td[ >]', combined)), 7)

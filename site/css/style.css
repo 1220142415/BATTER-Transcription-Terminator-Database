@@ -636,7 +636,7 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
 .genome-filter-note { margin: 10px 18px 16px; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .genome-taxonomy-panel { min-width: 0; margin: 0 18px 18px; padding: 12px 14px 14px; border: 1px solid var(--line); border-radius: 7px; background: #fcf8fa; }
 .genome-taxonomy-panel legend { padding: 0 6px; color: var(--navy); font-size: 13px; font-weight: 700; }
-.genome-taxonomy-fields { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.genome-taxonomy-fields { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 .genome-filter-search-field { position: relative; display: block; }
 .genome-filter-search-field svg { position: absolute; top: 11px; left: 11px; width: 20px; height: 20px; color: var(--muted); pointer-events: none; }
 .genome-filter-search-field input { padding-left: 39px; }
@@ -818,9 +818,6 @@ main:focus { outline: none; }
 .home-explore h2 { display: flex; justify-content: space-between; gap: 12px; margin: 13px 0 8px; color: var(--navy); font-size: 18px; line-height: 1.4; letter-spacing: -.02em; }
 .home-explore h2 span { color: var(--blue); }
 .home-explore p { margin: 0; color: var(--muted); font-size: 13px; }
-.section-nav { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0 0 22px; }
-.section-nav a { padding: 8px 0; color: var(--navy); font-size: 13px; font-weight: 650; text-decoration: none; border-bottom: 2px solid var(--line); }
-.section-nav a:hover { color: var(--blue); border-color: var(--blue); }
 .notes-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 50px; align-items: start; }
 .notes-nav { position: sticky; top: 104px; display: grid; gap: 8px; padding: 20px 0; }
 .notes-nav > span { margin-bottom: 8px; }
@@ -855,6 +852,23 @@ main:focus { outline: none; }
 .genome-provenance details { margin-top: 12px; font-size: 12px; color: var(--muted); }
 .genome-provenance summary { padding: 4px 0; cursor: pointer; }
 .genome-provenance code { display: block; padding-top: 6px; overflow-wrap: anywhere; }
+.genome-overview { margin: 0 0 24px; padding: 22px 24px; background: var(--white); border: 1px solid var(--line); border-radius: 10px; }
+.genome-overview h2 { margin: 0 0 18px; color: var(--navy); font-size: 18px; }
+.genome-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 24px; margin: 0; }
+.genome-facts dt, .taxonomy-lineage dt, .source-context dt { color: var(--muted); font-size: 12px; }
+.genome-facts dd, .taxonomy-lineage dd { margin: 5px 0 0; color: var(--navy); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.genome-taxonomy { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+.taxonomy-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-bottom: 14px; }
+.taxonomy-heading h2, .taxonomy-heading h3 { margin: 0; color: var(--navy); font-size: 16px; }
+.taxonomy-heading span { color: var(--muted); font-size: 11px; }
+.taxonomy-lineage { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; margin: 0; }
+.taxonomy-lineage > div { min-width: 0; border-left: 2px solid var(--line); padding-left: 10px; }
+.source-context { display: flex; flex-wrap: wrap; gap: 12px 28px; margin: 12px 0; }
+.source-context dd { margin: 3px 0 0; color: var(--navy); font-size: 13px; }
+.source-reuse { margin: 10px 0; font-size: 12px; color: var(--muted); }
+@media (max-width: 1000px) {
+  .taxonomy-lineage { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 @media (max-width: 980px) {
   .home-explore { gap: 12px; }
   .home-explore > a { padding: 18px; }
@@ -867,6 +881,8 @@ main:focus { outline: none; }
   .genome-directory-table td code { white-space: normal; overflow-wrap: anywhere; }
 }
 @media (max-width: 600px) {
+  .genome-overview { padding: 18px 16px; }
+  .genome-facts, .taxonomy-lineage { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .genome-provenance { padding: 20px 16px; }
   .genome-provenance dl { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
   .home-explore { grid-template-columns: 1fr; }

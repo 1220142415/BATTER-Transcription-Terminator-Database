@@ -61,7 +61,7 @@
 
   function updateUrl() {
     const url = new URL(window.location.href);
-    ["q", "search", "query", "accession", "assembly", "taxon", "rank", "phylum", "class", "order", "family", "genus", "study", "assay", "evidence", "signal", "sort", "dataset", "direction", ...filters.map(([param]) => param)]
+    ["q", "search", "query", "accession", "assembly", "taxon", "rank", "phylum", "class", "order", "family", "genus", "species", "study", "assay", "evidence", "signal", "sort", "dataset", "direction", ...filters.map(([param]) => param)]
       .forEach((key) => url.searchParams.delete(key));
     if (search.value.trim()) url.searchParams.set("q", search.value.trim());
     taxonomy.forEach(select => { if (select.value) url.searchParams.set(select.dataset.taxonomyRank, select.value); });
@@ -297,7 +297,7 @@
         let row = indexed.get(record[0].toUpperCase());
         if (!row) {
           row = { dataset: { genomeSearch: "", sortAccession: record[0].toLowerCase(), sortOrganism: record[3].toLowerCase(), sortEndpoints: "0" }, sources: [] };
-          const ranks = { p: "Phylum", c: "Class", o: "Order", f: "Family", g: "Genus" };
+          const ranks = { p: "Phylum", c: "Class", o: "Order", f: "Family", g: "Genus", s: "Species" };
           for (const taxon of (record[11] || "").split(";")) {
             const rank = ranks[taxon[0]], value = taxon.slice(3);
             if (rank && value) row.dataset[`taxonomy${rank}`] = value;
