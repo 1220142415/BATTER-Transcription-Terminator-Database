@@ -19,8 +19,9 @@ test("genome provenance uses registered metadata and remains readable when the b
     };
     const metadata = { otu_id: otu, genome_type: "SAG", taxonomy: otu ? "p__P; c__C;o__O;f__F;g__Example;s__Example species" : "p__P;s__", source_collection: "IMG",
       reference: { source: "GEM representative", source_path: "genomes/OTU-32567.fna.gz", source_sha256: "a".repeat(64), contigs: 46, bases: 1309253 },
-      feature_counts: { otu_augmentation_window: 105, rfam_training_window: 5 }, browser_files: {}, annotation: { status: "unavailable" }, revision: "b".repeat(40),
+      feature_counts: otu ? { tes_prediction: 0, otu_augmentation_span: 11, rfam_training_span: 5, otu_augmentation_window: 105, rfam_training_window: 5 } : {}, browser_files: {}, annotation: { status: "unavailable" }, revision: "b".repeat(40),
     };
+    select("[data-experimental-count]").textContent = "2,848";
     runInNewContext(script, {
       document: { baseURI: "https://bted.example/genomes/genome.html", querySelector: select, createElement: element },
       location: { href: "https://bted.example/genomes/genome.html?genome=2228664028", search: "?genome=2228664028" },
@@ -46,7 +47,10 @@ test("genome provenance uses registered metadata and remains readable when the b
       ["Species", otu ? "Example species" : "Not assigned"],
     ]);
     assert.match(taxonomy.children[0].children[1].children[0].textContent, /GEM.*GTDB/);
-    assert.equal(select("[data-batter-summary]").children[3].children[0].textContent, "110");
+    assert.equal(select("[data-experimental-count]").textContent, "2,848");
+    assert.equal(select("[data-prediction-count]").textContent, otu ? "0" : "Not cataloged");
+    assert.equal(select("[data-training-count]").textContent, otu ? "16" : "Not cataloged");
+    assert.equal(select("[data-training-breakdown]").textContent, otu ? "OTU 11 · Rfam 5" : "");
     assert.match(panel.children[2].textContent, /not all members/);
     assert.equal(panel.children[3].children[1].textContent, metadata.reference.source_sha256);
     assert.match(select("[data-browser-status]").textContent, /unavailable/);

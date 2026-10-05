@@ -424,6 +424,21 @@ def _group_studies(rows: list[dict[str, str]]) -> list[tuple[str, list[dict[str,
     return sorted(grouped.items(), key=lambda item: item[0])
 
 
+def genome_summary(experimental_count=None, study_count=0, computational=None, *, loading=False) -> str:
+    prediction = computational[10] if computational is not None else None
+    augmentation = int(computational[5]) + int(computational[7]) if computational is not None else None
+    pending = "Loading…" if loading else "Not cataloged"
+    def number(value, marker="", fallback="Not cataloged"):
+        return f'<strong {marker} class="{"count-missing" if value is None else ""}">{fallback if value is None else f"{int(value):,}"}</strong>'
+    breakdown = f'OTU {int(computational[5]):,} · Rfam {int(computational[7]):,}' if computational is not None else ''
+    studies = f"{study_count} {'study' if study_count == 1 else 'studies'}" if experimental_count is not None else "No published endpoints"
+    return f'''<section class="genome-summary genome-counts" aria-label="Genome data summary">
+<div>{number(experimental_count, 'data-experimental-count')}<span>Experimental 3′ ends</span><small>{studies}</small></div>
+<div>{number(prediction, 'data-prediction-count', pending)}<span>Predicted regions</span><small>BATTER</small></div>
+<div>{number(augmentation, 'data-training-count', pending)}<span>Augmentation / Rfam regions</span><small data-training-breakdown>{breakdown}</small></div>
+</section><p class="genome-count-note">Experimental counts sum source records; sites may overlap. Training windows are excluded.</p>'''
+
+
 def genome_content(
     genome: dict[str, object],
     asset_map: dict[str, dict[str, object]],
@@ -431,6 +446,8 @@ def genome_content(
     jbrowse_config: str | None,
     taxonomy: dict[str, str] | None = None,
     source_context: dict[str, dict[str, str]] | None = None,
+    publications: dict[str, dict[str, str]] | None = None,
+    computational: list | None = None,
 ) -> str:
     assembly = str(genome["assembly"])
     rows: list[dict[str, str]] = genome["metadata_rows"]
@@ -438,6 +455,7 @@ def genome_content(
     species = next((row.get("species", "") for row in rows if row.get("species")), "")
     taxonomy = taxonomy or {}
     source_context = source_context or {}
+    publications = publications or {}
     reference_size = load_reference_sizes().get(assembly)
     overview_facts = [("Genome source", "NCBI RefSeq"), ("Reference strain", taxonomy.get("reference_strain") or "Not recorded")]
     if reference_size:
@@ -464,42 +482,61 @@ def genome_content(
 
     source_cards: list[str] = []
     for pmid, study_rows in studies:
-        title = next((row.get("title", "") for row in study_rows if row.get("title")), f"Study PMID {pmid}")
+        publication = publications.get(pmid, {})
+        title = publication.get("title") or next((row.get("title", "") for row in study_rows if row.get("title")), f"Study PMID {pmid}")
+        paper_url = f'https://doi.org/{quote(publication["doi"], safe="/")}' if publication.get("doi", "").startswith("10.") else _publication_link(pmid)
+        paper_link = f'<a href="{esc(paper_url)}" target="_blank" rel="noopener">Read paper ↗</a>'
+        pubmed_link = f'<a href="{esc(_publication_link(pmid))}" target="_blank" rel="noopener">PubMed ↗</a>' if paper_url != _publication_link(pmid) else ''
+        study_total = sum(int(row["record_count_number"]) for row in study_rows)
+        common_fields = {}
+        if len(study_rows) > 1:
+            for label, values in (
+                ("Method", [row.get("assay", "") for row in study_rows]),
+                ("Strain", [source_context.get(row["source_id"], {}).get("sample_strain", "") for row in study_rows]),
+            ):
+                if values[0] and len(set(values)) == 1:
+                    common_fields[label] = values[0]
+        common_items = ''.join(f'<div><dt>{label}</dt><dd>{esc(value)}</dd></div>' for label, value in common_fields.items())
+        common_context = f'<dl class="source-context">{common_items}</dl>' if common_items else ''
+        raw_values = {row.get("raw_data_accessions", "").strip() for row in study_rows}
+        common_raw = next(iter(raw_values)) if len(study_rows) > 1 and len(raw_values) == 1 else ''
+        study_raw = f'<p class="source-links">Raw data: {raw_data_links(common_raw)}</p>' if common_raw else ''
         study_path = next((row.get("study_gff3", "").strip() for row in study_rows if row.get("study_gff3", "").strip()), "")
         genome_dir = PurePosixPath(str(genome["metadata_path"])).parent
         gff3_path = (genome_dir / study_path).as_posix() if study_path else ""
         gff3_url = get_asset_url(asset_map, gff3_path, optional=True) if gff3_path else None
         source_lines: list[str] = []
-        for row in study_rows:
+        for source_number, row in enumerate(study_rows, 1):
             source_id = row["source_id"]
             record_count = int(row["record_count_number"])
             evidence = row.get("evidence_class", "")
             source_has_signal = source_id in signal_sources
             context = source_context.get(source_id, {})
-            context_fields = [("Strain", context.get("sample_strain")), ("Genotype", context.get("genotype")), ("Conditions", context.get("conditions"))]
+            context_fields = [("Method", row.get("assay")), ("Strain", context.get("sample_strain")), ("Genotype", context.get("genotype")), ("Conditions", context.get("conditions"))]
             replicate = context.get("replicate_label", "")
             if replicate:
-                context_fields.append(("Replicates", f'{replicate} ({context.get("replicate_type", "")})'))
-            context_items = ''.join(f'<div><dt>{esc(label)}</dt><dd>{esc(value)}</dd></div>' for label, value in context_fields if value)
+                context_fields.append(("Replicates", replicate + (f' ({context["replicate_type"]})' if context.get("replicate_type") else '')))
+            context_items = ''.join(f'<div><dt>{esc(label)}</dt><dd>{esc(value)}</dd></div>' for label, value in context_fields if value and label not in common_fields)
             context_html = f'<dl class="source-context">{context_items}</dl>' if context_items else ''
             shared_source = context.get("reused_data_with", "")
-            shared_note = f'<p class="source-reuse">Shares raw sequencing data with <a href="#source-{esc(shared_source)}">{esc(shared_source)}</a>; endpoint calls are kept by study.</p>' if shared_source and any(other["source_id"] == shared_source for other in rows) else ''
+            shared_pmid = next((other["pmid"] for other in published if other["source_id"] == shared_source), '')
+            shared_note = f'<p class="source-reuse">Shares raw sequencing data with <a href="#source-{esc(shared_source)}">PMID {esc(shared_pmid)}</a>.</p>' if shared_pmid else ''
             raw_accessions = row.get("raw_data_accessions", "").strip()
-            raw_link = f'<span class="source-raw">Raw data: {raw_data_links(raw_accessions)}</span>' if raw_accessions else ""
+            raw_link = f'<span class="source-raw">Raw data: {raw_data_links(raw_accessions)}</span>' if raw_accessions and not common_raw else ""
             caveat = SOURCE_PAGE_CAVEATS.get(source_id, "")
             caveat_html = f'<p class="source-caveat">{esc(caveat)}</p>' if caveat else ""
             signal_html = '<span class="signal-present">Experimental signal</span>' if source_has_signal else ""
-            facts = "".join(
+            facts = f'<div><dt>Source ID</dt><dd>{esc(source_id)}</dd></div><div><dt>Evidence</dt><dd>{esc(evidence_label(evidence))}</dd></div>' + "".join(
                 f'<div><dt>{esc(label)}</dt><dd>{esc(row.get(field))}</dd></div>'
-                for field, label in (("article_license", "Article license"), ("redistribution_status", "Redistribution"), ("release_status", "Release status"), ("known_limitations", "Limitations"))
+                for field, label in (("article_license", "Article license"), ("redistribution_status", "Redistribution"), ("known_limitations", "Limitations"))
                 if row.get(field)
             )
+            source_heading = f'<div class="source-heading"><h4>Dataset {source_number}</h4><strong>{record_count:,} 3′ ends</strong></div>' if len(study_rows) > 1 else ''
             source_lines.append(f'''<div class="source-evidence" id="source-{esc(source_id)}" data-source-card="{esc(source_id)}">
-  <div class="source-heading"><h4>{esc(source_id)}</h4><strong>{record_count:,} 3′ ends</strong></div>
-  <p class="source-summary">{esc(row.get('assay', ''))} · {esc(evidence_label(evidence))}</p>
+  {source_heading}
   {context_html}{shared_note}
-  {caveat_html}<p class="source-links">{raw_link}{signal_html}</p>
-  <details class="source-notes"><summary>Source notes</summary><dl>{facts}</dl></details>
+  <p class="source-links">{raw_link}{signal_html}</p>
+  <details class="source-notes"><summary>Source details</summary>{caveat_html}<dl>{facts}</dl></details>
 </div>''')
         supplementary: list[str] = []
         seen_paths: set[str] = set()
@@ -527,16 +564,17 @@ def genome_content(
         else:
             downloads_html = f'<div class="download-grid">{"".join(supplementary)}</div>'
         source_cards.append(f'''<article class="study-card" id="study-{esc(pmid)}">
-  <header><div><p class="eyebrow">PMID {esc(pmid)}</p><h3><a href="{esc(_publication_link(pmid))}" target="_blank" rel="noopener">{esc(title)}</a></h3></div></header>
-  <div class="study-source-list">{''.join(source_lines)}</div><div class="study-downloads">{downloads_html}</div>
+  <header><div><p class="eyebrow">PMID {esc(pmid)}</p><h3><a href="{esc(paper_url)}" target="_blank" rel="noopener">{esc(title)}</a></h3><div class="study-links">{paper_link}{pubmed_link}</div></div><div class="study-count"><strong>{study_total:,}</strong><span>experimental 3′ ends</span></div></header>
+  {common_context}<div class="study-source-list">{''.join(source_lines)}</div>{study_raw}<div class="study-downloads">{downloads_html}</div>
 </article>''')
 
     all_source_rows = rows
     unpublished_cards = []
     for pmid, audit_rows in _group_studies([row for row in all_source_rows if not is_published_status(row.get("release_status"))]):
-        title = next((row.get("title", "") for row in audit_rows if row.get("title")), f"Study PMID {pmid}")
-        ids = ", ".join(row["source_id"] for row in audit_rows)
-        unpublished_cards.append(f'''<article class="study-card audit-card"><header><div><p class="eyebrow">PMID {esc(pmid)}</p><h3>{esc(title)}</h3></div><span class="badge badge-review">No endpoint file</span></header><p>{esc(ids)}: source record only. Observations are excluded from downloads and browser tracks.</p></article>''')
+        publication = publications.get(pmid, {})
+        title = publication.get("title") or next((row.get("title", "") for row in audit_rows if row.get("title")), f"Study PMID {pmid}")
+        paper_url = f'https://doi.org/{quote(publication["doi"], safe="/")}' if publication.get("doi", "").startswith("10.") else _publication_link(pmid)
+        unpublished_cards.append(f'''<article class="study-card audit-card"><header><div><p class="eyebrow">PMID {esc(pmid)}</p><h3><a href="{esc(paper_url)}" target="_blank" rel="noopener">{esc(title)}</a></h3><div class="study-links"><a href="{esc(paper_url)}" target="_blank" rel="noopener">Read paper ↗</a></div></div><span class="badge badge-review">No endpoint file</span></header><p class="muted">No published experimental count.</p></article>''')
 
     if jbrowse_config:
         signal_intro = "Track menus include study details and downloads."
@@ -557,10 +595,10 @@ def genome_content(
     content = f'''<main class="page-shell genome-page" data-genome-page data-assembly="{esc(assembly)}">
 <p class="breadcrumbs"><a href="../genomes.html">Genomes</a><span aria-hidden="true">/</span><span>{esc(assembly)}</span></p>
 <section class="genome-title"><div><p class="eyebrow">Reference genome</p><h1>{esc(species or assembly)}</h1><p class="assembly-id">{esc(assembly)}</p></div></section>
-<section class="genome-summary" aria-label="Genome data summary"><div><strong>{len(studies)}</strong><span>published {'study' if len(studies) == 1 else 'studies'}</span></div><div><strong>{len(published)}</strong><span>source {'record' if len(published) == 1 else 'records'}</span></div><div><strong>{total_records:,}</strong><span>3′ end records</span></div></section>
+{genome_summary(total_records if published else None, len(studies), computational)}
 {overview}
 {browser_html}
-<section class="genome-studies" id="genome-studies"><div class="section-heading"><div><h2>Studies</h2></div></div>{''.join(source_cards) if source_cards else '<p class="empty-state">No published study records.</p>'}{''.join(unpublished_cards)}</section>
+<section class="genome-studies" id="genome-studies"><div class="section-heading"><div><h2>Studies</h2><p>Experimental records for this genome, grouped by paper.</p></div></div>{''.join(source_cards) if source_cards else '<p class="empty-state">No published study records.</p>'}{''.join(unpublished_cards)}</section>
 {genome_downloads}
 </main>'''
     return content
@@ -588,6 +626,8 @@ def build_site(
     genomes = load_genomes(release_root, release, files)
     taxonomy = load_genome_taxonomy(taxonomy_path, genomes)
     source_context = {row["source_id"]: row for row in read_tsv(TAXONOMY_REGISTRY.parent / "source_context.tsv", ("source_id",))}
+    publications = {row["pmid"]: row for row in read_tsv(TAXONOMY_REGISTRY.parent / "publications.tsv", ("pmid", "title", "doi"))}
+    computational_index = {row[0]: row for row in computational_genomes}
     for relative in files:
         if relative not in asset_map:
             raise SiteBuildError(f"Published release file is missing from the browser allowlist: {relative}")
@@ -603,7 +643,7 @@ def build_site(
             site_root / "genomes" / f"{assembly}.html",
             page(
                 f"{next((row.get('species', '') for row in genome['metadata_rows'] if row.get('species')), assembly)} · {assembly}",
-                genome_content(genome, asset_map, track_ids, config, taxonomy[assembly], source_context),
+                genome_content(genome, asset_map, track_ids, config, taxonomy[assembly], source_context, publications, computational_index.get(assembly)),
                 current="genomes",
                 scripts=("../assets/genome-page.js",),
                 depth=1,

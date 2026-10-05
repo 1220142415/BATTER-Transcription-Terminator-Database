@@ -4,7 +4,7 @@ from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import quote
-from build_v0_4_site import esc, page
+from build_v0_4_site import esc, genome_summary, page
 
 
 class GenomePhyla(HTMLParser):
@@ -61,7 +61,7 @@ def build(site_root):
     content = '''<main class="page-shell genome-page" data-batter-genome data-genome-page data-preserve-default-view="true">
 <p class="breadcrumbs"><a href="../genomes.html">Genomes</a><span>/</span><span>Genome data</span></p>
 <section class="genome-title"><div><h1 data-batter-title>Loading genome…</h1><p class="assembly-id" data-batter-id></p></div></section>
-<section class="genome-summary" aria-label="Genome data summary" data-batter-summary></section>
+''' + genome_summary(loading=True) + '''
 <section class="genome-provenance" aria-label="Reference and coordinate provenance" data-batter-provenance hidden></section>
 <section class="genome-overview" aria-label="Genome taxonomy" data-batter-taxonomy hidden></section>
 <section class="browser-panel" id="genome-browser" data-genome-browser style="--browser-frame-height:820px">
@@ -80,7 +80,7 @@ def build(site_root):
         if path.stem in ids:
             text = path.read_text(encoding="utf-8")
             text = text.replace('data-genome-page data-assembly=', 'data-batter-genome data-preserve-default-view="true" data-genome-page data-assembly=', 1)
-            section = '''<section class="genome-summary" aria-label="Computational data summary" data-batter-summary></section><section class="genome-provenance" aria-label="Reference and coordinate provenance" data-batter-provenance hidden></section><section class="genome-downloads"><div><h2>Prediction and training files</h2></div><div class="genome-download-actions" data-batter-downloads></div></section>'''
+            section = '''<section class="genome-provenance" aria-label="Reference and coordinate provenance" data-batter-provenance hidden></section><section class="genome-downloads"><div><h2>Prediction and training files</h2></div><div class="genome-download-actions" data-batter-downloads></div></section>'''
             text = text.replace('<section class="browser-panel"', section + '<section class="browser-panel"', 1)
             text = text.replace('src="../assets/genome-page.js"', 'src="../assets/batter-browser.js"')
             path.write_text(text, encoding="utf-8")

@@ -223,6 +223,17 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn("../css/style.css", genome)
             self.assertIn("../assets/genome-page.js", genome)
             self.assertIn("Study GFF3", genome)
+            self.assertIn('class="study-count"><strong>3</strong><span>experimental 3′ ends', genome)
+            self.assertIn('href="https://doi.org/10.1128/msystems.01581-25"', genome)
+            self.assertIn('Read paper ↗', genome)
+            self.assertIn('PubMed ↗', genome)
+            self.assertIn('<h4>Dataset 1</h4><strong>2 3′ ends', genome)
+            self.assertIn('<h4>Dataset 2</h4><strong>1 3′ ends', genome)
+            self.assertNotIn('<h4>BTED_EXT_', genome)
+            self.assertIn('<summary>Source details</summary>', genome)
+            self.assertIn('<dt>Method</dt>', genome)
+            self.assertEqual(genome.count('Raw data:'), 1)
+            self.assertEqual(genome.count('class="genome-summary genome-counts"'), 1)
             self.assertIn("Gene associations TSV", genome)
             self.assertIn("No experimental signal", genome)
             self.assertIn("data-share-view", genome)
@@ -268,6 +279,20 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertEqual(next(row[12] for row in catalogue["genomes"] if row[0] == "2228664028"), "IMG")
             self.assertEqual(catalogue["reference_sizes"]["GCF_000012525.1"], [2742269, 2])
             self.assertIn('Genomes by phylum', (site / "index.html").read_text(encoding="utf-8"))
+
+    def test_genome_counts_distinguish_missing_data_from_zero_and_exclude_windows(self) -> None:
+        empty = build_v0_4_site.genome_summary()
+        self.assertEqual(empty.count('Not cataloged</strong>'), 3)
+        self.assertNotIn('>0</strong>', empty)
+        computational = ['test', '', '', '', '', 11, 105, 5, 50, '', 0]
+        content = build_v0_4_site.genome_summary(2848, 2, computational)
+        self.assertIn('data-experimental-count class="">2,848</strong>', content)
+        self.assertIn('data-prediction-count class="">0</strong>', content)
+        self.assertIn('data-training-count class="">16</strong>', content)
+        self.assertIn('OTU 11 · Rfam 5', content)
+        self.assertIn('2 studies', content)
+        self.assertNotIn('155', content)
+        self.assertIn('sites may overlap', content)
 
     def test_home_phyla_deduplicate_assemblies_and_keep_unclassified(self) -> None:
         records = [[f"GCF_{i}", *([""] * 10), f"p__Group{i}"] for i in range(10)]

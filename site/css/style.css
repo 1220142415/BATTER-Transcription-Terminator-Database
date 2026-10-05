@@ -694,6 +694,14 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
 .genome-summary div { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; }
 .genome-summary strong { color: var(--navy); font-size: 23px; font-variant-numeric: tabular-nums; }
 .genome-summary span { color: var(--muted); font-size: 12px; }
+.genome-counts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; padding: 0; margin: 18px 0 0; border: 1px solid var(--line); border-radius: 10px; background: var(--white); overflow: hidden; }
+.genome-counts > div { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; padding: 20px 24px; border-right: 1px solid var(--line); }
+.genome-counts > div:last-child { border-right: 0; }
+.genome-counts strong { font-size: 28px; line-height: 1.25; }
+.genome-counts strong.count-missing { font-size: 19px; line-height: 1.85; color: var(--muted); }
+.genome-counts span { font-size: 13px; color: var(--navy); }
+.genome-counts small { color: var(--muted); font-size: 11px; }
+.genome-count-note { margin: 10px 0 24px; color: var(--muted); font-size: 11px; }
 .browser-panel { margin: 0 0 24px; overflow: hidden; background: var(--white); border: 1px solid var(--line); border-radius: 10px; }
 .browser-panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 18px 20px; }
 .browser-panel-heading h2 { margin: 2px 0 4px; color: var(--navy); font-size: 20px; }
@@ -715,7 +723,15 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
 .genome-studies > .section-heading h2 { margin: 2px 0; color: var(--navy); font-size: 22px; }
 .genome-studies > .section-heading > p { margin: 0 0 3px; color: var(--muted); font-size: 12px; }
 .study-card { margin: 14px 0; padding: 23px 25px; background: var(--white); border: 1px solid var(--line); border-radius: 6px; }
-.study-card > header { padding-bottom: 10px; }
+.study-card > header { display: flex; justify-content: space-between; gap: 18px 28px; align-items: flex-start; padding-bottom: 16px; }
+.study-card > header > div:first-child { min-width: 0; }
+.study-links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; font-size: 13px; }
+.study-links a { color: var(--blue); font-weight: 650; text-decoration: none; }
+.study-links a:hover { text-decoration: underline; }
+.study-count { flex-shrink: 0; text-align: right; }
+.study-count strong { display: block; font-size: 25px; line-height: 1.25; color: var(--navy); font-variant-numeric: tabular-nums; }
+.study-count span { font-size: 11px; color: var(--muted); }
+.genome-studies .section-heading p { margin: 5px 0 0; font-size: 13px; color: var(--muted); }
 .study-card > header h3 { max-width: 860px; margin: 2px 0 0; color: var(--navy); font-size: 17px; line-height: 1.4; }
 .study-card > header h3 a { color: inherit; text-decoration: none; }
 .study-card > header h3 a:hover { text-decoration: underline; }
@@ -725,7 +741,6 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
 .source-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .source-heading h4 { margin: 0; color: var(--navy); font-size: 14px; overflow-wrap: anywhere; }
 .source-heading strong { color: var(--navy); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.source-summary { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
 .source-caveat { margin: 7px 0 0; color: #5a4a28; font-size: 12px; line-height: 1.45; }
 .source-links { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 0; color: var(--muted); font-size: 12px; }
 .source-links:empty { display: none; }
@@ -773,6 +788,13 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
   .study-source-list { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
+  .genome-counts { grid-template-columns: 1fr; gap: 0; }
+  .genome-counts > div { padding: 14px 18px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .genome-counts > div:last-child { border-bottom: 0; }
+  .genome-counts strong { font-size: 25px; }
+  .genome-counts span { font-size: 13px; }
+  .study-card > header { flex-direction: column; gap: 14px; }
+  .study-count { display: flex; align-items: baseline; gap: 8px; text-align: left; }
   .genome-filter-bar { grid-template-columns: 1fr 42px; padding: 12px; }
   .genome-refine-filters { grid-template-columns: 1fr; gap: 12px; padding: 0 12px; }
   .genome-filter-note { margin: 10px 12px 16px; }
@@ -789,9 +811,6 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
   .genome-card { grid-template-columns: 1fr; gap: 10px; padding: 14px; }
   .genome-card-facts { justify-content: flex-start; }
   .card-open { grid-column: auto; min-height: 28px; display: flex; align-items: center; }
-  .genome-summary { gap: 4px 13px; }
-  .genome-summary strong { font-size: 15px; }
-  .genome-summary span { font-size: 10px; }
   .browser-panel-heading { align-items: stretch; flex-direction: column; padding: 15px 13px 9px; }
   .browser-actions { justify-content: flex-start; }
   .browser-share-status { padding-inline: 13px; }

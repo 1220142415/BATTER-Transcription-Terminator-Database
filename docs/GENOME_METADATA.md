@@ -22,6 +22,12 @@ An overlapping experimental/computational page shows the NCBI classification for
 
 ## Study context
 
+The top summary separates experimental 3′-end records, predicted regions and augmentation / Rfam regions. Missing catalogue entries display `Not cataloged`; a registered count of zero remains `0`. Augmentation counts include OTU and Rfam spans, exclude their context windows, and retain the component counts. Experimental counts sum source records and can include overlapping sites.
+
+Each study card shows the sum for that paper and this genome, with per-dataset counts when the paper has multiple source records. Method, sample strain, conditions, replicates and raw-data links remain visible. Internal source IDs, evidence details, licences and longer caveats are in `Source details`.
+
+`data/registry/publications.tsv` contains the 14 paper titles and DOIs from the audited `corrected-metadata/experimental-metadata.corrected.tsv`. Repeated PMID entries were checked for agreement before extraction. `Read paper` links to the DOI; PubMed is also available. These display references do not replace the published metadata downloads.
+
 `data/registry/source_context.tsv` adds sample strain, genotype, conditions, replicate description and shared-data relationships to source cards. Blank fields mean no verified value has been supplied here. Reference strain and sample strain remain separate fields.
 
 The registry is a selected extract of `corrected-metadata/experimental-metadata.corrected.tsv` in the companion evidence directory. That file and `metadata-changes.tsv` record the field-level evidence. Before changing a value, check its cited paper or accession and retain the supporting response in the evidence directory.

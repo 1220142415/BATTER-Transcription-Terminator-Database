@@ -62,12 +62,16 @@
         }
         taxonomy.replaceChildren(header, lineage); taxonomy.hidden = false;
       }
-      const counts = data.feature_counts;
-      const summary = $("[data-batter-summary]"); summary.replaceChildren();
-      for (const [count, label] of [[counts.tes_prediction, "predicted regions"], [counts.otu_augmentation_span, "OTU training regions"], [counts.rfam_training_span, "Rfam training regions"], [Number(counts.otu_augmentation_window || 0) + Number(counts.rfam_training_window || 0), "training windows"]]) {
-        const item = document.createElement("div"), number = document.createElement("strong"), text = document.createElement("span");
-        number.textContent = format(count); text.textContent = label; item.append(number, text); summary.append(item);
+      const counts = data.feature_counts || {};
+      const validCount = value => Number.isSafeInteger(value) && value >= 0;
+      const hasTrainingCounts = validCount(counts.otu_augmentation_span) && validCount(counts.rfam_training_span);
+      const training = hasTrainingCounts ? counts.otu_augmentation_span + counts.rfam_training_span : null;
+      for (const [selector, count] of [["[data-prediction-count]", counts.tes_prediction], ["[data-training-count]", training]]) {
+        const node = $(selector);
+        node.textContent = validCount(count) ? format(count) : "Not cataloged";
+        node.className = validCount(count) ? "" : "count-missing";
       }
+      $("[data-training-breakdown]").textContent = hasTrainingCounts ? `OTU ${format(counts.otu_augmentation_span)} · Rfam ${format(counts.rfam_training_span)}` : "";
       const downloads = $("[data-batter-downloads]"); downloads.replaceChildren();
       for (const [file, label] of [["prediction.gff3.gz", "Prediction GFF3"], ["augmentation.gff3.gz", "Training GFF3"], ["reference.fa.gz", "Reference FASTA"], ["genes.gff3.gz", "Gene annotation"]]) {
         if (!data.browser_files[file] || (file.startsWith("genes") && data.annotation.status !== "matched")) continue;
@@ -95,7 +99,13 @@
       const full = $("[data-batter-full]") || $(".browser-actions a"); full.href = new URL(`../jbrowse/index.html?config=${encodeURIComponent(config.href)}`, document.baseURI).href; full.hidden = false;
       reload.removeEventListener("click", loadGenome);
       const script = document.createElement("script"); script.src = "../assets/genome-page.js"; document.body.append(script);
-    } catch (error) { status.textContent = error.message; }
+    } catch (error) {
+      status.textContent = error.message;
+      for (const selector of ["[data-prediction-count]", "[data-training-count]"]) {
+        const node = $(selector);
+        if (node?.textContent === "Loading…") node.textContent = "Unavailable";
+      }
+    }
     finally { reload.disabled = false; }
   }
   reload.addEventListener("click", loadGenome);
