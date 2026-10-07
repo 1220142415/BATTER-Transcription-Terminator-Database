@@ -16,7 +16,8 @@ export async function fetchBtedAsset(input, init = {}) {
   const url = input instanceof Request ? input.url : String(input);
   const method = init.method || (input instanceof Request ? input.method : 'GET');
   const match = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/[0-9a-f]{40}\/v0\.[34]\.0\/(.+)$/.exec(url);
-  const batter = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/v0\.5\.0\/batter\/batches\/(\d{3})\/genomes\/([A-Za-z0-9_.-]+)\/([^/]+)$/.exec(url);
+  const batter = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/v0\.5\.0\/genomes\/batter-(\d{3})\/([A-Za-z0-9_.-]+)\/(?:reference|training|predictions|annotations\/batter)\/([^/]+)$/.exec(url)
+    || /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/v0\.5\.0\/batter\/batches\/(\d{3})\/genomes\/([A-Za-z0-9_.-]+)\/([^/]+)$/.exec(url);
   if ((!match && !batter) || !['GET', 'HEAD'].includes(method)) return nativeFetch(input, init);
   const signal = init.signal || (input instanceof Request ? input.signal : undefined);
   let originalError;

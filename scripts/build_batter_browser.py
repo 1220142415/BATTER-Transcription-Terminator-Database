@@ -68,7 +68,7 @@ def build(site_root):
 <iframe data-browser-frame title="Genome browser" loading="lazy" referrerpolicy="no-referrer" hidden></iframe></section>
 <section class="genome-provenance" aria-label="Reference and coordinate provenance" data-batter-provenance hidden></section>
 <section class="genome-overview" aria-label="Genome taxonomy" data-batter-taxonomy hidden></section>
-<section class="genome-downloads" id="genome-downloads"><div><h2>Downloads</h2><p>Prediction and training files. Upload in progress.</p></div><div class="genome-download-actions" data-batter-downloads></div></section></main>'''
+<section class="genome-downloads" id="genome-downloads"><div><h2>Downloads</h2><p>Prediction and training files.</p></div><div class="genome-download-actions" data-batter-downloads></div></section></main>'''
     generic_page = page("Genome", content, current="genomes", scripts=("../assets/batter-browser.js",), depth=1)
     (site_root / "genomes/genome.html").write_text(generic_page, encoding="utf-8")
     (site_root / "genomes/batter.html").write_text(generic_page, encoding="utf-8")  # Existing shared links.

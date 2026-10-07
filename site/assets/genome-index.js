@@ -326,7 +326,7 @@
           row.node.querySelector('[data-label="Annotation"]').replaceChildren(annotationBadge(record[9]));
         }
       }
-      loadStatus.textContent = "Upload in progress. OTU augmentation and Rfam counts exclude context windows.";
+      loadStatus.textContent = "OTU augmentation and Rfam counts exclude context windows.";
     } catch {
       loadStatus.textContent = "Uploaded genome list unavailable. Experimental genomes remain available."; retry.hidden = false;
     } finally {

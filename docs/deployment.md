@@ -69,7 +69,7 @@ python scripts/serve_v04_preview.py --site dist/pages-site --port 8769 \
 
 ### BATTER 训练增强浏览
 
-`Genomes` 用一张基因组表，通过 Data type 筛选全部、实验、预测和数据增强，同一完整组装编号只显示一行。主表参照 promoter 展示 Genome ID、Genome source、Organism、Taxonomy、Assembly size、Terminator data、Annotation 七列，点击 Genome ID 进入详情。Terminator data 在同一格分行显示实验端点、预测和增强／Rfam 区间，并按有无数据使用颜色标签。Taxonomy 在独立筛选区按门→纲→目→科→属→种逐级选择；文章、方法和信号信息在详情及轨道说明中查看。增强／Rfam 为 OTU 增强区间与 Rfam 训练区间之和，不计上下文窗口。实验参考大小由已有 contig 登记汇总，计算参考大小仅采用与固定 HF 版本一致的叠加核查记录；未收录的大小显示 Not cataloged，排序时放在已收录记录之后，不按文件大小或实验端点推断。注释状态区分可用、坐标不兼容、缺失和未收录。实验与计算数据共用同一个基因组页面和 JBrowse；模型预测只展示已经发布的结果，不执行预测任务。计算数据来自 HF 准备分支 `v05-preparation-f5c55e9f129f`，当前固定提交 `6588c4242246fcfd40086a08a94fe3a6c378c029`，目录包含批次 000–039 的 40,000 个基因组。上传尚未完成，不能将此目录视为完整论文数据。
+`Genomes` 用一张基因组表，通过 Data type 筛选全部、实验、预测和数据增强，同一完整组装编号只显示一行。主表参照 promoter 展示 Genome ID、Genome source、Organism、Taxonomy、Assembly size、Terminator data、Annotation 七列，点击 Genome ID 进入详情。Terminator data 在同一格分行显示实验端点、预测和增强／Rfam 区间，并按有无数据使用颜色标签。Taxonomy 在独立筛选区按门→纲→目→科→属→种逐级选择；文章、方法和信号信息在详情及轨道说明中查看。增强／Rfam 为 OTU 增强区间与 Rfam 训练区间之和，不计上下文窗口。实验参考大小由已有 contig 登记汇总，计算参考大小仅采用与固定 HF 版本一致的叠加核查记录；未收录的大小显示 Not cataloged，排序时放在已收录记录之后，不按文件大小或实验端点推断。注释状态区分可用、坐标不兼容、缺失和未收录。实验与计算数据共用同一个基因组页面和 JBrowse；模型预测只展示已经发布的结果，不执行预测任务。计算数据固定到 HF 提交 `9f81698a3cee64f4eaf90b90cd36d640f38d9315`，包含批次 000–042 的 42,904 个已发布基因组；目录和发布完成记录已核对。该数字是本站发布范围，不表示覆盖所有可能的菌种或实验数据。
 
 Genome source 来自原始批次清单的 `source_collection`，保留数据库或研究来源；NCBI-MAG/SAG 在网页显示为 NCBI GenBank。Genome ID 为原始基因组编号；有计算目录映射时，在同一单元格的第二行显示 GEM OTU（物种聚类编号），实验条目不推断 OTU。详情页用 Sequence source 单独标明实际 FASTA 来源；原始数据库编号不代替序列版本与校验核对。当前目录每个 OTU 只保留一个代表基因组，但原始聚类可包含多个成员。编号、来源及版本共同用于追溯，OTU 不作为单个基因组的主键。
 
@@ -77,14 +77,17 @@ Genome source 来自原始批次清单的 `source_collection`，保留数据库�
 
 浏览器优先直读 HF，网络异常才使用同版本、已登记文件的同源备份；保留 Range、取消请求和 SHA-256 元数据检查。Worker 生成配置前检查参考索引、增强文件的实际大小和 SHA-256。新增浏览入口不会执行模型预测，也不改动 HF 文件或实验 D1 表。
 
-上传新批次后，指定新 **40 位 HF 提交号** 和已上传批次数，刷新目录，再正常构建和部署 Worker：
+HF 发布后，指定新 **40 位提交号** 刷新目录，再构建和部署 Worker。脚本从发布清单发现所有批次，核对 metadata 表的大小、SHA-256、基因组集合及发布完成记录；不需要手工填写批次数。
 
 ```powershell
-py -3.13 scripts/prepare_batter_browser.py --download --verify-overlaps --revision <HF提交号> --batches <已上传批次数>
+py -3.13 scripts/prepare_batter_browser.py --download --carry-overlays --revision <HF提交号>
+py -3.13 -m unittest discover -s tests -p test_prepare_batter_browser.py -q
 node --test --test-isolation=none tests/test_batter_browser.mjs
 ```
 
-不要只更新版本号而复用旧的缓存表。离线重建当前目录可以运行 `prepare_batter_browser.py` 默认参数，使用 `dist/hf-v05-000-genomes.tsv` 至 `dist/hf-v05-039-genomes.tsv`。后续完整数据发布再调整目录的 `partial` 状态和 D1 导入；当前站点明确标示上传进行中。
+缓存位于 `dist/hf-catalogue/<提交号>/`。离线重建可省略 `--download`，仍会核对清单中的校验值。只有所有批次与发布目录一致且完成记录通过检查，才将 `partial` 设为 false。`--carry-overlays` 仅在参考文件哈希未变化时保留已有的序列比对结果；哈希变化的记录不再叠加。`--verify-overlaps` 会读取实际 FASTA，仅在需要重新比较序列且获准时另行使用。
+
+2026-10-07 更新固定到 HF `9f81698a3cee64f4eaf90b90cd36d640f38d9315`，使用按基因组组织的 `v0.5.0/genomes/batter-<batch>/<id>/`。metadata 中的计算记录位于 `records.batter`；文件分别位于 `reference/`、`predictions/`、`training/` 和 `annotations/batter/`。Worker 对外仍返回原有的 metadata 字段。目录共 42,904 个计算基因组，合并实验条目后为 42,923 个。21 个实验基因组的 25 个来源 metadata 与当前公开快照一致，实验 D1 表及其固定资产版本继续使用现有记录，未重新导入。核查范围与统计见 [HF 更新核查](HF_REFRESH_2026-10-07.md)。
 
 当前部署目标是 `1052596411@qq.com` 的 Cloudflare 账号（`406a94b19dd8bd8d9e851f8c5ed3a569`）。Worker 名称是 `bted`，D1 名称是 `bted-catalog`，数据库 ID 为 `c304fae8-cce6-4fc1-922d-e3bbc1c9b995`。这些标识不是密钥；登录凭据保存在本机 Wrangler 配置中，不提交到仓库。
 

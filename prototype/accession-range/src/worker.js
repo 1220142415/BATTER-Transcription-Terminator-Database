@@ -890,7 +890,12 @@ async function staticAsset(request, env) {
   return json({ error: "static_assets_not_configured" }, 404);
 }
 
-const BATTER_FILES = new Set(["reference.fa.gz", "reference.fa.gz.fai", "reference.fa.gz.gzi", "augmentation.gff3.gz", "augmentation.gff3.gz.tbi", "prediction.gff3.gz", "prediction.gff3.gz.tbi", "genes.gff3.gz", "genes.gff3.gz.tbi"]);
+const BATTER_FILES = new Map([
+  ...["reference.fa.gz", "reference.fa.gz.fai", "reference.fa.gz.gzi"].map(file => [file, "reference/" + file]),
+  ...["augmentation.gff3.gz", "augmentation.gff3.gz.tbi"].map(file => [file, "training/" + file]),
+  ...["prediction.gff3.gz", "prediction.gff3.gz.tbi"].map(file => [file, "predictions/" + file]),
+  ...["genes.gff3.gz", "genes.gff3.gz.tbi"].map(file => [file, "annotations/batter/" + file]),
+]);
 const batterCatalogues = new WeakMap();
 
 async function batterCatalogue(request, env) {
@@ -898,7 +903,7 @@ async function batterCatalogue(request, env) {
     const task = env.ASSETS.fetch(new Request(new URL("/assets/batter-browser.json", request.url))).then(async response => {
       if (!response.ok) throw new Error("catalogue_unavailable");
       const data = await response.json();
-      if (!/^[0-9a-f]{40}$/.test(data.revision) || !Array.isArray(data.genomes)) throw new Error("catalogue_invalid");
+      if (!/^[0-9a-f]{40}$/.test(data.revision) || data.layout !== "genome-first" || !Array.isArray(data.genomes)) throw new Error("catalogue_invalid");
       return { revision: data.revision, genomes: new Map(data.genomes.map(row => [row[0], row])) };
     });
     batterCatalogues.set(env.ASSETS, task);
@@ -1002,17 +1007,25 @@ async function batterApi(request, env, match) {
     const row = catalogue.genomes.get(id);
     if (!row) return json({ error: "genome_not_indexed" }, 404);
     if (url.searchParams.has("revision") && url.searchParams.get("revision") !== catalogue.revision) return json({ error: "revision_changed_reload_page" }, 409);
-    const base = `https://huggingface.co/datasets/liurulong/terminator/resolve/${catalogue.revision}/v0.5.0/batter/batches/${row[1]}/genomes/${encodeURIComponent(id)}/`;
+    if (!/^\d{3}$/.test(row[1])) throw new Error("catalogue_invalid_batch");
+    const base = `https://huggingface.co/datasets/liurulong/terminator/resolve/${catalogue.revision}/v0.5.0/genomes/batter-${row[1]}/${encodeURIComponent(id)}/`;
     const response = await fetch(base + "metadata.json", { cf: { cacheTtl: 86400, cacheEverything: true } });
     if (!response.ok) return json({ error: "genome_upload_unavailable" }, 503, { "cache-control": "no-store" });
-    const metadata = await response.json();
-    if (metadata.genome_id !== id || metadata.batch !== row[1] || metadata.otu_id !== row[2] || !metadata.feature_counts || !metadata.reference || !metadata.annotation || !metadata.files) throw new Error("metadata_mismatch");
+    const wrapper = await response.json();
+    const metadata = wrapper.records?.batter;
+    if (wrapper.genome_id !== id || wrapper.group !== `batter-${row[1]}` || wrapper.has_prediction !== true
+      || metadata?.genome_id !== id || metadata.batch !== row[1] || metadata.otu_id !== row[2]
+      || !metadata.feature_counts || !metadata.reference || !metadata.annotation || !metadata.files) throw new Error("metadata_mismatch");
+    for (const [field, column] of [["otu_augmentation_span", 5], ["otu_augmentation_window", 6], ["rfam_training_span", 7], ["rfam_training_window", 8], ["tes_prediction", 10]]) {
+      const count = metadata.feature_counts[field];
+      if (!Number.isSafeInteger(count) || count < 0 || count !== row[column]) throw new Error("metadata_count_mismatch");
+    }
     metadata.revision = catalogue.revision;
     metadata.browser_files = {};
     for (const [file, entry] of Object.entries(metadata.files)) {
       if (!BATTER_FILES.has(file)) continue;
       if (!Number.isSafeInteger(entry.bytes) || entry.bytes < 0 || !SHA256_PATTERN.test(entry.sha256)) throw new Error("metadata_invalid_file");
-      metadata.browser_files[file] = { ...entry, url: base + file, fallback_url: `/api/batter/${encodeURIComponent(id)}/files/${file}?revision=${catalogue.revision}` };
+      metadata.browser_files[file] = { ...entry, url: base + BATTER_FILES.get(file), fallback_url: `/api/batter/${encodeURIComponent(id)}/files/${file}?revision=${catalogue.revision}` };
     }
     for (const file of ["reference.fa.gz", "reference.fa.gz.fai", "reference.fa.gz.gzi"]) if (!metadata.browser_files[file]) throw new Error("reference_not_uploaded");
     if (match[2] === "config") {
