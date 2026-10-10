@@ -809,6 +809,7 @@ def _make_bundle_tables(
             "source_note": manifest.get("blocker_or_note") or facts.get("source_note") or None,
             "decision_note": manifest.get("decision_note") or facts.get("decision_note") or None,
             "known_limitations": row.get("known_limitations") or facts.get("known_limitations") or None,
+            "metadata_json": dict(row),
         })
         for accession in _source_accessions(row.get("raw_data_accessions", "")):
             source_accessions.append({"source_id_ref": source_id, **accession})

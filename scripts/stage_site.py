@@ -19,6 +19,7 @@ from urllib.parse import quote, urlsplit
 
 from build_assembly_downloads import RELEASE_VERSION, build as build_assembly_downloads, load_sources
 from build_v0_3_site import build_site as build_v03_site
+from build_batter_browser import build as build_batter_browser
 import build_v0_4_site as v04_site
 from build_v0_4_site import SiteBuildError, build_site as build_v04_site, materialize_browser_tracks, read_release as read_v04_release
 
@@ -74,6 +75,28 @@ def install_bted_plugin(package_root: Path) -> None:
     shutil.copyfile(BTED_PLUGIN_SOURCE, destination)
     if destination.stat().st_size > 100_000:
         raise StageError("BTED JBrowse plugin is unexpectedly large")
+    # JBrowse 4.3.0 hardcodes its sequence-letter threshold; keep its native
+    # coordinates and translation, changing only visibility and DNA font size.
+    js_root = package_root / "static/js"
+    sequence = js_root / "8772.2bc45db6.chunk.js"
+    source = sequence.read_text(encoding="utf-8")
+    if hashlib.sha256(source.encode()).hexdigest() != "2d406efc51f78a66ecad302b6fbeb15efc48f094737c6ce373f7c5ac88579892":
+        raise StageError("Unexpected JBrowse sequence renderer; review the zoom patch")
+    for original, replacement in {
+        "1/r>=12": "1/r>=6",
+        "1/h>=12": "1/h>=6",
+        'font-size="${h-2}"': 'font-size="${Math.min(h-2,$*1.25)}"',
+    }.items():
+        if source.count(original) != 1:
+            raise StageError("JBrowse sequence zoom patch no longer matches")
+        source = source.replace(original, replacement)
+    chunk_hash = hashlib.sha256(source.encode()).hexdigest()[:8]
+    sequence.with_name(f"8772.{chunk_hash}.chunk.js").write_text(source, encoding="utf-8")
+    sequence.unlink()
+    for runtime in js_root.glob("*.js"):
+        source = runtime.read_text(encoding="utf-8")
+        if '8772:"2bc45db6"' in source:
+            runtime.write_text(source.replace('8772:"2bc45db6"', f'8772:"{chunk_hash}"'), encoding="utf-8")
 
 
 class _LinkCollector(HTMLParser):
@@ -922,6 +945,7 @@ def _add_default_track(config: dict[str, object], track_id: str, track_type: str
             "type": display_type,
             "configuration": f"{track_id}-{display_type}",
             **({"showSidebar": False} if display_type == "MultiLinearWiggleDisplay" else {}),
+            **({"showTranslation": True, "heightPreConfig": 120} if display_type == "LinearReferenceSequenceDisplay" else {}),
         }],
     })
 
@@ -1449,6 +1473,10 @@ def build_v04_jbrowse_configs(
         }]
         view["bpPerPx"] = bp_per_px
         view["offsetPx"] = start / bp_per_px
+        sequence_track = assemblies[0]["sequence"]
+        sequence_track["name"] = "Reference sequence"
+        _add_default_track(config, sequence_track["trackId"], "ReferenceSequenceTrack", "LinearReferenceSequenceDisplay")
+        view["tracks"].sort(key=lambda track: track.get("configuration") != sequence_track["trackId"])
         for track in config.get("tracks", []):
             if not isinstance(track, dict) or not _is_reference_annotation(track):
                 continue
@@ -1498,7 +1526,7 @@ def build_v04_jbrowse_configs(
     return browser_configs, track_ids, catalog
 
 
-def write_data_release_json(destination: Path, assets: dict[str, dict[str, object]], v04_revision: str | None) -> None:
+def write_data_release_json(destination: Path, assets: dict[str, dict[str, object]], v04_revision: str | None, *, worker_fallback: bool = False) -> None:
     payload_assets: dict[str, dict[str, object]] = {}
     for logical_path, asset in sorted(assets.items()):
         payload_assets[logical_path] = {
@@ -1508,6 +1536,8 @@ def write_data_release_json(destination: Path, assets: dict[str, dict[str, objec
             "revision": asset["revision"],
             "asset_kind": asset["asset_kind"],
         }
+        if worker_fallback and logical_path != "release.json":
+            payload_assets[logical_path]["fallback_url"] = f"/api/assets/v0.4.0--{hashlib.sha256(logical_path.encode('utf-8')).hexdigest()}"
     payload = {
         "releaseVersion": "v0.4.0",
         "sharedAssets": {"releaseVersion": "v0.3.0", "revision": V03_SHARED_REVISION},
@@ -1555,6 +1585,10 @@ def validate_v04_jbrowse_configs(
         tracks = config.get("tracks", [])
         default_tracks = config.get("defaultSession", {}).get("views", [{}])[0].get("tracks", [])
         track_ids = {str(track.get("trackId", "")) for track in tracks if isinstance(track, dict)}
+        sequence_id = config["assemblies"][0]["sequence"]["trackId"]
+        track_ids.add(sequence_id)
+        if not default_tracks or default_tracks[0].get("configuration") != sequence_id:
+            raise StageError(f"{assembly}: reference sequence must be shown first by default")
         default_ids = {str(track.get("configuration", "")) for track in default_tracks if isinstance(track, dict)}
         endpoint_tracks = [
             track for track in tracks
@@ -1688,6 +1722,16 @@ def assemble_v04(
         install_bted_plugin(package_root)
         for config_path in (package_root / "assemblies").glob("*.config.json"):
             config = _read_config(config_path)
+            config.setdefault("configuration", {})["theme"] = {
+                "palette": {
+                    "primary": {"main": "#343674"},
+                    "secondary": {"main": "#6660a9"},
+                    "tertiary": {"main": "#eeedf9"},
+                },
+                "typography": {
+                    "fontFamily": '"Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif',
+                },
+            }
             config["plugins"] = [{
                 "name": "BTEDTrackPlugin",
                 "esmUrl": "plugins/bted-track-plugin.js",
@@ -1709,10 +1753,13 @@ def assemble_v04(
 
         copy_site_source(temp_stage)
         v04_revision = normalize_v04_data_base_url(v04_base_url)[1] if v04_base_url else None
-        write_data_release_json(temp_stage, assets, v04_revision)
+        write_data_release_json(temp_stage, assets, v04_revision, worker_fallback=mode == "worker")
         if not v04_base_url:
             copy_v04_local_assets(temp_stage, assets)
-        build_v04_site(temp_stage, release_root, assets, browser_configs, track_ids)
+        computational_genomes = json.loads((REPO_ROOT / "data/registry/batter-browser.json").read_text(encoding="utf-8"))["genomes"] if mode == "worker" else ()
+        build_v04_site(temp_stage, release_root, assets, browser_configs, track_ids, computational_genomes=computational_genomes)
+        if mode == "worker":
+            build_batter_browser(temp_stage)
 
         file_count, total_bytes = copy_worker_shell(package_root, temp_stage / "jbrowse")
         run_validator("validate-site.py", temp_stage)

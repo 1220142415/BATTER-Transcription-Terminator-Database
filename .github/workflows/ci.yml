@@ -14,14 +14,22 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       HF_V04_DATA_BASE_URL: https://huggingface.co/datasets/liurulong/terminator/resolve/eea5b7225975b224a1c837f60c4fa10497fef022/v0.4.0
+      PUBLISHED_DATA_COMMIT: 8132334474a70cc609261fb0dc05011fbfd9e8ef
+      PUBLISHED_RELEASE_ROOT: dist/published-snapshot/data/public/v0.4.0
     steps:
       - uses: actions/checkout@v4
+      # Keep website checksums aligned with HF until the pending metadata update is published.
+      - name: Restore the published data snapshot
+        run: |
+          git fetch --depth=1 origin "$PUBLISHED_DATA_COMMIT"
+          mkdir -p dist/published-snapshot
+          git archive "$PUBLISHED_DATA_COMMIT" data/public/v0.4.0 | tar -x -C dist/published-snapshot
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
       - name: Build BTED JBrowse plugin
         run: |
           npm ci --prefix jbrowse-plugin
@@ -36,7 +44,9 @@ jobs:
           python3 scripts/validate_repo_layout.py
           python3 scripts/check_markdown_links.py
       - name: Run regression tests
-        run: python3 -m unittest discover -s tests -p 'test*.py' -v
+        run: |
+          python3 -m unittest discover -s tests -p 'test*.py' -v
+          node --test tests/test_genome_provenance.mjs tests/test_batter_browser.mjs tests/test_usage_analytics.mjs tests/test_worker_query_cache.mjs
       - name: Check Python syntax
         run: python3 -m compileall -q scripts bted_pipeline
       - name: Check Worker and site JavaScript syntax
@@ -48,14 +58,14 @@ jobs:
       - name: Rebuild pinned asset allowlist
         run: |
           python3 scripts/prepare_v04_reference.py --output-root dist/v04-browser-objects
-          python3 scripts/build_v0_4_site.py --output-root dist/v04-browser-objects
-          python3 scripts/build_v04_asset_manifest.py --revision eea5b7225975b224a1c837f60c4fa10497fef022 --output "$RUNNER_TEMP/browser_assets.tsv"
+          python3 scripts/build_v0_4_site.py --release-root "$PUBLISHED_RELEASE_ROOT" --output-root dist/v04-browser-objects
+          python3 scripts/build_v04_asset_manifest.py --release-root "$PUBLISHED_RELEASE_ROOT" --revision eea5b7225975b224a1c837f60c4fa10497fef022 --output "$RUNNER_TEMP/browser_assets.tsv"
           cmp data/registry/browser_assets.v0.4.0.tsv "$RUNNER_TEMP/browser_assets.tsv"
       - name: Download the versioned JBrowse application archive
         run: gh release download preview-v0.2.0 --repo seu-yolo/BATTER-Transcription-Terminator-Database --pattern 'BTED-v0.2.0-jbrowse-assets.tar.gz*' --dir "$RUNNER_TEMP"
       - name: Assemble Pages and Worker sites
         run: |
-          python3 scripts/stage_site.py --data-version v0.4.0 --mode pages --release-archive "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" --release-sha256-file "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" --hf-v04-data-base-url "$HF_V04_DATA_BASE_URL" --output-dir "$RUNNER_TEMP/bted-pages"
-          python3 scripts/stage_site.py --data-version v0.4.0 --mode worker --release-archive "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" --release-sha256-file "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" --hf-v04-data-base-url "$HF_V04_DATA_BASE_URL" --output-dir "$RUNNER_TEMP/bted-worker"
+          python3 scripts/stage_site.py --data-version v0.4.0 --mode pages --release-root "$PUBLISHED_RELEASE_ROOT" --release-archive "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" --release-sha256-file "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" --hf-v04-data-base-url "$HF_V04_DATA_BASE_URL" --output-dir "$RUNNER_TEMP/bted-pages"
+          python3 scripts/stage_site.py --data-version v0.4.0 --mode worker --release-root "$PUBLISHED_RELEASE_ROOT" --release-archive "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" --release-sha256-file "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" --hf-v04-data-base-url "$HF_V04_DATA_BASE_URL" --output-dir "$RUNNER_TEMP/bted-worker"
           python3 scripts/validate-site.py "$RUNNER_TEMP/bted-pages"
           python3 scripts/validate-site.py "$RUNNER_TEMP/bted-worker"

@@ -53,8 +53,13 @@ REQUIRED_PATHS = {
     "data/archive/BTED-external-intake-2026-08-10.tar.gz.sha256",
 }
 ALLOWED_DOC_FILES = {
+    "docs/GENOME_METADATA.md",
+    "docs/HF_REFRESH_2026-10-07.md",
     "docs/releases/v0.4.0.md",
+    "docs/PROMOTER_COMPARISON.md",
     "docs/SOURCES.md",
+    "docs/UI_REVIEW.md",
+    "docs/USAGE_ANALYTICS.md",
     "docs/deployment.md",
 }
 REMOVED_ROOT_FILES = {
@@ -191,7 +196,7 @@ def main() -> int:
             print(f"FAIL: {error}")
         return 1
 
-    print("PASS: repository layout and three essential docs")
+    print("PASS: repository layout and documented file inventory")
     return 0
 
 

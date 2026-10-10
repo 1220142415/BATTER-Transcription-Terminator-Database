@@ -11,11 +11,18 @@
   const shareButton = document.querySelector("[data-share-view]");
   const shareStatus = document.querySelector("[data-share-status]");
   const shareManual = document.querySelector("[data-share-manual]");
+  const browserStatus = document.querySelector("[data-browser-status]");
+  const retryBrowser = document.querySelector("[data-retry-browser]");
   const bridgeChannel = "bted-browser-v1";
   let bridgeNonce = "";
   let bridgeReady = false;
   let requestNumber = 0;
   const pending = new Map();
+  let loadingTimer;
+
+  function setBrowserStatus(message) {
+    if (browserStatus) browserStatus.textContent = message;
+  }
 
   function shareMessage(message) {
     frame.contentWindow?.postMessage({ channel: bridgeChannel, nonce: bridgeNonce, ...message }, window.location.origin);
@@ -71,7 +78,9 @@
     if (event.origin !== window.location.origin || event.source !== frame.contentWindow ||
         message?.channel !== bridgeChannel || message.nonce !== bridgeNonce) return;
     if (message.type === "ready") {
+      window.clearTimeout?.(loadingTimer);
       bridgeReady = true;
+      setBrowserStatus("");
       if (shareButton) shareButton.disabled = false;
       try {
         const state = parseSharedView(params);
@@ -86,7 +95,7 @@
           shareMessage({ type: "navigate", id, location: params.get("loc") });
         } else if (!["loc", "session", "tracks", "highlight"].some((key) => params.has(key))) {
           setShareStatus("");
-          showDefaultView();
+          if (!root.dataset.preserveDefaultView) showDefaultView();
         } else setShareStatus("");
       } catch (error) {
         setShareStatus(`${error.message} Showing the default view.`);
@@ -96,13 +105,19 @@
     }
     const action = pending.get(message.id);
     if (!action) {
-      if (message.type === "error") setShareStatus(message.message || "Browser unavailable.");
+      if (message.type === "error") {
+        window.clearTimeout?.(loadingTimer);
+        setBrowserStatus(`${message.message || "Browser unavailable."} Select Reload to retry.`);
+      }
       return;
     }
     pending.delete(message.id);
     if (message.type === "error") {
-      setShareStatus(`${message.message || "The browser view is unavailable."} Showing the default view.`);
-      if (action === "navigate") showDefaultView();
+      setShareStatus(message.message || "The browser view is unavailable.");
+      if (["navigate", "restore"].includes(action)) {
+        setShareStatus(`${message.message || "The browser view is unavailable."} Showing the default view.`);
+        showDefaultView();
+      }
     } else if (action === "restore" && message.type === "restored") {
       setShareStatus("Shared view restored.");
     } else if (action === "capture" && message.type === "captured") {
@@ -142,6 +157,12 @@
   }
 
   function loadBrowser() {
+    window.clearTimeout?.(loadingTimer);
+    setBrowserStatus("Loading browser…");
+    setShareStatus("");
+    loadingTimer = window.setTimeout?.(() => {
+      if (!bridgeReady) setBrowserStatus("Browser loading is slow. Select Reload to retry.");
+    }, 30000);
     bridgeReady = false;
     bridgeNonce = Math.random().toString(36).slice(2);
     if (shareButton) shareButton.disabled = true;
@@ -162,6 +183,7 @@
 
   showSource(selectedSource());
   loadBrowser();
+  retryBrowser?.addEventListener("click", loadBrowser);
 
   window.addEventListener("popstate", () => {
     params = new URLSearchParams(window.location.search);
@@ -238,7 +260,7 @@
   packageButton.addEventListener("click", async () => {
     const links = Array.from(root.querySelectorAll("[data-package-file][data-zip-path]"));
     packageButton.disabled = true;
-    if (packageStatus) packageStatus.textContent = "Preparing the genome package…";
+    if (packageStatus) packageStatus.textContent = "Preparing ZIP…";
     try {
       const files = await Promise.all(links.map(async (link) => {
         const response = await fetch(link.href, { credentials: "omit" });
@@ -255,9 +277,9 @@
       download.click();
       download.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
-      if (packageStatus) packageStatus.textContent = `Created a ZIP with ${files.length} GFF3 and TSV files.`;
+      if (packageStatus) packageStatus.textContent = `ZIP ready: ${files.length} GFF3 and TSV files.`;
     } catch (error) {
-      if (packageStatus) packageStatus.textContent = "Package creation failed. Check your connection and try again.";
+      if (packageStatus) packageStatus.textContent = "ZIP download failed. Check your connection and retry.";
       console.error(error);
     } finally {
       packageButton.disabled = false;

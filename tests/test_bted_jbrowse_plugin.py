@@ -63,6 +63,47 @@ process.stdout.write(JSON.stringify({colors:['+', '-', '?', 1, -1].map(x=>colorF
 
 
 class BtedJBrowsePluginTests(unittest.TestCase):
+    def test_direct_reads_only_fall_back_on_network_failure(self) -> None:
+        script = r'''
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+// JBrowse adapters also run inside blob workers, whose relative base is opaque.
+globalThis.location = {href:'blob:https://bted.example/worker',origin:'https://bted.example',protocol:'blob:'};
+const url = 'https://huggingface.co/datasets/liurulong/terminator/resolve/'+'a'.repeat(40)+'/v0.3.0/assemblies/GCF_000005845.1/reference/reference.fna.fai';
+const backup = '/api/assets/v0.4.0--'+'b'.repeat(64);
+const asset = {url, fallback_url:backup, sha256:'c'.repeat(64)};
+const calls=[];
+let mode='success';
+globalThis.fetch=async (input,init={})=>{
+  const request=new Request(input,init); calls.push(request);
+  request.signal.throwIfAborted();
+  if(request.url.startsWith('https://huggingface.co/')){
+    if(mode==='failure')throw new TypeError('Failed to fetch');
+    return new Response('direct',{status:mode==='missing'?404:200});
+  }
+  if(request.url.endsWith('/assets/data-release.json'))return Response.json({releaseVersion:'v0.4.0',assets:{'assemblies/GCF_000005845.1/reference/reference.fna.fai':asset}});
+  return new Response('backup',{status:206,headers:{'x-bted-sha256':'c'.repeat(64),'Content-Range':'bytes 0-5/29'}});
+};
+const mod=await import('data:text/javascript,'+encodeURIComponent(fs.readFileSync(process.argv[1],'utf8')));
+assert.equal(await (await fetch(url)).text(),'direct');
+assert.equal(calls.length,1); assert.equal(calls[0].cache,'no-cache'); assert.equal(calls[0].credentials,'omit');
+mode='missing'; assert.equal((await fetch(url)).status,404); assert.equal(calls.length,2);
+const cancel=new AbortController();cancel.abort();
+await assert.rejects(fetch(url,{signal:cancel.signal}),{name:'AbortError'});
+assert.equal(calls.length,3);
+mode='failure';
+assert.equal(await (await fetch(new Request(url,{headers:{Range:'bytes=0-5'}}))).text(),'backup');
+assert.equal(calls.at(-1).headers.get('Range'),'bytes=0-5');
+assert.equal(calls.at(-1).url,'https://bted.example'+backup);
+const directCount=calls.filter(request=>request.url===url).length;
+await fetch(url,{headers:{Range:'bytes=6-9'}});
+assert.equal(calls.filter(request=>request.url===url).length,directCount);
+await assert.rejects(fetch(url.replace('a'.repeat(40),'d'.repeat(40))),/Failed to fetch/);
+await fetch('https://example.org/file');assert.equal(calls.at(-1).cache,'default');
+'''
+        result = subprocess.run(["node", "--input-type=module", "-e", script, str(PLUGIN)], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stderr[:1500])
+
     def test_strand_colors_and_grouped_about(self) -> None:
         self.assertTrue(PLUGIN.is_file(), "Build the locked JBrowse plugin before tests")
         result = subprocess.run(

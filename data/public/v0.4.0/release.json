@@ -27,9 +27,9 @@
       "sha256": "c7e5328b2b199a785794206a330cf0be97c9bab3b16890b8188fb32f6f2ca63e"
     },
     {
-      "byte_size": 660,
+      "byte_size": 674,
       "path": "genomes/GCF_000005845.2/metadata.tsv",
-      "sha256": "e009f294b0e3f280533a8a501d400396b0f4a83ba4cc5b680343178768c21c48"
+      "sha256": "4cb14baeb8078d08a5a953c3a6af9af02dd23bb1d765d2d9a4ba17db1a181a24"
     },
     {
       "byte_size": 723,

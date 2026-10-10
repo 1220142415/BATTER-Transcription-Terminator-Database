@@ -1,22 +1,22 @@
-assembly	phylum	genus
-GCF_000005845.1	Proteobacteria	Escherichia
-GCF_000005845.2	Proteobacteria	Escherichia
-GCF_000006765.1	Proteobacteria	Pseudomonas
-GCF_000006885.1	Firmicutes	Streptococcus
-GCF_000008685.2	Spirochaetota	Borreliella
-GCF_000009045.1	Firmicutes	Bacillus
-GCF_000009725.1	Cyanobacteria	Synechocystis
-GCF_000009765.2	Actinobacteria	Streptomyces
-GCF_000010605.1	Actinobacteria	Streptomyces
-GCF_000012525.1	Cyanobacteria	Synechococcus
-GCF_000022005.1	Proteobacteria	Caulobacter
-GCF_000147055.1	Proteobacteria	Dickeya
-GCF_000195955.2	Actinobacteria	Mycobacterium
-GCF_000203835.1	Actinobacteria	Streptomyces
-GCF_000739105.1	Actinobacteria	Streptomyces
-GCF_001456255.1	Proteobacteria	Vibrio
-GCF_003054575.1	Proteobacteria	Zymomonas
-GCF_003932715.1	Actinobacteria	Streptomyces
-GCF_005519465.1	Actinobacteria	Streptomyces
-GCF_015710995.1	Actinobacteria	Streptomyces
-GCF_018282115.1	Cyanobacteria	Synechocystis
+assembly	phylum	class	order	family	genus	species	reference_strain	taxid	taxonomy_source	taxonomy_url	retrieved_on
+GCF_000005845.1	Pseudomonadota	Gammaproteobacteria	Enterobacterales	Enterobacteriaceae	Escherichia	Escherichia coli	K-12 substr. MG1655	511145	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=511145	2026-10-05
+GCF_000005845.2	Pseudomonadota	Gammaproteobacteria	Enterobacterales	Enterobacteriaceae	Escherichia	Escherichia coli	K-12 substr. MG1655	511145	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=511145	2026-10-05
+GCF_000006765.1	Pseudomonadota	Gammaproteobacteria	Pseudomonadales	Pseudomonadaceae	Pseudomonas	Pseudomonas aeruginosa	PAO1	208964	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=208964	2026-10-05
+GCF_000006885.1	Bacillota	Bacilli	Lactobacillales	Streptococcaceae	Streptococcus	Streptococcus pneumoniae	TIGR4; ATCC BAA-334	170187	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=170187	2026-10-05
+GCF_000008685.2	Spirochaetota	Spirochaetia	Spirochaetales	Borreliaceae	Borreliella	Borreliella burgdorferi	B31	224326	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=224326	2026-10-05
+GCF_000009045.1	Bacillota	Bacilli	Caryophanales	Bacillaceae	Bacillus	Bacillus subtilis	168	224308	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=224308	2026-10-05
+GCF_000009725.1	Cyanobacteriota	Cyanophyceae	Synechococcales	Merismopediaceae	Synechocystis	Synechocystis sp. PCC 6803	PCC 6803	1148	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=1148	2026-10-05
+GCF_000009765.2	Actinomycetota	Actinomycetes	Kitasatosporales	Streptomycetaceae	Streptomyces	Streptomyces avermitilis	MA-4680	227882	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=227882	2026-10-05
+GCF_000010605.1	Actinomycetota	Actinomycetes	Kitasatosporales	Streptomycetaceae	Streptomyces	Streptomyces griseus	NBRC 13350	455632	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=455632	2026-10-05
+GCF_000012525.1	Cyanobacteriota	Cyanophyceae	Synechococcales	Synechococcaceae	Synechococcus	Synechococcus elongatus	PCC 7942	1140	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=1140	2026-10-05
+GCF_000022005.1	Pseudomonadota	Alphaproteobacteria	Caulobacterales	Caulobacteraceae	Caulobacter	Caulobacter vibrioides	NA1000	565050	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=565050	2026-10-05
+GCF_000147055.1	Pseudomonadota	Gammaproteobacteria	Enterobacterales	Pectobacteriaceae	Dickeya	Dickeya dadantii	3937	198628	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=198628	2026-10-05
+GCF_000195955.2	Actinomycetota	Actinomycetes	Mycobacteriales	Mycobacteriaceae	Mycobacterium	Mycobacterium tuberculosis	H37Rv	83332	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=83332	2026-10-05
+GCF_000203835.1	Actinomycetota	Actinomycetes	Kitasatosporales	Streptomycetaceae	Streptomyces	Streptomyces coelicolor	A3(2)	100226	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=100226	2026-10-05
+GCF_000739105.1	Actinomycetota	Actinomycetes	Kitasatosporales	Streptomycetaceae	Streptomyces	Streptomyces lividans	TK24	457428	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=457428	2026-10-05
+GCF_001456255.1	Pseudomonadota	Gammaproteobacteria	Vibrionales	Vibrionaceae	Vibrio	Vibrio natriegens	ATCC 14048	1219067	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=1219067	2026-10-05
+GCF_003054575.1	Pseudomonadota	Alphaproteobacteria	Sphingomonadales	Zymomonadaceae	Zymomonas	Zymomonas mobilis	ZM4 = ATCC 31821	264203	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=264203	2026-10-05
+GCF_003932715.1	Actinomycetota	Actinomycetes	Kitasatosporales	Streptomycetaceae	Streptomyces	Streptomyces tsukubensis	NRRL 18488	83656	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=83656	2026-10-05
+GCF_005519465.1	Actinomycetota	Actinomycetes	Kitasatosporales	Streptomycetaceae	Streptomyces	Streptomyces clavuligerus	ATCC 27064	1901	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=1901	2026-10-05
+GCF_015710995.1	Actinomycetota	Actinomycetes	Kitasatosporales	Streptomycetaceae	Streptomyces	Streptomyces gardneri	ATCC 15439	66892	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=66892	2026-10-05
+GCF_018282115.1	Cyanobacteriota	Cyanophyceae	Synechococcales	Merismopediaceae	Synechocystis	Synechocystis sp. PCC 7338	PCC 7338	2732530	NCBI Taxonomy	https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=2732530	2026-10-05

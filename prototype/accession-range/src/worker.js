@@ -29,6 +29,11 @@ function trackCitation(track) {
   }
 }
 
+function publicSourceMetadata(source) {
+  const { used_for_batter_augmentation: _unused, metadata_json, ...fields } = source;
+  return { ...fields, metadata: JSON.parse(metadata_json || "null") };
+}
+
 const RESPONSE_HEADERS = [
   "accept-ranges",
   "cache-control",
@@ -543,7 +548,7 @@ async function genomeJbrowseConfig(request, env, release, genomeId) {
   return json(config);
 }
 
-async function batterApi(request, env, url) {
+async function batterGenomeCatalogApi(request, env, url) {
   const path = url.pathname;
   try {
     if (path === "/api/batter-genomes/stats") return await batterStats(env);
@@ -560,10 +565,32 @@ async function batterApi(request, env, url) {
   }
 }
 
+const d1Lookups = new WeakMap();
+
+async function cachedD1Lookup(database, key, load) {
+  let entries = d1Lookups.get(database);
+  if (!entries) { entries = new Map(); d1Lookups.set(database, entries); }
+  const now = Date.now();
+  const existing = entries.get(key);
+  if (existing?.expiresAt > now) return existing.task;
+  const entry = { expiresAt: now + 60000, task: Promise.resolve().then(load) };
+  entries.delete(key); entries.set(key, entry);
+  while (entries.size > 512) entries.delete(entries.keys().next().value);
+  try {
+    const value = await entry.task;
+    if (!value && entries.get(key) === entry) entries.delete(key);
+    return value;
+  } catch (error) {
+    if (entries.get(key) === entry) entries.delete(key);
+    throw error;
+  }
+}
+
 async function currentRelease(env) {
-  return env.BTED_DB.prepare(
+  const version = activeReleaseVersion(env);
+  return cachedD1Lookup(env.BTED_DB, `release:${version}`, () => env.BTED_DB.prepare(
     "SELECT * FROM release_versions WHERE release_version = ? AND is_current = 1 LIMIT 1",
-  ).bind(activeReleaseVersion(env)).first();
+  ).bind(version).first());
 }
 
 function releasePayload(release) {
@@ -702,9 +729,9 @@ function assetUrl(request, assetKey, route = "/api/assets/") {
 }
 
 async function publicAsset(env, releaseVersion, assetKey) {
-  return env.BTED_DB.prepare(
+  return cachedD1Lookup(env.BTED_DB, `asset:${releaseVersion}:${assetKey}`, () => env.BTED_DB.prepare(
     "SELECT asset_key, release_version, assembly_accession, source_id, asset_kind, logical_path, origin_host, content_type, byte_size, sha256, supports_range, redistribution_status, is_public FROM assets WHERE asset_key = ? AND release_version = ? AND active = 1 AND is_public = 1",
-  ).bind(assetKey, releaseVersion).first();
+  ).bind(assetKey, releaseVersion).first());
 }
 
 async function allAssets(env, releaseVersion, accession, sourceId) {
@@ -798,7 +825,7 @@ async function sourcePayload(request, env, release, sourceId) {
   const visibleAssets = studyGff3 && !assets.some((asset) => asset.asset_key === studyGff3.asset_key)
     ? [...assets, studyGff3]
     : assets;
-  const { used_for_batter_augmentation: _unusedAugmentationFlag, ...publicSource } = source;
+  const publicSource = publicSourceMetadata(source);
   const links = {
     bted_record: `/genomes/${encodeURIComponent(source.assembly_accession)}.html?source_id=${encodeURIComponent(sourceId)}`,
   };
@@ -853,7 +880,7 @@ async function sourcesList(request, env, release, url) {
   const count = await env.BTED_DB.prepare(`SELECT COUNT(*) AS total FROM sources s LEFT JOIN publications p ON p.pmid = s.publication_pmid WHERE s.release_version = ?${where}`).bind(...params).first();
   const rows = await env.BTED_DB.prepare(`SELECT s.*, p.paper_title, p.published_year, p.doi FROM sources s LEFT JOIN publications p ON p.pmid = s.publication_pmid WHERE s.release_version = ?${where} ORDER BY s.source_id LIMIT ? OFFSET ?`).bind(...params, pageSize, offset).all();
   const data = (rows.results || []).map((row) => {
-    const { used_for_batter_augmentation: _unusedAugmentationFlag, ...publicRow } = row;
+    const publicRow = publicSourceMetadata(row);
     return {
       ...publicRow,
       links: { detail: `/api/sources/${encodeURIComponent(row.source_id)}` },
@@ -1259,9 +1286,13 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       ...(track.type === "MultiQuantitativeTrack" ? { showSidebar: false } : {}),
     }],
   }));
+  sessionTracks.unshift({
+    id: "bted_reference_track", type: "ReferenceSequenceTrack", configuration: `${assemblyName}_refseq`, minimized: false,
+    displays: [{ id: "bted_reference_display", type: "LinearReferenceSequenceDisplay", configuration: `${assemblyName}_refseq-LinearReferenceSequenceDisplay`, showTranslation: true, heightPreConfig: 120 }],
+  });
   return json({
     plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL("/jbrowse/plugins/bted-track-plugin.js", request.url).href }],
-    assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", trackId: `${assemblyName}_refseq`, adapter: {
+    assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", name: "Reference sequence", trackId: `${assemblyName}_refseq`, adapter: {
       type: gzi ? "BgzipFastaAdapter" : "IndexedFastaAdapter",
       fastaLocation: { uri: assetUrl(request, fasta.asset_key), locationType: "UriLocation" },
       faiLocation: { uri: assetUrl(request, fai.asset_key), locationType: "UriLocation" },
@@ -1472,15 +1503,364 @@ async function staticAsset(request, env) {
   return json({ error: "static_assets_not_configured" }, 404);
 }
 
-const routes = {
-  async fetch(request, env) {
+const BATTER_FILES = new Map([
+  ...["reference.fa.gz", "reference.fa.gz.fai", "reference.fa.gz.gzi"].map(file => [file, "reference/" + file]),
+  ...["augmentation.gff3.gz", "augmentation.gff3.gz.tbi"].map(file => [file, "training/" + file]),
+  ...["prediction.gff3.gz", "prediction.gff3.gz.tbi"].map(file => [file, "predictions/" + file]),
+  ...["genes.gff3.gz", "genes.gff3.gz.tbi"].map(file => [file, "annotations/batter/" + file]),
+]);
+const batterCatalogues = new WeakMap();
+
+async function batterCatalogue(request, env) {
+  if (!batterCatalogues.has(env.ASSETS)) {
+    const task = env.ASSETS.fetch(new Request(new URL("/assets/batter-browser.json", request.url))).then(async response => {
+      if (!response.ok) throw new Error("catalogue_unavailable");
+      const data = await response.json();
+      if (!/^[0-9a-f]{40}$/.test(data.revision) || data.layout !== "genome-first" || !Array.isArray(data.genomes)) throw new Error("catalogue_invalid");
+      return { revision: data.revision, genomes: new Map(data.genomes.map(row => [row[0], row])) };
+    });
+    batterCatalogues.set(env.ASSETS, task);
+    task.catch(() => batterCatalogues.delete(env.ASSETS));
+  }
+  return batterCatalogues.get(env.ASSETS);
+}
+
+async function genomeBrowserRegistry(request, env) {
+  const response = await env.ASSETS.fetch(new Request(new URL("/assets/genome-browsers.json", request.url)));
+  if (!response.ok) throw new Error("genome_browser_registry_unavailable");
+  return response.json();
+}
+
+export function combineGenomeTracks(config, experimental, verified, metadata) {
+  const id = metadata.genome_id;
+  const matching = verified?.compatible && verified.batter_reference_sha256 === metadata.files["reference.fa.gz"].sha256
+    && verified.experimental_reference_url === experimental.assemblies[0].sequence.adapter.fastaLocation.uri;
+  config.configuration = experimental.configuration;
+  config.metadata.combined_reference_status = matching ? "matching_sequences" : "separate_views";
+  if (!matching) {
+    config.assemblies.push(...experimental.assemblies);
+    config.tracks.push(...experimental.tracks);
+    config.defaultSession.views.push(...experimental.defaultSession.views);
+    return config;
+  }
+  const aliases = Object.entries(verified.aliases || {}).filter(([alias, ref]) => alias !== ref).map(([alias, ref]) => `${ref}\t${alias}`).join("\n");
+  if (aliases) config.assemblies[0].refNameAliases = { adapter: { type: "RefNameAliasAdapter", location: { uri: "data:text/plain," + encodeURIComponent(aliases + "\n"), locationType: "UriLocation" } } };
+  const tracks = experimental.tracks.filter(track => !config.tracks.some(existing => existing.metadata?.btedAbout?.kind === "reference") || track.metadata?.btedAbout?.kind !== "reference")
+    .map(track => ({ ...track, assemblyNames: [id] }));
+  config.tracks.push(...tracks);
+  const available = new Set(tracks.map(track => track.trackId));
+  const sessionTracks = experimental.defaultSession.views.flatMap(view => view.tracks).filter(track => available.has(track.configuration));
+  config.defaultSession.views[0].tracks.push(...sessionTracks);
+  return config;
+}
+
+async function batterFileBytes(url, file) {
+  const response = await fetch(url, { cf: { cacheTtl: 86400, cacheEverything: true } });
+  if (!response.ok) throw new Error("file_not_uploaded");
+  if (file.bytes > 16 * 1024 * 1024) throw new Error("file_too_large");
+  const bytes = await response.arrayBuffer();
+  const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(n => n.toString(16).padStart(2, "0")).join("");
+  if (bytes.byteLength !== file.bytes || hash !== file.sha256) throw new Error("file_checksum_mismatch");
+  return bytes;
+}
+
+async function batterConfig(request, metadata) {
+  const id = metadata.genome_id;
+  const uri = file => ({ uri: metadata.browser_files[file].url, locationType: "UriLocation" });
+  const reference = { type: "ReferenceSequenceTrack", trackId: "batter_refseq", name: "Reference sequence", adapter: { type: "BgzipFastaAdapter", fastaLocation: uri("reference.fa.gz"), faiLocation: uri("reference.fa.gz.fai"), gziLocation: uri("reference.fa.gz.gzi") } };
+  const fai = new TextDecoder().decode(await batterFileBytes(uri("reference.fa.gz.fai").uri, metadata.files["reference.fa.gz.fai"]));
+  const contigs = new Map(fai.trim().split(/\r?\n/).map(line => { const [ref, size] = line.split("\t"); return [ref, Number(size)]; }));
+  if ([...contigs.values()].some(length => !Number.isSafeInteger(length) || length < 1)) throw new Error("reference_index_invalid");
+  let ref = contigs.keys().next().value, start = 0;
+  const counts = metadata.feature_counts;
+  const augmented = counts.otu_augmentation_span + counts.rfam_training_span;
+  if (augmented || counts.otu_augmentation_window || counts.rfam_training_window) {
+    const bytes = await batterFileBytes(uri("augmentation.gff3.gz").uri, metadata.files["augmentation.gff3.gz"]);
+    // BGZF contains concatenated gzip members; Workers' DecompressionStream rejects the trailing members.
+    const { gunzipSync } = await import("node:zlib");
+    const text = gunzipSync(new Uint8Array(bytes)).toString("utf8");
+    const first = text.split(/\r?\n/).find(line => line && !line.startsWith("#"));
+    if (!first) throw new Error("augmentation_records_missing");
+    const fields = first.split("\t");
+    if (fields.length !== 9 || !contigs.has(fields[0]) || Number(fields[3]) < 1 || Number(fields[4]) > contigs.get(fields[0])) throw new Error("augmentation_reference_mismatch");
+    ref = fields[0]; start = Math.max(0, Number(fields[3]) - 201);
+  }
+  const tracks = [];
+  function addTrack(trackId, name, file, renderer, height, explanation) {
+    tracks.push({ type: "FeatureTrack", trackId, name, assemblyNames: [id], category: [trackId === "batter_prediction" ? "Model prediction" : trackId === "batter_genes" ? "Reference annotation" : "Training augmentation"],
+      adapter: { type: "Gff3TabixAdapter", gffGzLocation: uri(file), index: { location: uri(file + ".tbi"), indexType: "TBI" } },
+      displays: [{ type: "LinearBasicDisplay", displayId: trackId + "_display", height, showLabels: false, renderer: { type: "SvgFeatureRenderer", ...renderer } }],
+      metadata: { btedAbout: { kind: trackId === "batter_genes" ? "reference" : "augmentation", title: "BATTER", assembly: id, evidence: "Computational training augmentation", record_count: augmented, explanation, doi_url: "https://doi.org/10.1186/s40168-026-02454-1", gff3_url: uri(file).uri },
+        btedDownloads: [{ kind: "reference", label: name + " GFF3", url: uri(file).uri, filename: id + "." + file }] } });
+  }
+  if (metadata.annotation.status === "matched" && metadata.browser_files["genes.gff3.gz"] && metadata.browser_files["genes.gff3.gz.tbi"]) {
+    addTrack("batter_genes", "Reference gene annotation", "genes.gff3.gz", { color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)" }, 130, "Gene annotation matched to this reference.");
+  }
+  if (augmented || counts.otu_augmentation_window || counts.rfam_training_window) {
+    addTrack("batter_augmentation", "Training windows and terminator spans", "augmentation.gff3.gz", { color1: "jexl:btedAugmentationColor(feature)", color2: "jexl:btedAugmentationColor(feature)", height: 14 }, 140, "Dark blue: OTU augmented spans. Purple: Rfam training spans. Pale: sequence windows. Windows are context, not additional terminators.");
+  }
+  if (counts.tes_prediction > 0) {
+    addTrack("batter_prediction", "BATTER · predicted terminator regions", "prediction.gff3.gz", { color1: "#d97706", color2: "#d97706", height: 14 }, 100, "Published BATTER-TPE genome-wide predictions. Scores are model outputs.");
+    const about = tracks.at(-1).metadata.btedAbout;
+    about.kind = "prediction"; about.evidence = "Model prediction"; about.record_count = counts.tes_prediction;
+  }
+  const sessionTracks = [{ id: "batter_sequence", type: "ReferenceSequenceTrack", configuration: reference.trackId, displays: [{ type: "LinearReferenceSequenceDisplay", configuration: reference.trackId + "-LinearReferenceSequenceDisplay", showTranslation: true, heightPreConfig: 120 }] },
+    ...tracks.map(track => ({ id: track.trackId, type: "FeatureTrack", configuration: track.trackId, displays: [{ type: "LinearBasicDisplay", configuration: track.displays[0].displayId }] }))];
+  return { plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL("/jbrowse/plugins/bted-track-plugin.js", request.url).href }],
+    assemblies: [{ name: id, sequence: reference }], tracks,
+    defaultSession: { name: "BTED genome · " + id, views: [{ id: "batter_view", type: "LinearGenomeView", bpPerPx: 1, offsetPx: start, displayedRegions: [{ refName: ref, start: 0, end: contigs.get(ref), assemblyName: id, reversed: false }], tracks: sessionTracks }] },
+    metadata: { revision: metadata.revision } };
+}
+
+async function batterApi(request, env, match) {
+  const url = new URL(request.url), id = decodePath(match[1]);
+  if (!id || !/^[A-Za-z0-9_.-]{1,128}$/.test(id) || url.searchParams.has("url")) return json({ error: "invalid_genome_request" }, 400);
+  try {
+    const catalogue = await batterCatalogue(request, env);
+    const row = catalogue.genomes.get(id);
+    if (!row) return json({ error: "genome_not_indexed" }, 404);
+    if (url.searchParams.has("revision") && url.searchParams.get("revision") !== catalogue.revision) return json({ error: "revision_changed_reload_page" }, 409);
+    if (!/^\d{3}$/.test(row[1])) throw new Error("catalogue_invalid_batch");
+    const base = `https://huggingface.co/datasets/liurulong/terminator/resolve/${catalogue.revision}/v0.5.0/genomes/batter-${row[1]}/${encodeURIComponent(id)}/`;
+    const response = await fetch(base + "metadata.json", { cf: { cacheTtl: 86400, cacheEverything: true } });
+    if (!response.ok) return json({ error: "genome_upload_unavailable" }, 503, { "cache-control": "no-store" });
+    const wrapper = await response.json();
+    const metadata = wrapper.records?.batter;
+    if (wrapper.genome_id !== id || wrapper.group !== `batter-${row[1]}` || wrapper.has_prediction !== true
+      || metadata?.genome_id !== id || metadata.batch !== row[1] || metadata.otu_id !== row[2]
+      || !metadata.feature_counts || !metadata.reference || !metadata.annotation || !metadata.files) throw new Error("metadata_mismatch");
+    for (const [field, column] of [["otu_augmentation_span", 5], ["otu_augmentation_window", 6], ["rfam_training_span", 7], ["rfam_training_window", 8], ["tes_prediction", 10]]) {
+      const count = metadata.feature_counts[field];
+      if (!Number.isSafeInteger(count) || count < 0 || count !== row[column]) throw new Error("metadata_count_mismatch");
+    }
+    metadata.revision = catalogue.revision;
+    metadata.browser_files = {};
+    for (const [file, entry] of Object.entries(metadata.files)) {
+      if (!BATTER_FILES.has(file)) continue;
+      if (!Number.isSafeInteger(entry.bytes) || entry.bytes < 0 || !SHA256_PATTERN.test(entry.sha256)) throw new Error("metadata_invalid_file");
+      metadata.browser_files[file] = { ...entry, url: base + BATTER_FILES.get(file), fallback_url: `/api/batter/${encodeURIComponent(id)}/files/${file}?revision=${catalogue.revision}` };
+    }
+    for (const file of ["reference.fa.gz", "reference.fa.gz.fai", "reference.fa.gz.gzi"]) if (!metadata.browser_files[file]) throw new Error("reference_not_uploaded");
+    if (match[2] === "config") {
+      let config = await batterConfig(request, metadata);
+      const registry = await genomeBrowserRegistry(request, env);
+      const path = registry.experimental?.[id];
+      if (path) {
+        if (!/^\/jbrowse\/assemblies\/[A-Za-z0-9_.-]+\.config\.json$/.test(path)) throw new Error("invalid_experimental_config_path");
+        const experimentalResponse = await env.ASSETS.fetch(new Request(new URL(path, request.url)));
+        if (!experimentalResponse.ok) throw new Error("experimental_config_unavailable");
+        const verified = registry.revision === catalogue.revision ? registry.overlays?.[id] : null;
+        config = combineGenomeTracks(config, await experimentalResponse.json(), verified, metadata);
+      }
+      return json(config, 200, { "cache-control": "no-cache" });
+    }
+    if (match[2] !== "files") return json(metadata, 200, { "cache-control": "no-cache" });
+    const file = decodePath(match[3]);
+    const asset = metadata.browser_files[file];
+    if (!asset) return json({ error: "file_not_registered" }, 404);
+    const range = request.headers.get("range");
+    if (range && !/^bytes=(?:\d+-\d*|-\d+)$/.test(range)) return json({ error: "invalid_range" }, 416);
+    const upstream = await fetch(asset.url, { method: request.method, headers: range ? { range } : {} });
+    if (![200, 206].includes(upstream.status)) return json({ error: "file_upload_unavailable" }, upstream.status === 416 ? 416 : 503, { "cache-control": "no-store" });
+    const headers = new Headers();
+    for (const key of RESPONSE_HEADERS) if (upstream.headers.has(key)) headers.set(key, upstream.headers.get(key));
+    if (upstream.status === 206) {
+      const bounds = (headers.get("content-range") || "").match(/^bytes (\d+)-(\d+)\/(\d+)$/);
+      if (!bounds || Number(bounds[3]) !== asset.bytes || Number(bounds[2]) < Number(bounds[1]) || Number(headers.get("content-length")) !== Number(bounds[2]) - Number(bounds[1]) + 1) return json({ error: "upstream_range_mismatch" }, 502);
+    } else if (headers.has("content-length") && Number(headers.get("content-length")) !== asset.bytes) return json({ error: "upstream_length_mismatch" }, 502);
+    headers.set("accept-ranges", "bytes");
+    headers.set("cache-control", "public, max-age=86400");
+    headers.set("x-bted-sha256", asset.sha256);
+    headers.set("x-bted-revision", catalogue.revision);
+    return new Response(request.method === "HEAD" ? null : upstream.body, { status: upstream.status, headers });
+  } catch (error) {
+    console.error("BATTER browser:", error.message);
+    return json({ error: "batter_data_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+}
+
+// Views only, following RAPPTOR's document-load and bot filters. No IP, user
+// agent, query string, visitor identifier, or individual event is persisted.
+const USAGE_RETENTION_DAYS = 400;
+const USAGE_RANGES = [7, 30, 90, 365, 0];
+const USAGE_BOT = /bot|crawl|spider|slurp|scrape|curl|wget|python-requests|httpx|axios|okhttp|java\/|go-http|libwww|headless|phantomjs|puppeteer|playwright|lighthouse|monitor|uptime|pingdom|preview|facebookexternalhit|embedly|feedfetcher|semrush|ahrefs|archive\.org/i;
+
+function usageDay(time = Date.now()) {
+  return new Date(time).toISOString().slice(0, 10);
+}
+
+function shiftUsageDay(day, offset) {
+  return usageDay(Date.parse(`${day}T00:00:00Z`) + offset * 86400000);
+}
+
+function usagePath(request) {
+  const path = new URL(request.url).pathname.replace(/\/$/, "") || "/";
+  if (path === "/" || path === "/index" || path === "/index.html") return "/";
+  if (path === "/genomes" || path === "/genomes.html") return "/genomes";
+  if (path === "/methodology" || path === "/methodology.html") return "/methodology";
+  const genome = /^\/genomes\/([A-Za-z0-9_.-]+)$/.exec(path);
+  const id = genome?.[1].replace(/\.html$/, "");
+  return id && !["batter", "genome"].includes(id) ? `/genomes/${id}` : null;
+}
+
+function countableUsage(request, response) {
+  if (request.method !== "GET" || !usagePath(request)) return false;
+  if (response.status !== 200 || !response.headers.get("content-type")?.includes("text/html")) return false;
+  const headers = request.headers;
+  const agent = headers.get("user-agent");
+  if (!agent || agent.length < 8 || USAGE_BOT.test(agent)) return false;
+  if (headers.has("range") || headers.has("next-router-prefetch") || headers.has("x-nextjs-data")) return false;
+  if (/prefetch|prerender/i.test(`${headers.get("purpose") || ""} ${headers.get("sec-purpose") || ""}`)) return false;
+  const destination = headers.get("sec-fetch-dest");
+  return destination ? destination === "document" : Boolean(headers.get("accept")?.includes("text/html"));
+}
+
+function usageGeo(request) {
+  // Only Cloudflare's trusted edge metadata; client geolocation headers are ignored.
+  const cf = request.cf || {};
+  const raw = typeof cf.country === "string" ? cf.country.toUpperCase() : "";
+  const country = /^[A-Z]{2}$/.test(raw) && raw !== "T1" ? raw : "XX";
+  const text = (value) => typeof value === "string" ? value.trim().slice(0, 64) : "";
+  return { country, region: country === "XX" ? "" : text(cf.region), city: country === "XX" ? "" : text(cf.city) };
+}
+
+async function recordUsage(request, env) {
+  const geo = usageGeo(request);
+  const day = usageDay();
+  await env.BTED_DB.batch([
+    env.BTED_DB.prepare(`INSERT INTO analytics_daily_geo (day, country_code, region, city, views)
+      VALUES (?, ?, ?, ?, 1) ON CONFLICT(day, country_code, region, city)
+      DO UPDATE SET views = views + 1`).bind(day, geo.country, geo.region, geo.city),
+    env.BTED_DB.prepare(`INSERT INTO analytics_daily_path (day, path, views)
+      VALUES (?, ?, 1) ON CONFLICT(day, path) DO UPDATE SET views = views + 1`).bind(day, usagePath(request)),
+  ]);
+}
+
+function usageCountryName(code) {
+  const names = { HK: "Hong Kong, China", MO: "Macao, China", TW: "Taiwan, China", XX: "Unknown" };
+  if (names[code]) return names[code];
+  try { return new Intl.DisplayNames(["en"], { type: "region" }).of(code) || code; } catch { return code; }
+}
+
+async function usageReport(env, url) {
+  const value = url.searchParams.get("days") ?? "30";
+  if (!USAGE_RANGES.map(String).includes(value)) return json({ error: "invalid_usage_range" }, 400, { "cache-control": "no-store" });
+  const days = Number(value);
+  const endDay = usageDay();
+  const cutoff = shiftUsageDay(endDay, -(USAGE_RETENTION_DAYS - 1));
+  const from = days ? shiftUsageDay(endDay, -(days - 1)) : cutoff;
+  if (!env.BTED_DB) return json({ error: "usage_unavailable" }, 503, { "cache-control": "no-store" });
+  try {
+    const [countryRows, cityRows, pathRows, dayRows, boundary] = await env.BTED_DB.batch([
+      env.BTED_DB.prepare(`SELECT country_code, SUM(views) AS views FROM analytics_daily_geo
+        WHERE day BETWEEN ? AND ? GROUP BY country_code ORDER BY views DESC, country_code`).bind(from, endDay),
+      env.BTED_DB.prepare(`SELECT country_code, region, city, SUM(views) AS views FROM analytics_daily_geo
+        WHERE day BETWEEN ? AND ? AND city <> '' GROUP BY country_code, region, city
+        ORDER BY views DESC, country_code, region, city LIMIT 50`).bind(from, endDay),
+      env.BTED_DB.prepare(`SELECT path, SUM(views) AS views FROM analytics_daily_path
+        WHERE day BETWEEN ? AND ? GROUP BY path ORDER BY views DESC, path LIMIT 30`).bind(from, endDay),
+      env.BTED_DB.prepare(`SELECT day, SUM(views) AS views FROM analytics_daily_geo
+        WHERE day BETWEEN ? AND ? GROUP BY day ORDER BY day`).bind(from, endDay),
+      env.BTED_DB.prepare("SELECT MIN(day) AS first_day FROM analytics_daily_geo WHERE day BETWEEN ? AND ?").bind(cutoff, endDay),
+    ]);
+    const views = countryRows.results.reduce((sum, row) => sum + Number(row.views), 0);
+    const countries = countryRows.results.map((row) => ({ code: row.country_code, name: usageCountryName(row.country_code), views: Number(row.views), share: views ? Number(row.views) / views : 0 }));
+    const firstRecordedDay = boundary.results[0]?.first_day || null;
+    const startDay = days ? from : firstRecordedDay || endDay;
+    const byDay = new Map(dayRows.results.map((row) => [row.day, Number(row.views)]));
+    const daily = [];
+    for (let day = startDay; day <= endDay; day = shiftUsageDay(day, 1)) daily.push({ day, views: byDay.get(day) || 0 });
+    return json({ rangeDays: days, startDay, endDay, firstRecordedDay, retentionDays: USAGE_RETENTION_DAYS,
+      totals: { views, countries: countries.filter((row) => row.code !== "XX").length, activeDays: daily.filter((row) => row.views > 0).length },
+      countries, cities: cityRows.results.map((row) => ({ countryCode: row.country_code, countryName: usageCountryName(row.country_code), region: row.region, city: row.city, views: Number(row.views) })),
+      paths: pathRows.results.map((row) => ({ path: row.path, views: Number(row.views) })), daily,
+    }, 200, { "cache-control": "public, max-age=60" });
+  } catch {
+    return json({ error: "usage_unavailable" }, 503, { "cache-control": "no-store" });
+  }
+}
+
+async function purgeUsage(env, time) {
+  if (!env.BTED_DB) return;
+  const cutoff = shiftUsageDay(usageDay(time), -(USAGE_RETENTION_DAYS - 1));
+  await env.BTED_DB.batch([
+    env.BTED_DB.prepare("DELETE FROM analytics_daily_geo WHERE day < ?").bind(cutoff),
+    env.BTED_DB.prepare("DELETE FROM analytics_daily_path WHERE day < ?").bind(cutoff),
+  ]);
+}
+
+async function cachedPublicApi(request, ctx, load) {
+  const url = new URL(request.url);
+  const ttl = url.pathname === "/api/usage" ? 60
+    : /^\/api\/(stats|catalogue|sources|assemblies|endpoints)(\/[^/]+(\/jbrowse-config)?)?$/.test(url.pathname) ? 300 : 0;
+  const cache = globalThis.caches?.default;
+  if (!ttl || request.method !== "GET" || request.headers.has("range") || !cache) return load();
+  const keyUrl = new URL(url);
+  keyUrl.searchParams.set("__bted_cache", `public-api-20261004-v1:${CURRENT_RELEASE_VERSION}`);
+  keyUrl.searchParams.sort();
+  const key = new Request(keyUrl);
+  try {
+    const hit = await cache.match(key);
+    if (hit) {
+      const headers = new Headers(hit.headers); headers.set("x-bted-cache", "HIT");
+      return new Response(hit.body, { status: hit.status, headers });
+    }
+  } catch { /* Cache failures must not block the public API. */ }
+  const response = await load();
+  if (response.status !== 200 || !response.headers.get("content-type")?.startsWith("application/json")
+      || /no-store|private/i.test(response.headers.get("cache-control") || "")) return response;
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", `public, max-age=${Math.min(ttl, 60)}, s-maxage=${ttl}`);
+  headers.set("x-bted-cache", "MISS");
+  const cached = new Response(response.body, { status: response.status, headers });
+  const task = cache.put(key, cached.clone()).catch(() => {});
+  if (ctx?.waitUntil) ctx.waitUntil(task); else await task;
+  return cached;
+}
+
+export default {
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(purgeUsage(env, controller.scheduledTime));
+  },
+  async fetch(request, env, ctx) {
+    try {
+      return await cachedPublicApi(request, ctx, () => routeRequest(request, env, ctx));
+    } catch (error) {
+      if (error?.code?.startsWith("data_release_manifest")) return dataReleaseErrorResponse(error);
+      return json({ error: "catalog_unavailable" }, 503, { "cache-control": "no-store" });
+    }
+  },
+};
+
+async function routeRequest(request, env, ctx) {
     const url = new URL(request.url);
     if (!["GET", "HEAD"].includes(request.method)) return json({ error: "method_not_allowed" }, 405, { allow: "GET, HEAD" });
     if (url.pathname.startsWith("/downloads/v0.2.0/")) return retiredReleaseResponse("v0.2.0");
-    if (!url.pathname.startsWith("/api/")) return staticAsset(request, env);
-    if (url.pathname === "/api/batter-genomes" || url.pathname.startsWith("/api/batter-genomes/")) {
-      return batterApi(request, env, url);
+    if (!url.pathname.startsWith("/api/")) {
+      let assetRequest = request;
+      const genomePage = /^\/genomes\/([A-Za-z0-9_.-]+)(?:\.html)?$/.exec(url.pathname);
+      if (genomePage && !["batter", "genome"].includes(genomePage[1])) {
+        const id = genomePage[1].replace(/\.html$/, "");
+        try {
+          const catalogue = await batterCatalogue(request, env);
+          if (catalogue.genomes.has(id)) {
+            const registry = await genomeBrowserRegistry(request, env);
+            if (!registry.experimental?.[id]) assetRequest = new Request(new URL("/genomes/genome", request.url), request);
+          }
+        } catch { /* Existing static experimental pages remain available. */ }
+      }
+      const response = await staticAsset(assetRequest, env);
+      if (env.BTED_ANALYTICS === "on" && env.BTED_DB && ctx && countableUsage(request, response)) {
+        ctx.waitUntil(recordUsage(request, env).catch(() => console.error("BTED usage write failed")));
+      }
+      return response;
     }
+    if (url.pathname === "/api/usage") return usageReport(env, url);
+    if (url.pathname === "/api/batter-genomes" || url.pathname.startsWith("/api/batter-genomes/")) {
+      return batterGenomeCatalogApi(request, env, url);
+    }
+    const batterMatch = url.pathname.match(/^\/api\/batter\/([^/]+)(?:\/(config|files)(?:\/([^/]+))?)?$/);
+    if (batterMatch) return batterApi(request, env, batterMatch);
     const requestedRelease = url.searchParams.get("release_version");
     if (requestedRelease === "v0.2.0") {
       return retiredReleaseResponse(requestedRelease);
@@ -1534,15 +1914,4 @@ const routes = {
       return endId ? endpointDetail(env, selected.release, endId) : json({ error: "invalid_endpoint_id" }, 400);
     }
     return json({ error: "not_found" }, 404);
-  },
-};
-
-export default {
-  async fetch(request, env) {
-    try { return await routes.fetch(request, env); }
-    catch (error) {
-      if (error?.code?.startsWith("data_release_manifest")) return dataReleaseErrorResponse(error);
-      return json({ error: "catalog_unavailable" }, 503, { "cache-control": "no-store" });
-    }
-  },
-};
+}

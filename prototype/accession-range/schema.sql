@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS sources (
   source_note TEXT,
   decision_note TEXT,
   known_limitations TEXT,
+  metadata_json TEXT CHECK (metadata_json IS NULL OR (json_valid(metadata_json) AND json_type(metadata_json) = 'object')),
   UNIQUE (release_version, source_id),
   FOREIGN KEY (release_version, assembly_accession)
     REFERENCES assemblies (release_version, accession),
@@ -200,7 +201,6 @@ CREATE INDEX IF NOT EXISTS endpoints_by_assembly_position
   ON endpoints (release_version, reference_assembly, reference_name, biological_coordinate_1based);
 CREATE INDEX IF NOT EXISTS endpoints_by_locus
   ON endpoints (release_version, associated_gene_or_locus);
-
 -- BATTER's genome-level predictions and training records are a separate
 -- catalogue from BTED's study-derived experimental endpoints.
 CREATE TABLE IF NOT EXISTS batter_genomes (
@@ -244,3 +244,20 @@ CREATE INDEX IF NOT EXISTS batter_genomes_by_family_genus_species ON batter_geno
 CREATE INDEX IF NOT EXISTS batter_genomes_by_prediction_count ON batter_genomes (tes_prediction DESC);
 CREATE INDEX IF NOT EXISTS batter_genomes_by_otu_count ON batter_genomes (otu_augmentation_span DESC);
 CREATE INDEX IF NOT EXISTS batter_genomes_by_rfam_count ON batter_genomes (rfam_training_span DESC);
+
+-- Page-view aggregates only; no raw IPs, user agents, or visitor identifiers.
+CREATE TABLE IF NOT EXISTS analytics_daily_geo (
+  day TEXT NOT NULL,
+  country_code TEXT NOT NULL,
+  region TEXT NOT NULL DEFAULT '',
+  city TEXT NOT NULL DEFAULT '',
+  views INTEGER NOT NULL DEFAULT 0 CHECK (views >= 0),
+  PRIMARY KEY (day, country_code, region, city)
+);
+
+CREATE TABLE IF NOT EXISTS analytics_daily_path (
+  day TEXT NOT NULL,
+  path TEXT NOT NULL,
+  views INTEGER NOT NULL DEFAULT 0 CHECK (views >= 0),
+  PRIMARY KEY (day, path)
+);

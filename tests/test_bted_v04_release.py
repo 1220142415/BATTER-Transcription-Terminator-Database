@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gzip
+import csv
 import sys
 import unittest
 from pathlib import Path
@@ -49,6 +50,18 @@ class BtedV04ReleaseTests(unittest.TestCase):
             for source in provenance["sources"]
         }
         self.assertEqual(source_status["BATTER_S1_002"], "audit_only")
+        trs = next(source for source in provenance["sources"] if source["source_id"] == "BATTER_S1_002")
+        self.assertEqual(trs["license_status"]["redistribution_status"], "verified_redistributable")
+        self.assertEqual(trs["publication_status"]["redistribution_status"], "verified_redistributable")
+        self.assertEqual(int(trs["publication_status"]["record_count"]), 0)
+        self.assertEqual(trs["publication_status"]["has_jbrowse"], "false")
+        metadata = ROOT / V04_REL / "genomes/GCF_000005845.2/metadata.tsv"
+        with metadata.open(encoding="utf-8", newline="") as handle:
+            row = next(csv.DictReader(handle, delimiter="\t"))
+        self.assertEqual(row["redistribution_status"], "verified_redistributable")
+        self.assertEqual(row["release_status"], "audit_only")
+        self.assertEqual(row["record_count"], "0")
+        self.assertEqual(row["study_gff3"], "")
         self.assertNotIn("BTED_EXT_2026_101", source_status)
         self.assertFalse(any(
             source_id.startswith("BTED_EXT_2026_") and source_id not in EXPECTED_CASCINO_COUNTS

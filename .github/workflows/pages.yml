@@ -27,14 +27,22 @@ jobs:
       RELEASE_TAG: ${{ github.event.inputs.release_tag || 'preview-v0.2.0' }}
       GH_TOKEN: ${{ github.token }}
       HF_V04_DATA_BASE_URL: https://huggingface.co/datasets/liurulong/terminator/resolve/eea5b7225975b224a1c837f60c4fa10497fef022/v0.4.0
+      PUBLISHED_DATA_COMMIT: 8132334474a70cc609261fb0dc05011fbfd9e8ef
+      PUBLISHED_RELEASE_ROOT: dist/published-snapshot/data/public/v0.4.0
     steps:
       - uses: actions/checkout@v4
+      # Keep website checksums aligned with HF until the pending metadata update is published.
+      - name: Restore the published data snapshot
+        run: |
+          git fetch --depth=1 origin "$PUBLISHED_DATA_COMMIT"
+          mkdir -p dist/published-snapshot
+          git archive "$PUBLISHED_DATA_COMMIT" data/public/v0.4.0 | tar -x -C dist/published-snapshot
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
       - name: Build BTED JBrowse plugin
         run: |
           npm ci --prefix jbrowse-plugin
@@ -50,8 +58,8 @@ jobs:
           node --check site/assets/genome-index.js
           node --check site/assets/genome-page.js
           python3 scripts/prepare_v04_reference.py --output-root dist/v04-browser-objects
-          python3 scripts/build_v0_4_site.py --output-root dist/v04-browser-objects
-          python3 scripts/build_v04_asset_manifest.py --revision eea5b7225975b224a1c837f60c4fa10497fef022 --output "$RUNNER_TEMP/browser_assets.tsv"
+          python3 scripts/build_v0_4_site.py --release-root "$PUBLISHED_RELEASE_ROOT" --output-root dist/v04-browser-objects
+          python3 scripts/build_v04_asset_manifest.py --release-root "$PUBLISHED_RELEASE_ROOT" --revision eea5b7225975b224a1c837f60c4fa10497fef022 --output "$RUNNER_TEMP/browser_assets.tsv"
           cmp data/registry/browser_assets.v0.4.0.tsv "$RUNNER_TEMP/browser_assets.tsv"
       - name: Download versioned JBrowse asset
         run: |
@@ -64,6 +72,7 @@ jobs:
         run: |
           python3 scripts/stage_site.py \
             --data-version v0.4.0 --mode pages \
+            --release-root "$PUBLISHED_RELEASE_ROOT" \
             --release-archive "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz" \
             --release-sha256-file "$RUNNER_TEMP/BTED-v0.2.0-jbrowse-assets.tar.gz.sha256" \
             --hf-v04-data-base-url "$HF_V04_DATA_BASE_URL" \

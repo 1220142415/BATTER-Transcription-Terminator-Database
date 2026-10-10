@@ -10,6 +10,7 @@ BTED 整理公开论文中的细菌转录本 3′ 端位置。每条记录保留
 | 每篇论文和来源的关键判断 | [来源说明](docs/SOURCES.md) |
 | 本地组装 Pages、Worker 与 JBrowse | [运行手册](docs/deployment.md) |
 | 添加或修订来源 | [贡献指南](CONTRIBUTING.md) |
+| 与 promoter 网站的功能差异和后续工作 | [功能对比](docs/PROMOTER_COMPARISON.md) |
 
 正式文件位于 [`data/public/v0.4.0/`](data/public/v0.4.0/)；内部来源判断与旧版可校验归档分别位于 `data/registry/` 和 [`data/archive/`](data/archive/)。网页由构建脚本生成，`site/` 只保存样式和交互脚本。
 
@@ -24,4 +25,6 @@ python scripts/check_markdown_links.py
 python -m unittest discover -s tests -p 'test*.py' -q
 ```
 
-[现有线上网站](https://seu-yolo.github.io/BATTER-Transcription-Terminator-Database/)尚未部署本分支的 v0.4.0 改动。
+线上网站：[bted.1052596411.workers.dev](https://bted.1052596411.workers.dev/)。首页展示当前发布统计和 BATTER 引用，基因组目录位于 `genomes.html`，Usage 提供地区访问统计。
+
+BATTER 论文：Jin, Y., Cui, J., Liu, R. et al. *Conserved 3′ stem-loop structures enable comprehensive analysis of bacterial transcription termination in metagenomes.* Microbiome 14, 222 (2026). [DOI](https://doi.org/10.1186/s40168-026-02454-1)。作者代码：[xu-research-lab/BATTER](https://github.com/xu-research-lab/BATTER)。引用于 2026-10-03 根据 Crossref 正式出版记录核对，未采用作者 README 中的旧预印本引用。

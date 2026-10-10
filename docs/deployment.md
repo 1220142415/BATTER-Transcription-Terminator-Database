@@ -63,11 +63,44 @@ python scripts/serve_v04_preview.py --site dist/pages-site --port 8769 \
 
 当前已上传 74 个文件，共 23,229,941 字节；逐文件下载后的大小与 SHA-256 均与本地一致。GFF3、FASTA 和旧 BigWig 的跨站 Range 请求返回 `206`。更新数据时先取得新的 **40 位提交号**，再用 `scripts/build_v04_asset_manifest.py --revision <新提交号>` 重建清单，并把该提交号同时写入 Pages/CI 和 `scripts/stage_site.py --hf-v04-data-base-url` 的参数。校验通过前不部署 Pages 或 Worker。公开版站点只保存网页与 JBrowse 程序，v0.4.0 数据由固定版本地址读取。
 
+2026-10-03 的 `BATTER_S1_002` 许可修正已写入本仓库和 D1，Hugging Face 更新按用户要求暂缓。当前网页构建使用提交 `8132334` 的公开数据快照，匹配已发布 HF 文件及校验值；重新部署时给 `stage_site.py` 传入该快照的 `--release-root`，不要将尚未上传的 metadata 校验值与旧 HF 版本混用。更新 HF 并核对新版本后，再使用本仓库当前 `data/public/v0.4.0/` 构建。访问统计的安装和口径见 [访问统计](USAGE_ANALYTICS.md)。
+
 ## Worker 与 D1
+
+### BATTER 训练增强浏览
+
+`Genomes` 用一张基因组表，通过 Data type 筛选全部、实验、预测和数据增强，同一完整组装编号只显示一行。主表参照 promoter 展示 Genome ID、Genome source、Organism、Taxonomy、Assembly size、Terminator data、Annotation 七列，点击 Genome ID 进入详情。Terminator data 在同一格分行显示实验端点、预测和增强／Rfam 区间，并按有无数据使用颜色标签。Taxonomy 在独立筛选区按门→纲→目→科→属→种逐级选择；文章、方法和信号信息在详情及轨道说明中查看。增强／Rfam 为 OTU 增强区间与 Rfam 训练区间之和，不计上下文窗口。实验参考大小由已有 contig 登记汇总，计算参考大小仅采用与固定 HF 版本一致的叠加核查记录；未收录的大小显示 Not cataloged，排序时放在已收录记录之后，不按文件大小或实验端点推断。注释状态区分可用、坐标不兼容、缺失和未收录。实验与计算数据共用同一个基因组页面和 JBrowse；模型预测只展示已经发布的结果，不执行预测任务。计算数据固定到 HF 提交 `9f81698a3cee64f4eaf90b90cd36d640f38d9315`，包含批次 000–042 的 42,904 个已发布基因组；目录和发布完成记录已核对。该数字是本站发布范围，不表示覆盖所有可能的菌种或实验数据。
+
+Genome source 来自原始批次清单的 `source_collection`，保留数据库或研究来源；NCBI-MAG/SAG 在网页显示为 NCBI GenBank。Genome ID 为原始基因组编号；有计算目录映射时，在同一单元格的第二行显示 GEM OTU（物种聚类编号），实验条目不推断 OTU。详情页用 Sequence source 单独标明实际 FASTA 来源；原始数据库编号不代替序列版本与校验核对。当前目录每个 OTU 只保留一个代表基因组，但原始聚类可包含多个成员。编号、来源及版本共同用于追溯，OTU 不作为单个基因组的主键。
+
+`data/registry/batter-browser.json` 保存目录字段、统计数和固定版本；网页读取构建后的 `assets/batter-browser.json`。序列、GFF3 和索引仍在 HF，Worker 按目录生成 `/api/batter/<genome>/config`，无需先导入 D1。`batter-overlays.json` 保存重叠基因组的逐 contig 长度和序列 SHA-256 比较结果；构建后的 `assets/genome-browsers.json` 登记实验配置和叠加依据。相同序列可以叠加实验、预测、增强轨道；名称不同但序列相同的 contig 使用 JBrowse 原生别名。例如 `BA000030.4` 与 `NC_003155.5` 的长度和序列哈希一致。真正不同或尚未核对的参考在同一浏览器中保留独立坐标视图，不凭 accession 叠加。只展示 `matched` 注释。橙色为预测，深蓝为 OTU 增强区间，紫色为 Rfam 区间，浅色为上下文窗口；窗口不算额外终止子。
+
+浏览器优先直读 HF，网络异常才使用同版本、已登记文件的同源备份；保留 Range、取消请求和 SHA-256 元数据检查。Worker 生成配置前检查参考索引、增强文件的实际大小和 SHA-256。新增浏览入口不会执行模型预测，也不改动 HF 文件或实验 D1 表。
+
+HF 发布后，指定新 **40 位提交号** 刷新目录，再构建和部署 Worker。脚本从发布清单发现所有批次，核对 metadata 表的大小、SHA-256、基因组集合及发布完成记录；不需要手工填写批次数。
+
+```powershell
+py -3.13 scripts/prepare_batter_browser.py --download --carry-overlays --revision <HF提交号>
+py -3.13 -m unittest discover -s tests -p test_prepare_batter_browser.py -q
+node --test --test-isolation=none tests/test_batter_browser.mjs
+```
+
+缓存位于 `dist/hf-catalogue/<提交号>/`。离线重建可省略 `--download`，仍会核对清单中的校验值。只有所有批次与发布目录一致且完成记录通过检查，才将 `partial` 设为 false。`--carry-overlays` 仅在参考文件哈希未变化时保留已有的序列比对结果；哈希变化的记录不再叠加。`--verify-overlaps` 会读取实际 FASTA，仅在需要重新比较序列且获准时另行使用。
+
+2026-10-07 更新固定到 HF `9f81698a3cee64f4eaf90b90cd36d640f38d9315`，使用按基因组组织的 `v0.5.0/genomes/batter-<batch>/<id>/`。metadata 中的计算记录位于 `records.batter`；文件分别位于 `reference/`、`predictions/`、`training/` 和 `annotations/batter/`。Worker 对外仍返回原有的 metadata 字段。目录共 42,904 个计算基因组，合并实验条目后为 42,923 个。21 个实验基因组的 25 个来源 metadata 与当前公开快照一致，实验 D1 表及其固定资产版本继续使用现有记录，未重新导入。核查范围与统计见 [HF 更新核查](HF_REFRESH_2026-10-07.md)。
+
+当前部署目标是 `1052596411@qq.com` 的 Cloudflare 账号（`406a94b19dd8bd8d9e851f8c5ed3a569`）。Worker 名称是 `bted`，D1 名称是 `bted-catalog`，数据库 ID 为 `c304fae8-cce6-4fc1-922d-e3bbc1c9b995`。这些标识不是密钥；登录凭据保存在本机 Wrangler 配置中，不提交到仓库。
+
+2026-10-03 首次发布地址：[bted.1052596411.workers.dev](https://bted.1052596411.workers.dev/)。线上健康、来源元数据原文比对、基因组与端点查询、JBrowse 配置、资产读取及 `206` Range 检查通过。D1 的发布状态仍标为 `preview`，便于在后续数据整理后再正式发布。
+
+Pages 主要提供静态网页，也能通过 Pages Functions 接入 D1。这里采用 Worker Static Assets：一个 Worker 提供网页、JBrowse 程序和 `/api/*`，并通过 `BTED_DB` 查询 D1。二者都不需要传统容器。大文件仍由固定版本的 Hugging Face 地址提供。基因组目录页面由发布文件生成，当前没有改成每次打开都查询 D1。
+
+`sources.metadata_json` 完整保留每个来源的原始 `metadata.tsv` 字段，包括文章许可、限制和补充文件路径；标准列负责筛选和关联。`/api/sources` 和来源详情以 `metadata` 对象返回这些字段。当前是新数据库的首次导入；已有旧表的数据库需先添加此列，不能只靠 `CREATE TABLE IF NOT EXISTS` 更新表结构。
 
 Worker 使用 `BTED_DB` 绑定和 `prototype/accession-range/wrangler.jsonc`。先从发布 GFF3、内部来源清单及已核查的远端资产清单生成本地 bundle；远端对象的大小、SHA-256 与 Range 检查完成后才标记 `--origin-verified`。
 
 ```bash
+python scripts/audit_v04_remote_assets.py --output dist/v04-remote-audit.json
 python scripts/import_bted_v03.py materialize-v04 \
   --output-dir dist/v04-d1-bundle --origin-verified
 python scripts/generate_bted_d1.py \
@@ -75,5 +108,20 @@ python scripts/generate_bted_d1.py \
 ```
 
 将 `dist/v04-d1-sql/` 中的 schema 和编号 SQL 文件依次导入本地 D1，再用 Wrangler 本地启动 Worker。检查 `/api/health` 的 `release_version=v0.4.0`、基因组和来源查询、端点数量、资产代理的 `206` Range 响应。API 返回 JSON 供程序读取；网页不会把原始 JSON 当作用户页面。
+
+远端首次导入前确认数据库为空，并在本地 SQLite 核对完整性、外键、端点数量和原始 metadata 字段。依次执行 schema 与编号 SQL（不要使用原型 `seed.sql`）；也可将它们按相同顺序合并成 `dist/v04-d1-import.sql`，再运行：
+
+```bash
+npx wrangler d1 execute bted-catalog --remote \
+  --config prototype/accession-range/wrangler.jsonc --file dist/v04-d1-import.sql --yes
+npx wrangler deploy --dry-run --config prototype/accession-range/wrangler.jsonc
+npx wrangler deploy --config prototype/accession-range/wrangler.jsonc
+```
+
+当前 D1 投影包括 14 篇论文、21 个基因组、48 条 contig、25 个来源、35 个外部 accession、157 个资产登记和 29,460 条端点。25 个来源中 1 个仅保留审计信息，不包含公开端点。数据增强及全基因组预测尚未导入；基因关联和条件观测仍保存在发布补充文件中。
+
+2026-10-04 对照 promoter 增加查询缓存：基因组目录仍只加载静态清单，搜索、分类、排序和翻页不发起 D1 查询；分类按门→纲→目→科→属→种逐级解锁。Worker 用原生 Cache API 缓存公开元数据 JSON 300 秒、访问统计 JSON 60 秒，键包含主机、路径、排序后的完整查询参数、数据版本和缓存命名空间。版本或接口语义改变时更新 `cachedPublicApi` 的命名空间；直接更新 D1 后，旧元数据最多保留 5 分钟。健康检查、错误／不可缓存响应、HEAD、文件响应和 Range 请求不经过该响应缓存。
+
+发布信息和公开文件登记在 Worker 内按 D1 绑定隔离，缓存 60 秒，最多 512 项，并合并同一登记的并发查询。缓存缺失或失败时正常查询 D1；不存在的记录和查询错误不保留。JBrowse 的 Range、文件校验和访问计数沿用原流程；统计写入没有采样或去重。未引入 KV、Durable Objects、框架或依赖。
 
 若 JBrowse 空白，先检查该组装的配置和参考 FASTA/FAI 是否在固定地址上可读，再查 GFF3/BigWig 的 Range 请求。某研究没有 BigWig 时只应缺少信号轨道，端点轨道仍可正常显示。旧 v0.2.0、v0.3.0 的数据可从 `data/archive/` 校验归档还原。
