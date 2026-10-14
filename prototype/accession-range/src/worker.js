@@ -6,6 +6,148 @@ const PUBLIC_EVIDENCE = new Set([
 ]);
 
 const CURRENT_RELEASE_VERSION = "v0.4.0";
+const EXPERIMENTAL_SIGNALS_INDEX = "https://huggingface.co/datasets/liurulong/terminator/resolve/main/v0.5.0/catalogues/experimental_signals.json";
+const experimentalSignalCatalogues = new WeakMap();
+
+function verifiedExperimentalSample(sample) {
+  const id = value => typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9_.-]{0,100}$/.test(value);
+  const verification = sample?.verification;
+  if (!sample || ![sample.genome_id, sample.group, sample.source_id, sample.sample_id].every(id)
+      || !/^\d+$/.test(String(sample.pmid)) || !/^[0-9a-f]{40}$/.test(sample.revision || "")
+      || verification?.status !== "complete" || verification.sha256 !== true || verification.http_range !== true
+      || verification.cors !== true || verification.reference_names_and_lengths !== true) return false;
+  const root = `v0.5.0/genomes/${sample.group}/${sample.genome_id}/studies/PMID_${sample.pmid}/sources/${sample.source_id}/samples/${sample.sample_id}`;
+  if (sample.path !== root || sample.metadata_path !== `${root}/metadata.json`
+      || !/^[0-9a-f]{64}$/.test(sample.metadata_sha256 || "") || !Array.isArray(sample.signals)
+      || !sample.signals.length || sample.signals.length > 2) return false;
+  const strands = new Set();
+  for (const signal of sample.signals) {
+    if (!["plus", "minus", "unstranded"].includes(signal.strand) || strands.has(signal.strand)
+        || signal.path !== `${root}/signal.${signal.strand}.bw` || !/^[0-9a-f]{64}$/.test(signal.sha256 || "")
+        || !Number.isSafeInteger(signal.byte_size) || signal.byte_size < 64) return false;
+    strands.add(signal.strand);
+  }
+  if (strands.has("unstranded") && strands.size > 1) return false;
+  return sample.reference_contigs && Object.keys(sample.reference_contigs).length > 0
+    && Object.entries(sample.reference_contigs).every(([name, length]) => name && Number.isSafeInteger(length) && length > 0);
+}
+
+async function experimentalSignalCatalogue(request, env) {
+  const cached = experimentalSignalCatalogues.get(env.ASSETS);
+  if (cached && cached.expires > Date.now()) return cached.task;
+  const task = (async () => {
+    let response;
+    try {
+      let origin = EXPERIMENTAL_SIGNALS_INDEX;
+      if (env.HF_PREVIEW_GATEWAY) {
+        const gateway = new URL(env.HF_PREVIEW_GATEWAY);
+        if (!isLoopbackHost(new URL(request.url).hostname) || gateway.protocol !== "http:"
+            || !isLoopbackHost(gateway.hostname) || gateway.username || gateway.password
+            || gateway.search || gateway.hash || gateway.pathname !== "/") throw new Error("local_origin_not_allowed");
+        origin = new URL(new URL(origin).pathname, gateway).href;
+      }
+      response = await fetch(origin, {
+        signal: AbortSignal.timeout(5000), cf: { cacheTtl: 60, cacheEverything: true },
+      });
+      if (!response.ok) throw new Error("signal_catalogue_unavailable");
+    } catch {
+      // A verified snapshot allows local previews to work when the HF origin is unavailable.
+      response = await env.ASSETS.fetch(new Request(new URL("/assets/experimental-signals.json", request.url)));
+      if (!response.ok) throw new Error("signal_catalogue_unavailable");
+    }
+    const text = await response.text();
+    if (text.length > 8 * 1024 * 1024) throw new Error("signal_catalogue_too_large");
+    const catalogue = JSON.parse(text);
+    if (catalogue.schema !== "bted-experimental-signals-v1" || catalogue.release_version !== "v0.5.0"
+        || !Array.isArray(catalogue.samples)) throw new Error("signal_catalogue_invalid");
+    return catalogue;
+  })();
+  experimentalSignalCatalogues.set(env.ASSETS, { expires: Date.now() + 60000, task });
+  try { return await task; } catch (error) { experimentalSignalCatalogues.delete(env.ASSETS); throw error; }
+}
+
+function experimentalSampleTracks(config, genomeId, catalogue, request) {
+  const view = config.defaultSession?.views?.find(item => item.type === "LinearGenomeView");
+  const assemblyName = view?.displayedRegions?.[0]?.assemblyName || config.assemblies?.[0]?.name;
+  if (!view || !assemblyName) return [];
+  const reference = Object.fromEntries((view.displayedRegions || []).filter(region => region.start === 0)
+    .map(region => [region.refName, region.end]));
+  const sources = new Map();
+  for (const track of config.tracks || []) {
+    const about = track.metadata?.btedAbout;
+    if (about?.kind !== "endpoint") continue;
+    const ids = track.metadata?.source_ids || [track.metadata?.source_id || about.source_id];
+    for (const id of ids.filter(Boolean)) sources.set(id, about);
+  }
+  const result = [];
+  const seen = new Set();
+  for (const sample of catalogue.samples || []) {
+    const about = sources.get(sample.source_id);
+    if (sample.genome_id !== genomeId || !verifiedExperimentalSample(sample) || !about
+        || String(about.pmid) !== String(sample.pmid) || seen.has(sample.path)) continue;
+    // Region boundaries are full reference lengths in the BTED default config.
+    if (!Object.keys(reference).length || Object.entries(reference).some(([name, length]) => sample.reference_contigs[name] !== length)) continue;
+    seen.add(sample.path);
+    const strandLabel = sample.signals.map(signal => ({ plus: "+", minus: "−", unstranded: "unstranded" })[signal.strand]).join(" / ");
+    const trackId = `bted_sample_${sample.source_id}_${sample.sample_id}_signal`;
+    if (trackId.length > 128) continue;
+    const signalUrl = signal => new URL(`/api/experimental-signals/files?revision=${sample.revision}&path=${encodeURIComponent(signal.path)}`, request.url).href;
+    const subadapters = sample.signals.map(signal => ({ type: "BigWigAdapter", source: signal.strand,
+      name: ({ plus: "+ strand", minus: "− strand", unstranded: "Unstranded" })[signal.strand],
+      color: signal.strand === "minus" ? MINUS_STRAND_COLOR : PLUS_STRAND_COLOR,
+      bigWigLocation: { uri: signalUrl(signal), locationType: "UriLocation" } }));
+    const mirrored = !sample.signals.some(signal => signal.strand === "unstranded");
+    result.push({ type: mirrored ? "MultiQuantitativeTrack" : "QuantitativeTrack", trackId,
+      name: `${sample.sample_id} · ${sample.source_id} · experimental signal (${strandLabel})`,
+      assemblyNames: [assemblyName], category: ["Observed experimental signal", `PMID ${sample.pmid}`, sample.source_id],
+      adapter: mirrored ? { type: "MultiWiggleAdapter", subadapters } : subadapters[0],
+      displays: [{ type: mirrored ? "MultiLinearWiggleDisplay" : "LinearWiggleDisplay", displayId: `${trackId}_display`,
+        height: 180, defaultRendering: "xyplot" }],
+      metadata: { source_id: sample.source_id, sample_id: sample.sample_id, pmid: String(sample.pmid),
+        release_version: "v0.5.0", evidence_class: "observed_signal", btedMirroredSignal: mirrored,
+        hf_revision: sample.revision, btedDownloads: sample.signals.map(signal => ({ kind: "bigwig",
+          label: `${signal.strand} strand BigWig`, url: signalUrl(signal), filename: `${sample.sample_id}.signal.${signal.strand}.bw` })),
+        btedAbout: { ...about, kind: "signal", source_id: sample.source_id, strand: strandLabel,
+          raw_data_accessions: [sample.series_accession, sample.sample_id].filter(Boolean).join(" · "), record_count: "",
+          explanation: "Measured sample signal. Strand-separated signals are mirrored around zero; raw values are unchanged." } },
+    });
+  }
+  return result;
+}
+
+async function addExperimentalSamples(config, genomeId, request, env) {
+  let catalogue;
+  try { catalogue = await experimentalSignalCatalogue(request, env); }
+  catch { return config; }
+  const samples = experimentalSampleTracks(config, genomeId, catalogue, request);
+  if (!samples.length) return config;
+  const view = config.defaultSession.views.find(item => item.type === "LinearGenomeView");
+  const sampleIds = new Set(samples.map(track => track.trackId));
+  const sampleSources = new Set(samples.map(track => track.metadata.source_id));
+  const superseded = new Set(config.tracks.filter(track => track.metadata?.btedAbout?.kind === "signal"
+    && !track.metadata?.sample_id && sampleSources.has(track.metadata.source_id || track.metadata.btedAbout.source_id)).map(track => track.trackId));
+  config.tracks = config.tracks.filter(track => !sampleIds.has(track.trackId)).concat(samples);
+  view.tracks = view.tracks.filter(track => !sampleIds.has(track.configuration) && !superseded.has(track.configuration));
+  view.tracks.push(...samples.map(track => ({ id: `${track.trackId}_session`, type: track.type, configuration: track.trackId,
+    minimized: false, displays: [{ id: `${track.trackId}_session_display`, type: track.displays[0].type,
+      configuration: track.displays[0].displayId, height: 180, showSidebar: false }] })));
+  config.metadata = { ...config.metadata, experimental_signal_samples: samples.map(track => track.metadata.sample_id) };
+  return config;
+}
+
+async function experimentalSignalFile(request, env) {
+  const query = new URL(request.url).searchParams;
+  if (query.has("url")) return json({ error: "arbitrary_origin_not_supported" }, 400);
+  let catalogue;
+  try { catalogue = await experimentalSignalCatalogue(request, env); }
+  catch { return json({ error: "signal_catalogue_unavailable" }, 503); }
+  const sample = catalogue.samples.find(sample => verifiedExperimentalSample(sample)
+    && sample.revision === query.get("revision") && sample.signals.some(signal => signal.path === query.get("path")));
+  if (!sample) return json({ error: "signal_not_registered" }, 404);
+  const signal = sample.signals.find(signal => signal.path === query.get("path"));
+  const origin = `https://huggingface.co/datasets/liurulong/terminator/resolve/${sample.revision}/${signal.path}`;
+  return streamHfAsset(request, { ...signal, url: origin, filename: `${sample.sample_id}.signal.${signal.strand}.bw` }, env);
+}
 function activeReleaseVersion(env) {
   return env.BTED_RELEASE_VERSION === "v0.5.0" ? "v0.5.0" : CURRENT_RELEASE_VERSION;
 }
@@ -1177,7 +1319,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       const signal = signalPlus || signalMinus;
       const signalId = `${track.track_id}_single_signal`;
       const signalUrl = dataAssetUrl(dataManifest, signal.logical_path, request, signal);
-      jbrowseTracks.push({ type: "QuantitativeTrack", trackId: signalId,
+      tracksConfig.push({ type: "QuantitativeTrack", trackId: signalId,
         name: `${source.source_id} · experimental signal (${signalPlus ? "+" : "−"})`,
         assemblyNames: [assemblyName], category: ["BTED experimental signal", `PMID ${track.pmid}`, source.source_id],
         adapter: { type: "BigWigAdapter", bigWigLocation: { uri: signalUrl, locationType: "UriLocation" } },
@@ -1281,7 +1423,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     minimized: false,
     displays: [{
       id: `bted_display_${index + 1}`,
-      type: track.type === "MultiQuantitativeTrack" ? "MultiLinearWiggleDisplay" : "LinearBasicDisplay",
+      type: track.type === "MultiQuantitativeTrack" ? "MultiLinearWiggleDisplay" : track.type === "QuantitativeTrack" ? "LinearWiggleDisplay" : "LinearBasicDisplay",
       configuration: track.displays?.[0]?.displayId || `${track.trackId}-LinearBasicDisplay`,
       ...(track.type === "MultiQuantitativeTrack" ? { showSidebar: false } : {}),
     }],
@@ -1290,7 +1432,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     id: "bted_reference_track", type: "ReferenceSequenceTrack", configuration: `${assemblyName}_refseq`, minimized: false,
     displays: [{ id: "bted_reference_display", type: "LinearReferenceSequenceDisplay", configuration: `${assemblyName}_refseq-LinearReferenceSequenceDisplay`, showTranslation: true, heightPreConfig: 120 }],
   });
-  return json({
+  const result = {
     plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL("/jbrowse/plugins/bted-track-plugin.js", request.url).href }],
     assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", name: "Reference sequence", trackId: `${assemblyName}_refseq`, adapter: {
       type: gzi ? "BgzipFastaAdapter" : "IndexedFastaAdapter",
@@ -1301,7 +1443,8 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     tracks: configTracks,
     defaultSession: { name: `BTED · ${accession}`, views: [{ id: "bted_linear_genome_view", type: "LinearGenomeView", name: assembly.organism_name || accession, offsetPx: initialStart / initialBpPerPx, bpPerPx: initialBpPerPx, displayedRegions: [{ refName: contigName, start: 0, end: length, reversed: false, assemblyName }], tracks: sessionTracks }] },
     metadata: { release_version: release.release_version, assembly_accession: accession, source_ids: publicTracks.map(({ source }) => source.source_id), browser_asset_origin: release.asset_origin_status },
-  });
+  };
+  return json(await addExperimentalSamples(result, accession, request, env));
 }
 
 async function proxyAsset(request, env, release, assetKey) {
@@ -1836,7 +1979,15 @@ async function routeRequest(request, env, ctx) {
     const url = new URL(request.url);
     if (!["GET", "HEAD"].includes(request.method)) return json({ error: "method_not_allowed" }, 405, { allow: "GET, HEAD" });
     if (url.pathname.startsWith("/downloads/v0.2.0/")) return retiredReleaseResponse("v0.2.0");
+    if (url.pathname === "/api/experimental-signals/files") return experimentalSignalFile(request, env);
     if (!url.pathname.startsWith("/api/")) {
+      const experimentalConfig = /^\/jbrowse\/assemblies\/([A-Za-z0-9_.-]+)\.config\.json$/.exec(url.pathname);
+      if (experimentalConfig && request.method === "GET") {
+        const response = await staticAsset(request, env);
+        if (!response.ok) return response;
+        const config = await response.json();
+        return json(await addExperimentalSamples(config, experimentalConfig[1], request, env), 200, { "cache-control": "no-cache" });
+      }
       let assetRequest = request;
       const genomePage = /^\/genomes\/([A-Za-z0-9_.-]+)(?:\.html)?$/.exec(url.pathname);
       if (genomePage && !["batter", "genome"].includes(genomePage[1])) {

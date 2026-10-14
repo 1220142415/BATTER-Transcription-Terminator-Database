@@ -1,0 +1,19 @@
+{
+  "schema": "bted-experimental-bigwig-intake-v1",
+  "samples": [
+    {
+      "genome_id": "GCF_000005845.1",
+      "group": "experimental-only",
+      "pmid": "29606352",
+      "source_id": "BATTER_S1_001",
+      "sample_id": "GSM2500131",
+      "series_accession": "GSE95211",
+      "description": "E. coli WT Rend-seq, MOPS complete, pooled 25s fragments, no shadow",
+      "chrom_aliases": {"NC_000913_2": "NC_000913.2"},
+      "signals": [
+        {"strand": "plus", "path": "/absolute/path/to/forward.bw"},
+        {"strand": "minus", "path": "/absolute/path/to/reverse.bw"}
+      ]
+    }
+  ]
+}
