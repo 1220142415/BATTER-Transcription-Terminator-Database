@@ -1,0 +1,3348 @@
+{
+  "reference_revision": "9f81698a3cee64f4eaf90b90cd36d640f38d9315",
+  "path_prefix": "v0.5.0/genomes",
+  "genomes": {
+    "GCA_002697665.1": {
+      "reference_sha256": "c8d9edc34657e2f8bec81a51051c14a32d10f2b5b93b8ff44da357f303ae9ce0",
+      "coverage": "partial",
+      "matched_reference_contigs": 23,
+      "total_reference_contigs": 43,
+      "features": 1874,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/002/697/665/GCA_002697665.1_ASM269766v1/GCA_002697665.1_ASM269766v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 432493,
+        "sha256": "1fa796e8cb5b3e8444cfeb394fa429b5fe80b775fc084264f1b63aec335a39ab"
+      }
+    },
+    "GCA_002701605.1": {
+      "reference_sha256": "0814111ee8a1947cbd1ee524222cfc4a8cca9afa79c1295a0bf27b41af211868",
+      "coverage": "partial",
+      "matched_reference_contigs": 22,
+      "total_reference_contigs": 27,
+      "features": 2175,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/002/701/605/GCA_002701605.1_ASM270160v1/GCA_002701605.1_ASM270160v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 500209,
+        "sha256": "f8b974c68aa9e5eb400e5d33a0f1c47640f4436de18a9bff14797506ba8e9599"
+      }
+    },
+    "GCA_002701865.1": {
+      "reference_sha256": "437d9bfbc181e9ea1a74554e9e890d3ad87eb9a02e0d2b4b92a154cf687ae4d2",
+      "coverage": "partial",
+      "matched_reference_contigs": 19,
+      "total_reference_contigs": 20,
+      "features": 2152,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/002/701/865/GCA_002701865.1_ASM270186v1/GCA_002701865.1_ASM270186v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 491058,
+        "sha256": "d668f1ba2c15f6f78ca46c8965b4cb609dc678c9d3273ffc7cb4e0e1d1ba43b7"
+      }
+    },
+    "GCA_002715585.1": {
+      "reference_sha256": "2392f474fba416b5aef2aa1530acf0845f434f162888e4aa4b46ffa764dadd10",
+      "coverage": "partial",
+      "matched_reference_contigs": 13,
+      "total_reference_contigs": 15,
+      "features": 2069,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/002/715/585/GCA_002715585.1_ASM271558v1/GCA_002715585.1_ASM271558v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 472299,
+        "sha256": "45b174df919b1bcfeda40907ac9f091433ba4a5c3ddc74f6c63155366c5cb708"
+      }
+    },
+    "GCF_000472605.1": {
+      "reference_sha256": "e3126ee3bc83dfb896af45d6dbac8c066d7f644d48bd338095ab6f076abbe575",
+      "coverage": "full",
+      "matched_reference_contigs": 1,
+      "total_reference_contigs": 1,
+      "features": 3016,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/472/605/GCF_000472605.1_ASM47260v1/GCF_000472605.1_ASM47260v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 744533,
+        "sha256": "e25e37a1ba4f9b305a68ea539b3a429a031cf2b4a116f9e75c57c2e5700146ef"
+      }
+    },
+    "GCF_000972785.3": {
+      "reference_sha256": "4af2a4ceb74c7bfadb035d176e4d6a4a470f431bf427b6ba4b0f8e444da50b0e",
+      "coverage": "full",
+      "matched_reference_contigs": 5,
+      "total_reference_contigs": 5,
+      "features": 11735,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/972/785/GCF_000972785.3_ASM97278v3/GCF_000972785.3_ASM97278v3_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 3635603,
+        "sha256": "a1133b8e64151b03c16e325d549a3d4f3fd802108b958236fdae6b012a4cb2c9"
+      }
+    },
+    "GCF_001758275.1": {
+      "reference_sha256": "891981e01ec1b1f44615ef3a0e53b1500f87b9942d4cb661bfe068047272030e",
+      "coverage": "partial",
+      "matched_reference_contigs": 1,
+      "total_reference_contigs": 39,
+      "features": 2,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/001/758/275/GCF_001758275.1_ASM175827v1/GCF_001758275.1_ASM175827v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 2437,
+        "sha256": "7ebf452fdac4ba37528116913a5462a5f92d2ee1e88f1efecd0d621f97e3ca04"
+      }
+    },
+    "GCF_001860205.1": {
+      "reference_sha256": "99ca4f87cfd08017cec07482471d2a06ae019802c1ecd3c57de845a2d878c949",
+      "coverage": "partial",
+      "matched_reference_contigs": 2,
+      "total_reference_contigs": 86,
+      "features": 10,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/001/860/205/GCF_001860205.1_ASM186020v1/GCF_001860205.1_ASM186020v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 6656,
+        "sha256": "3f5e3b2d0736595a9ef0d58fed7f2a242d53f23f8973332df24bd99d94b301aa"
+      }
+    },
+    "GCF_001949975.1": {
+      "reference_sha256": "7d8db2174962735eb28908b82490b6a60a090c6bb058521eab5bfa475fb0796b",
+      "coverage": "partial",
+      "matched_reference_contigs": 25,
+      "total_reference_contigs": 26,
+      "features": 3122,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/001/949/975/GCF_001949975.1_ASM194997v1/GCF_001949975.1_ASM194997v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 799884,
+        "sha256": "6bcf5fa106a832b87fadf6a925fce0652aba11f46d5fde36c994bdc6dfdd74c1"
+      }
+    },
+    "GCF_002803295.1": {
+      "reference_sha256": "4f6d89d92af1a8b42224fd57987df96e51f61ca951d51407657470b037667010",
+      "coverage": "partial",
+      "matched_reference_contigs": 7,
+      "total_reference_contigs": 18,
+      "features": 630,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/803/295/GCF_002803295.1_ASM280329v1/GCF_002803295.1_ASM280329v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 135081,
+        "sha256": "d84b89b230c74938a3625708cc31538fd8898145c8d3139eb88d32bf2a0d8d03"
+      }
+    },
+    "GCF_002843235.2": {
+      "reference_sha256": "c4322405441ae9533bc7754bd05ea58f411938ab8c084bbc1dd17fd19eff4375",
+      "coverage": "partial",
+      "matched_reference_contigs": 5,
+      "total_reference_contigs": 6,
+      "features": 567,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/843/235/GCF_002843235.2_ASM284323v2/GCF_002843235.2_ASM284323v2_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 130220,
+        "sha256": "18906f3399c681553f49ab9309d7af50145b43dc843506af7b4e6defdc3c178c"
+      }
+    },
+    "GCF_002942785.1": {
+      "reference_sha256": "05c8d824422d74249d845676854ebb84797e01923638ba441c7283ba61037daf",
+      "coverage": "full",
+      "matched_reference_contigs": 77,
+      "total_reference_contigs": 77,
+      "features": 14612,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/942/785/GCF_002942785.1_ASM294278v1/GCF_002942785.1_ASM294278v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 3425017,
+        "sha256": "57462dd19dc6e9ddd45b330d7aa72bce31d18ca71fea6db0bf105c23343c1400"
+      }
+    },
+    "GCF_003008555.1": {
+      "reference_sha256": "d86d816264792f49c0616a5e7bfd82e5c84b8378972f3f288f9a416e833aa784",
+      "coverage": "partial",
+      "matched_reference_contigs": 1,
+      "total_reference_contigs": 6,
+      "features": 7604,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/008/555/GCF_003008555.1_ASM300855v1/GCF_003008555.1_ASM300855v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 1750225,
+        "sha256": "9ae52a82d46fc7e21963133ce7a9bd6154eff898cc0de9860e17a9c0d87af171"
+      }
+    },
+    "GCF_003584565.1": {
+      "reference_sha256": "3e10493c70504eae5767aa09e3ada3a84ac9594b3cd21db545360c3cab89e997",
+      "coverage": "partial",
+      "matched_reference_contigs": 1,
+      "total_reference_contigs": 2,
+      "features": 8740,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/584/565/GCF_003584565.1_ASM358456v1/GCF_003584565.1_ASM358456v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 2240175,
+        "sha256": "dae0b2fdd9e5e597198a1173842d52ca1ba79e413830a23849a4f2637633effc"
+      }
+    },
+    "GCF_003994235.1": {
+      "reference_sha256": "82031bbf0865f298d56be0d8607da33f48fe129df46af440c6e6ae7247d110ce",
+      "coverage": "partial",
+      "matched_reference_contigs": 3,
+      "total_reference_contigs": 121,
+      "features": 15,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/003/994/235/GCF_003994235.1_ASM399423v1/GCF_003994235.1_ASM399423v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 9183,
+        "sha256": "4f84267d8b6c44a49b1b9f92204d2824664ce67dd372ef75b2ae128cfb8adf72"
+      }
+    },
+    "GCF_004004555.1": {
+      "reference_sha256": "a34a7da33152a1f0aebd80dd2de46d3b96c85d0a433215beff392120494e85a6",
+      "coverage": "full",
+      "matched_reference_contigs": 203,
+      "total_reference_contigs": 203,
+      "features": 11689,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/004/004/555/GCF_004004555.1_ASM400455v1/GCF_004004555.1_ASM400455v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 2762390,
+        "sha256": "b555cad66d1e61054dc16590c244e98fa119941864ba5784786300cd80a003c2"
+      }
+    },
+    "GCF_004010325.1": {
+      "reference_sha256": "9502f92d4c324146ab07775dd72d7f759a6019ba8b41aee1c66548d70991f3a0",
+      "coverage": "partial",
+      "matched_reference_contigs": 5,
+      "total_reference_contigs": 690,
+      "features": 76,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/004/010/325/GCF_004010325.1_atsede.90/GCF_004010325.1_atsede.90_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 48709,
+        "sha256": "ffa0ee3274983fdec35b46b80bb28fab7838d2c4b9277bd60157a58ffa655f70"
+      }
+    },
+    "GCF_004358095.1": {
+      "reference_sha256": "8e95bcb8e5492e4b72630b2bd966706f43a0deac09c1a728100a2d92bde7f05a",
+      "coverage": "partial",
+      "matched_reference_contigs": 2,
+      "total_reference_contigs": 50,
+      "features": 4,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/004/358/095/GCF_004358095.1_ASM435809v1/GCF_004358095.1_ASM435809v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 3615,
+        "sha256": "55237328cba7354caddd0418a814c1e71668893cc316b0dbe61b0dee0000d8ba"
+      }
+    },
+    "GCF_004683865.1": {
+      "reference_sha256": "4ba3dca91f0e494fb23b7e7a8626ed3672ea897d5c1465cef163ba1aef32395b",
+      "coverage": "partial",
+      "matched_reference_contigs": 1,
+      "total_reference_contigs": 11,
+      "features": 6405,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/004/683/865/GCF_004683865.1_ASM468386v1/GCF_004683865.1_ASM468386v1_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 1649250,
+        "sha256": "8ba7981b07877c2ec0c4b74745374910236feefc8c85e1afd2792a9241bd3997"
+      }
+    },
+    "GCF_900012755.1": {
+      "reference_sha256": "ef899f0871f2f15c68ff5639b9afd16eb42a8202998e3c3825a56c4d553ad58c",
+      "coverage": "partial",
+      "matched_reference_contigs": 308,
+      "total_reference_contigs": 310,
+      "features": 7794,
+      "source_url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/900/012/755/GCF_900012755.1_Peptoclostridium_difficile/GCF_900012755.1_Peptoclostridium_difficile_genomic.gff.gz",
+      "source_annotation_type": "published_NCBI_GFF3",
+      "file": {
+        "bytes": 1733604,
+        "sha256": "b65b420f61f82e1a32f8142882dfca8117762b8cb75f9952dac3790892fefdfc"
+      }
+    },
+    "3300009503_23": {
+      "reference_sha256": "ebbc530e646367e5bbdf189be6ea2ac3297c4550d3ac09db29e37e555c32899c",
+      "coverage": "full",
+      "matched_reference_contigs": 483,
+      "total_reference_contigs": 483,
+      "features": 4513,
+      "source_url": "https://portal.nersc.gov/GEM/genomes/ffn.tar",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 810699,
+        "sha256": "495a26de215913dd0fd8d53379d0610cbd6dc2db0aea7a6e3168af526e4c126e"
+      }
+    },
+    "DRR042316_bin.21": {
+      "reference_sha256": "e2352c8088b5e12f6b80f5df1d26e9f8a7c9f86da4b7b452463d77fa06126c93",
+      "coverage": "full",
+      "matched_reference_contigs": 31,
+      "total_reference_contigs": 31,
+      "features": 1950,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS511_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 361502,
+        "sha256": "6febf5c1e640da5ef367f5873ad2e9359ff9e923ddc012b8fc31658461d59567"
+      }
+    },
+    "DRR042321_bin.30": {
+      "reference_sha256": "dc2100d36d983b754e41aa92479c82f75ed587c482a7344b35e9c2e20a2eced2",
+      "coverage": "full",
+      "matched_reference_contigs": 48,
+      "total_reference_contigs": 48,
+      "features": 1800,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS719_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 334960,
+        "sha256": "d19db3774d9f35e6271bbb129cfcdc19738440f3b1b983ebb697f256f3c58f10"
+      }
+    },
+    "DRR042328_bin.21": {
+      "reference_sha256": "e3bb3bc12cf21610e62c369e35bad40cc09fd85533468eb583162dcde905b7ac",
+      "coverage": "full",
+      "matched_reference_contigs": 9,
+      "total_reference_contigs": 9,
+      "features": 1918,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS639_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 357631,
+        "sha256": "5bd02d68e30d4be7b0387a4c9e3d0cef3bb8107c7f136eaeb6f5c4fc2fd5f244"
+      }
+    },
+    "DRR042341_bin.5": {
+      "reference_sha256": "7ef41c70e994a1bf812f04df463dd554c71c5eeeb217ea5a097cf28848c4c65f",
+      "coverage": "full",
+      "matched_reference_contigs": 30,
+      "total_reference_contigs": 30,
+      "features": 1743,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS375_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 322448,
+        "sha256": "000167de075b23dbba2d676ba09e9ef723fdac5b7df238a20f4744e33418564c"
+      }
+    },
+    "DRR042349_bin.5": {
+      "reference_sha256": "197cac795583662697cd8aeaf1cbad944cc6256e349d5bec8ae683e5508490e4",
+      "coverage": "full",
+      "matched_reference_contigs": 12,
+      "total_reference_contigs": 12,
+      "features": 1814,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS720_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 338641,
+        "sha256": "3ebc802762b01f2e1e54dab826e722ded8418b935d08d752774ebd60b4b63d4c"
+      }
+    },
+    "DRR042365_bin.34": {
+      "reference_sha256": "fc3f38cf917a80010df618faacb4c42eb0050c32a0da03e8a9face25f8592c7a",
+      "coverage": "full",
+      "matched_reference_contigs": 121,
+      "total_reference_contigs": 121,
+      "features": 3003,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS615_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 555278,
+        "sha256": "690eb5be97beaae90199c1868233784a8d1aa73e75c2a4acd8f87e67ea222b67"
+      }
+    },
+    "DRR042394_bin.22": {
+      "reference_sha256": "b34ef2eeb3e711e089f3d7a089bc8b68a328cf8ae69f46b41bb6990828e26ec2",
+      "coverage": "full",
+      "matched_reference_contigs": 132,
+      "total_reference_contigs": 132,
+      "features": 1604,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1405_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 299380,
+        "sha256": "dbb36db0b89bf7784e71604af55e5ac82d0564f20c4b010f9fed0a04e4d5369c"
+      }
+    },
+    "DRR042411_bin.15": {
+      "reference_sha256": "59f0ca842d16d996871fc9944cbc2e8bea123f6d3beddbc113f1d68a6c4089f3",
+      "coverage": "full",
+      "matched_reference_contigs": 26,
+      "total_reference_contigs": 26,
+      "features": 1756,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS376_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 322134,
+        "sha256": "dced38683f99c1dd6dd1240b6c384c6f9effdecff0398d2c65a381f4492ef2d6"
+      }
+    },
+    "DRR042420_bin.11": {
+      "reference_sha256": "ad4573d940082d798fffb4ec04a20af739e432203d217cf1e3d7b7665c07a9ac",
+      "coverage": "full",
+      "matched_reference_contigs": 25,
+      "total_reference_contigs": 25,
+      "features": 1853,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS640_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 341212,
+        "sha256": "0c3d81447bdc11d53f4837e5f0edb48c4334f035e4b4aa55dd41fc0814422297"
+      }
+    },
+    "DRR042429_bin.2": {
+      "reference_sha256": "c4f000c29bf2783a11ec082215dae3bd61015685d47cfe89a3dfaa406ede9fdc",
+      "coverage": "full",
+      "matched_reference_contigs": 26,
+      "total_reference_contigs": 26,
+      "features": 1805,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS377_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 332702,
+        "sha256": "5613dbc067e0aa1b1d3025e44955621d7c7ad3d800c46ec073c83837b92477d2"
+      }
+    },
+    "DRR042452_bin.28": {
+      "reference_sha256": "6269e3e8156f49e3228a30b0b04f9cca43c25a93c9e50faef46c3572879052a6",
+      "coverage": "full",
+      "matched_reference_contigs": 18,
+      "total_reference_contigs": 18,
+      "features": 889,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1874_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 165587,
+        "sha256": "850a8ae073cac05fabe396502796258813b1634aae8c2adedc5b193131199fef"
+      }
+    },
+    "DRR042469_bin.28": {
+      "reference_sha256": "dbec4d53f40ed6d4b841f6ef1f30d0eef4f1913cb85868bd52c4044bed431be7",
+      "coverage": "full",
+      "matched_reference_contigs": 52,
+      "total_reference_contigs": 52,
+      "features": 1828,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS378_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 336383,
+        "sha256": "96ae3420772dc184f32d5c060d2064be526b0163f5eb6e43392edd670e1fdb9a"
+      }
+    },
+    "ERR011241_bin.5": {
+      "reference_sha256": "74c1ab4b4d736ba913b87e91b112c4f574db6098936c4d186ccb12ffb03b9263",
+      "coverage": "full",
+      "matched_reference_contigs": 57,
+      "total_reference_contigs": 57,
+      "features": 2159,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS480_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 377410,
+        "sha256": "9c50551ea0e3a809d25059b414b2f9e38240874e2690b54abed90487df18d4fd"
+      }
+    },
+    "ERR1018185_bin.81": {
+      "reference_sha256": "7516bdf9ae92648854986f1690c400e6455498141fd78a87a81133f1c7fa119d",
+      "coverage": "full",
+      "matched_reference_contigs": 51,
+      "total_reference_contigs": 51,
+      "features": 1811,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS485_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 334410,
+        "sha256": "dec9f0b071f8dc2d7770c7d6023f77bb25a36c6c659c0b2c64234b7c80cb8307"
+      }
+    },
+    "ERR1018193_bin.15": {
+      "reference_sha256": "6ca3aaa941cc9bb39d0eb6e2277a2f0d7fc62fcbd61d9a55c1c1a3e3c4f49bb2",
+      "coverage": "full",
+      "matched_reference_contigs": 77,
+      "total_reference_contigs": 77,
+      "features": 2586,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS355_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 468115,
+        "sha256": "be67244d8042202a95a37ca91ddb5060a607b7682dac5ef7bc42d043b84eea23"
+      }
+    },
+    "ERR1018193_bin.2": {
+      "reference_sha256": "0fefecc32b0fcb019ae907e6d0b7d8fe2951a58a4ca7ae8f6c9dcab7cda84597",
+      "coverage": "full",
+      "matched_reference_contigs": 27,
+      "total_reference_contigs": 27,
+      "features": 1796,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS411_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 331666,
+        "sha256": "7d36e26ea94b8aa830d01ebe1ce1bd325d966a0fcc2840e7d69951ccc8fd17ee"
+      }
+    },
+    "ERR1018210_bin.3": {
+      "reference_sha256": "6ac91a11d24d94672f5a39b7ea31923edf8cef044c145a99212541074167986f",
+      "coverage": "full",
+      "matched_reference_contigs": 28,
+      "total_reference_contigs": 28,
+      "features": 1847,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS823_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 340044,
+        "sha256": "c19ec0fbe88f0cb8bdfcf234b73e4fe8ac734a8064b4a2ddb704694f73ac8d25"
+      }
+    },
+    "ERR1018211_bin.54": {
+      "reference_sha256": "89be8aebcfbc57a9bbc8497e9609bcc6859561d9e25bb47517ae4d4810d794cf",
+      "coverage": "full",
+      "matched_reference_contigs": 27,
+      "total_reference_contigs": 27,
+      "features": 1298,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS32_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 241496,
+        "sha256": "bd3e2295c167c944405e2a804639aca08f17a9e2a49528d0c00b0cea038ebafc"
+      }
+    },
+    "ERR1018213_bin.39": {
+      "reference_sha256": "10b982d0342f51e2dfa751cc1ae87675798307d20ffbdf6868dacb1e83204a45",
+      "coverage": "full",
+      "matched_reference_contigs": 112,
+      "total_reference_contigs": 112,
+      "features": 1091,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1817_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 204297,
+        "sha256": "aa32547e6c9ab4b8eca3567cd43c2848cbe3919324655e149bb9c71b2a83b590"
+      }
+    },
+    "ERR1018218_bin.42": {
+      "reference_sha256": "e1d16d13dcba905042eaad736a34200ad02622e27fc0fbbc227652ca06e131f5",
+      "coverage": "full",
+      "matched_reference_contigs": 141,
+      "total_reference_contigs": 141,
+      "features": 1677,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1547_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 313037,
+        "sha256": "e4115b3d7162a07d0c8204f24f7f30d1158dd5869acfeba58993e6801a8bf6ee"
+      }
+    },
+    "ERR1018228_bin.78": {
+      "reference_sha256": "650cdf5867083ec7272ee5647a470dbd2ee9ff15ca079956fa4c2a4f0888b8f2",
+      "coverage": "full",
+      "matched_reference_contigs": 87,
+      "total_reference_contigs": 87,
+      "features": 1763,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS442_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 330987,
+        "sha256": "16a4a21fcaa9606a14f7ddcd03b1fb8aabb3de4d5e3272bbf2b063c041dc7c9f"
+      }
+    },
+    "ERR1018239_bin.2": {
+      "reference_sha256": "c9c12da42459a46d842ea508f28069527f369803ec5e5991a7dfffd729ef9015",
+      "coverage": "full",
+      "matched_reference_contigs": 120,
+      "total_reference_contigs": 120,
+      "features": 1799,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS988_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 338468,
+        "sha256": "47d49154e4dbd2f6b668e35bcd7d6c0f5f2dea00312850dda27ceb760375a38e"
+      }
+    },
+    "ERR1018270_bin.44": {
+      "reference_sha256": "df59cdcfabbb48d2f488102a96668b42dab1f627f7679b18ad3fc7f6bccdfb56",
+      "coverage": "full",
+      "matched_reference_contigs": 72,
+      "total_reference_contigs": 72,
+      "features": 1586,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1423_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 293801,
+        "sha256": "f4585f5a2be4da744d68ffd77b72205746218f37e51f51622883a6c1fe08040a"
+      }
+    },
+    "ERR1018298_bin.4": {
+      "reference_sha256": "cfa7232cd2448d1d8f2f70b75ae7e0bc2c583b8aed665da5a233f73841dc7413",
+      "coverage": "full",
+      "matched_reference_contigs": 39,
+      "total_reference_contigs": 39,
+      "features": 1281,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS192_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 234760,
+        "sha256": "b27322d7431acc5030805823acb9a9f37284cfa2437e6db933124af2fe135fbb"
+      }
+    },
+    "ERR1018302_bin.14": {
+      "reference_sha256": "6dc622f36b1b3e22a1b418d4dea281a93bb3bdb66699fd0345e906e323d9d1c8",
+      "coverage": "full",
+      "matched_reference_contigs": 302,
+      "total_reference_contigs": 302,
+      "features": 1758,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1092_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 334913,
+        "sha256": "fbc623e95e61e66c54c5940648c1df4a3f19f62eb7992737e600acb49a15055e"
+      }
+    },
+    "ERR1018304_bin.14": {
+      "reference_sha256": "c318cb8d8d3a9f9e9ffe501cb4664115c678ffb12269009279a0382b56a20c9a",
+      "coverage": "full",
+      "matched_reference_contigs": 255,
+      "total_reference_contigs": 255,
+      "features": 2419,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1764_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 455197,
+        "sha256": "3880d804097cab41d6d5c8f5fa52033187424c708f00694e2b2f2f247821b004"
+      }
+    },
+    "ERR1190536_bin.4": {
+      "reference_sha256": "601bb15bc6d0e2b17013e14b1da3005023eb2a1392bd17112d3d43694dbd3cc8",
+      "coverage": "full",
+      "matched_reference_contigs": 62,
+      "total_reference_contigs": 62,
+      "features": 1878,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS850_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 346905,
+        "sha256": "5eb4ff611911f7a5dd9d3099d68ff9ebb7caefa04ce1fcb01ca6f1f2e80d782b"
+      }
+    },
+    "ERR1190543_bin.16": {
+      "reference_sha256": "44d27dbcac508f793255071c2b825e6575f6cc4140d5332a309bdcee2f16bb9e",
+      "coverage": "full",
+      "matched_reference_contigs": 146,
+      "total_reference_contigs": 146,
+      "features": 1833,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS714_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 342247,
+        "sha256": "a969dc0ad9068edc53bcef31f054b0d78d993cb2968d7d5a1b48990c7fd51e76"
+      }
+    },
+    "ERR1190549_bin.6": {
+      "reference_sha256": "494917e1b29bcb6b82572af26595395c88a09ce2bcc15b890b64ab6265556c6c",
+      "coverage": "full",
+      "matched_reference_contigs": 110,
+      "total_reference_contigs": 110,
+      "features": 1907,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS512_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 348624,
+        "sha256": "28f00406a7c603decd688202ac80697e85768cb5dd801a4c7a1bb1ab1bfaecb5"
+      }
+    },
+    "ERR1190563_bin.4": {
+      "reference_sha256": "e5d66eee6ef26911d29c83729295c54f532b54ee34fd4cb1cc6d9e282ed711f4",
+      "coverage": "full",
+      "matched_reference_contigs": 354,
+      "total_reference_contigs": 354,
+      "features": 1538,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS2008_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 297320,
+        "sha256": "d8e80b2696e7365cfaa2877479a054a024012ae15c63e1e5cda52343dd1fb29e"
+      }
+    },
+    "ERR1190568_bin.22": {
+      "reference_sha256": "e5210ff217613b314684633dfe3b74c3777615d5920eb8e26c89f6fabd929fc4",
+      "coverage": "full",
+      "matched_reference_contigs": 249,
+      "total_reference_contigs": 249,
+      "features": 1698,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1508_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 322124,
+        "sha256": "da5cada9c92240e014a5a31ce328369e88a7b498f78c3bbfcd942a8797df8b1d"
+      }
+    },
+    "ERR1190576_bin.39": {
+      "reference_sha256": "7f1c2476c56030c876feafa2565c4d67615b86c2484ad7343f1bba0ef6f9c228",
+      "coverage": "full",
+      "matched_reference_contigs": 367,
+      "total_reference_contigs": 367,
+      "features": 1610,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1809_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 311083,
+        "sha256": "dfe4a2d1c1ebc403dc6c471ee474409f2b4d8ae5b1a11a90441e3089dea04b56"
+      }
+    },
+    "ERR1190584_bin.4": {
+      "reference_sha256": "70b627a5c39b29fc3223668a2c03f4c8bcb1b951c25c1ce7834b26db584a7aa9",
+      "coverage": "full",
+      "matched_reference_contigs": 34,
+      "total_reference_contigs": 34,
+      "features": 1864,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS289_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 347617,
+        "sha256": "3dcb74a9d6135e59451a7f28c39d17a399c42667283b53dc20d3aa8f2da31347"
+      }
+    },
+    "ERR1190589_bin.73": {
+      "reference_sha256": "70b4a70dc9701f103ee877aebe7a9abc16735fb6839a474d377d68572438af7b",
+      "coverage": "full",
+      "matched_reference_contigs": 4,
+      "total_reference_contigs": 4,
+      "features": 963,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS689_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 176766,
+        "sha256": "852b58f70954e3a6dadbb53310cc021d21004e176eed99853c1954d59af3fc90"
+      }
+    },
+    "ERR1190597_bin.27": {
+      "reference_sha256": "dc7038460317330d9f8fcec6af60ce78ec3fc4ae385139876976f20325c77c2a",
+      "coverage": "full",
+      "matched_reference_contigs": 116,
+      "total_reference_contigs": 116,
+      "features": 1840,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS919_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 342290,
+        "sha256": "ffb9175d3fd24f42e48a060d7fab4d43ed151efada2f4eca315dc8357b06645f"
+      }
+    },
+    "ERR1190610_bin.12": {
+      "reference_sha256": "d571b54e2fce10453496c2754237d93e68369008885ab92af96bc7c4254df052",
+      "coverage": "full",
+      "matched_reference_contigs": 160,
+      "total_reference_contigs": 160,
+      "features": 2610,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS335_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 476826,
+        "sha256": "6bd67479906067a49e6f8a85dc6caf83b6e0a7ab0d62b7a5379d9765ceb88769"
+      }
+    },
+    "ERR1190619_bin.28": {
+      "reference_sha256": "48a2041d3fd7e6558fcf825290fda3bcbd5d89529e6922b28dbd931e97cc268f",
+      "coverage": "full",
+      "matched_reference_contigs": 52,
+      "total_reference_contigs": 52,
+      "features": 2138,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1233_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 394772,
+        "sha256": "31bc06dc788b7fd8751a99afd02e45bafaf26229ae9be2f060ca404906a5b161"
+      }
+    },
+    "ERR1190619_bin.67": {
+      "reference_sha256": "eea754ee6ef63f43a073942e62009f55e0fda4076908d580abf0dfa50ded2553",
+      "coverage": "full",
+      "matched_reference_contigs": 335,
+      "total_reference_contigs": 335,
+      "features": 2146,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1987_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 410869,
+        "sha256": "ac24ecd77cbf988b260c18baac88343809d3132f6eb30e9ae30c40cdf6f78c1a"
+      }
+    },
+    "ERR1190646_bin.18": {
+      "reference_sha256": "13c236a59de3ecd302c9987e4ddcadbb10fe0edec559f905f003a1c95feb4af0",
+      "coverage": "full",
+      "matched_reference_contigs": 38,
+      "total_reference_contigs": 38,
+      "features": 1936,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS613_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 354497,
+        "sha256": "27e485c85e4cbd7f987cc6c1c9feecc45d2b30b4e73a891227ea188e8765d387"
+      }
+    },
+    "ERR1190649_bin.31": {
+      "reference_sha256": "234f97e91f167af54b42194fc7173de4c07b07bd394bdee2eb55c971169bf719",
+      "coverage": "full",
+      "matched_reference_contigs": 21,
+      "total_reference_contigs": 21,
+      "features": 1811,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS787_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 335004,
+        "sha256": "5bc79acf7515b8eb5adf9ec71d892302f0d729872dec4bc37bdb90adbc2e37f9"
+      }
+    },
+    "ERR1190655_bin.40": {
+      "reference_sha256": "9891b4516288db8a2f5ee65f0487de76980e66636ea8dab0ae17e6dc0cdb4941",
+      "coverage": "full",
+      "matched_reference_contigs": 21,
+      "total_reference_contigs": 21,
+      "features": 1626,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1219_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 303187,
+        "sha256": "1e6cfde0c6dc3f8df841ad50e0820e7dd08c0795bcd3b8518973524ad1f53728"
+      }
+    },
+    "ERR1190657_bin.27": {
+      "reference_sha256": "2042cf094f6f7a461014c20a04d077a4cb386dfac7293a593cee2fe4fee1176b",
+      "coverage": "full",
+      "matched_reference_contigs": 8,
+      "total_reference_contigs": 8,
+      "features": 2016,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1177_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 373972,
+        "sha256": "d11ec4a8af60461ad8d6d2ab65876bab288884da1a6bb612c5578438d52f855b"
+      }
+    },
+    "ERR1190721_bin.6": {
+      "reference_sha256": "a54235568ab8e7ed074462616e7fa4317d024a088a532faba1a0db4d2846fb6f",
+      "coverage": "full",
+      "matched_reference_contigs": 104,
+      "total_reference_contigs": 104,
+      "features": 1607,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS941_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 293397,
+        "sha256": "622335dc185cae2bd30f3753834d9b71d5a640dde5d76707c73c0bc882cbf285"
+      }
+    },
+    "ERR1190731_bin.28": {
+      "reference_sha256": "aa9fba48064dfccf58781d47a1e61eb3973bb878a002ed65d6c00012ca2a26c9",
+      "coverage": "full",
+      "matched_reference_contigs": 525,
+      "total_reference_contigs": 525,
+      "features": 2564,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1675_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 484542,
+        "sha256": "a6f565df968443583e0fbc648b4e18f98f756adcc0e400b4e3261abde8c1bac6"
+      }
+    },
+    "ERR1190792_bin.68": {
+      "reference_sha256": "b1e034676a32109479310b8d9e54c07444da7b5198aacebd153c1e1f31312dee",
+      "coverage": "full",
+      "matched_reference_contigs": 123,
+      "total_reference_contigs": 123,
+      "features": 2141,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS269_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 398369,
+        "sha256": "ec00d4397230ca807c1ed457c20467d9baf3b14d5b48b66e28efdb4dd5d0e460"
+      }
+    },
+    "ERR1190798_bin.50": {
+      "reference_sha256": "91e4ae4ac4fddb35063bf239a67e35f87a2955dcf2b68daceb5bcd2ffc1c7831",
+      "coverage": "full",
+      "matched_reference_contigs": 76,
+      "total_reference_contigs": 76,
+      "features": 1493,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1887_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 277208,
+        "sha256": "8c168d10bdce7eef3a1b10a059b5419bb81fcb3f38a3121e3aa36aa699a1e316"
+      }
+    },
+    "ERR1190823_bin.109": {
+      "reference_sha256": "355a3efc4b5d27ffe881e4f80bc3adcc86c65145c92782cdc21cdb5274ba3acb",
+      "coverage": "full",
+      "matched_reference_contigs": 61,
+      "total_reference_contigs": 61,
+      "features": 1802,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1280_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 325472,
+        "sha256": "6c17369bf1970b3bfdc9b9ed6cd86681059a77ec40651dbe2bd1e4890d1a85a6"
+      }
+    },
+    "ERR1190823_bin.114": {
+      "reference_sha256": "5979e24b1b5908c3b20927cff6b328fdfde13f6b373adb4b7172aac16111a816",
+      "coverage": "full",
+      "matched_reference_contigs": 213,
+      "total_reference_contigs": 213,
+      "features": 1887,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1496_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 346687,
+        "sha256": "93cb97f392eedfbde923dfa96fd2f3a703c2fb4ed4114a22ef98bc62ed218672"
+      }
+    },
+    "ERR1190823_bin.68": {
+      "reference_sha256": "21fae2d86f68141d757bed756371d04764730323c7a5be5d8c4c8edcec91fff3",
+      "coverage": "full",
+      "matched_reference_contigs": 40,
+      "total_reference_contigs": 40,
+      "features": 2242,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS676_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 405837,
+        "sha256": "9b30f125ed7feaf6adca86f249bcedac97431b945f6bd1e8e00790f8a1df97f9"
+      }
+    },
+    "ERR1190833_bin.48": {
+      "reference_sha256": "bd9e6d6edda7588463f25999274c78786bf8a12642539819282898eb7b4055ba",
+      "coverage": "full",
+      "matched_reference_contigs": 107,
+      "total_reference_contigs": 107,
+      "features": 1808,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1300_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 336528,
+        "sha256": "f49494c4b1bb6c55bb12aa2f6ec0dc20d66924325abd9fa61d3d8e99dffdd625"
+      }
+    },
+    "ERR1190842_bin.26": {
+      "reference_sha256": "e265baf0c48ab442fbd7fadf9724584879bb3c5a1dd378c5475715c2f86707ed",
+      "coverage": "full",
+      "matched_reference_contigs": 36,
+      "total_reference_contigs": 36,
+      "features": 1940,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS721_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 357371,
+        "sha256": "8d4fca507582ddd2d5e428490269639594b829dc9d2723b92597e452fe58be5e"
+      }
+    },
+    "ERR1190848_bin.16": {
+      "reference_sha256": "ee266fafb97d34d5cb369523b86905836706908c65af574c1483c903945eb62e",
+      "coverage": "full",
+      "matched_reference_contigs": 20,
+      "total_reference_contigs": 20,
+      "features": 1301,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS2025_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 242448,
+        "sha256": "c79901965b15cdc5a42f2420655a84521b18a0bd484c74887c269867dc6fedc0"
+      }
+    },
+    "ERR1190859_bin.40": {
+      "reference_sha256": "71aff826bba531200b1c0e4241f9974e4656c1feda324777de4a618c5b521f88",
+      "coverage": "full",
+      "matched_reference_contigs": 155,
+      "total_reference_contigs": 155,
+      "features": 2239,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1591_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 419130,
+        "sha256": "7d8f4ac3cf203f17f7e582eaa4711d3c28cb498216b8d8b714c4b7a68e226c8b"
+      }
+    },
+    "ERR1190862_bin.42": {
+      "reference_sha256": "8c53e07919fa514feba19aa784e0bbef97b575c4e70d70df32be95bcba2f68c4",
+      "coverage": "full",
+      "matched_reference_contigs": 27,
+      "total_reference_contigs": 27,
+      "features": 2013,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS397_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 375231,
+        "sha256": "0bf6ef793310624e4f76499a5757112933bcd2fe73a0e7e8963a3ff45c98d2d7"
+      }
+    },
+    "ERR1190866_bin.23": {
+      "reference_sha256": "80b4b4f161e10f11517904a359ddf9d80afdcc9f8b554547953976b4546229c3",
+      "coverage": "full",
+      "matched_reference_contigs": 197,
+      "total_reference_contigs": 197,
+      "features": 1960,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1325_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 366988,
+        "sha256": "76105f92d5b3ca14d6ec73847ec831f330b56b58675cc00a2b9c035c729b2ec8"
+      }
+    },
+    "ERR1190868_bin.34": {
+      "reference_sha256": "99e03827f1e825feb47ecaaf3120ba737d6c6da4d5ccc5f26e3e144e3f2fddc7",
+      "coverage": "full",
+      "matched_reference_contigs": 98,
+      "total_reference_contigs": 98,
+      "features": 1893,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1444_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 352348,
+        "sha256": "4aec912be28beb1a6d04bb0c3922370990eb4b54538a37be60989793e307b1d0"
+      }
+    },
+    "ERR1190896_bin.14": {
+      "reference_sha256": "bcf3bbc7f7f2f7a0c6440a946dd90b07c1432392cc43ce898080f3ac9181086c",
+      "coverage": "full",
+      "matched_reference_contigs": 123,
+      "total_reference_contigs": 123,
+      "features": 2079,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS638_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 391090,
+        "sha256": "6cd04cbb2e6456a528da277670128cfd04b22f1821bd659dc2e32ae134be6582"
+      }
+    },
+    "ERR1190900_bin.3": {
+      "reference_sha256": "87bd0f849dd9f8cd76658792f14ab2ee256203c6ad4b1d746039e4024d711097",
+      "coverage": "full",
+      "matched_reference_contigs": 64,
+      "total_reference_contigs": 64,
+      "features": 1921,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS172_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 360745,
+        "sha256": "84c8c50139a406cc8bec5bcb468c30f37ce161d0c6e8d9302e7052f04dbb4261"
+      }
+    },
+    "ERR1190900_bin.33": {
+      "reference_sha256": "dbbb04be771a017c9328dd08d71b6049b8b51cde44f4e0f417f2b6222ee5b2f8",
+      "coverage": "full",
+      "matched_reference_contigs": 295,
+      "total_reference_contigs": 295,
+      "features": 1925,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS2030_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 366149,
+        "sha256": "33b85d83e22234dac988b188b6788a1a2ca0b54738b350737fc8acefab942f04"
+      }
+    },
+    "ERR1190910_bin.59": {
+      "reference_sha256": "efab4924495b49ebace607b86a4b336d9872c72f6ab21eb45d299c55f02aea38",
+      "coverage": "full",
+      "matched_reference_contigs": 42,
+      "total_reference_contigs": 42,
+      "features": 2135,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS683_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 392972,
+        "sha256": "5e34f8f5913349f23bdc400c1620faf3775ac84acbdbc81e61985201429af113"
+      }
+    },
+    "ERR1190917_bin.32": {
+      "reference_sha256": "8777701b67e256c6468d20ddc4eb8cac0849d72dee5980d2a34ff740b06f4c6b",
+      "coverage": "full",
+      "matched_reference_contigs": 26,
+      "total_reference_contigs": 26,
+      "features": 1630,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS291_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 301253,
+        "sha256": "88f7adeabb84416aa49f77b3d9d4533bd6e48a0d1b12c1a1d43bfff13f00f38f"
+      }
+    },
+    "ERR1190919_bin.16": {
+      "reference_sha256": "84e3cb463c061f076d3038060fee8a2acf193b03b4cc0b919e0ef23feed888ad",
+      "coverage": "full",
+      "matched_reference_contigs": 38,
+      "total_reference_contigs": 38,
+      "features": 1815,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS430_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 334561,
+        "sha256": "46196f531442d072071d9c8488d453653838d4bacba2a658189800eb58dad4a0"
+      }
+    },
+    "ERR1190924_bin.18": {
+      "reference_sha256": "2903b2d46c7095d3681f26fd45320fe73c47c0e9bd3d91fe7bd3425b2a486f77",
+      "coverage": "full",
+      "matched_reference_contigs": 35,
+      "total_reference_contigs": 35,
+      "features": 2319,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS258_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 431779,
+        "sha256": "1c57d2da34528d4f6f095cd589a9ce5ad243d73320556b89c4ef251d5942549d"
+      }
+    },
+    "ERR1190925_bin.70": {
+      "reference_sha256": "e5d8417458356d913933050476ce44ada91c886e7b6cb92bf0b84466e95efc5c",
+      "coverage": "full",
+      "matched_reference_contigs": 50,
+      "total_reference_contigs": 50,
+      "features": 1918,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS642_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 354716,
+        "sha256": "50ae0c80deecd9dcc2722886f163609a80aa3a46437d633ab4f3d1cdbbcdd063"
+      }
+    },
+    "ERR1190927_bin.13": {
+      "reference_sha256": "5f02363c79a448221e0ca426f18efb26bf650804b513c37a8b5c36e69052365f",
+      "coverage": "full",
+      "matched_reference_contigs": 40,
+      "total_reference_contigs": 40,
+      "features": 1846,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS382_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 341483,
+        "sha256": "a69a09b51b8d3dcf6a3aa4549940d444f2ba79c6844e2b4fafd6e42192d4a956"
+      }
+    },
+    "ERR1190934_bin.11": {
+      "reference_sha256": "0d0ab77135ed019d90167687f7d421668e17460385d2bc203af2cc8fb71e2e47",
+      "coverage": "full",
+      "matched_reference_contigs": 228,
+      "total_reference_contigs": 228,
+      "features": 1137,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1842_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 218254,
+        "sha256": "b8a61642256ad84dcfdb1de9fc19d903121ad6af625fa045314a581bf9b1f380"
+      }
+    },
+    "ERR1190934_bin.37": {
+      "reference_sha256": "7c62a64369eaab91b830ad974ff2a92391d30577e5643c95f6709c275eda9253",
+      "coverage": "full",
+      "matched_reference_contigs": 67,
+      "total_reference_contigs": 67,
+      "features": 1229,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1918_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 223080,
+        "sha256": "9b403b3507ca9c43865184131b416d13047b34f9607ea2f38e59cd3905724a47"
+      }
+    },
+    "ERR1190935_bin.75": {
+      "reference_sha256": "494daab763f08a2c4a8be13834138375ea069481fc33f8ed2e189f07bef0813d",
+      "coverage": "full",
+      "matched_reference_contigs": 311,
+      "total_reference_contigs": 311,
+      "features": 2041,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1493_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 377609,
+        "sha256": "43bbcab92b642ad47b613bfe7640ef5b3bb2fad63591109355437a3e81426e1b"
+      }
+    },
+    "ERR1190936_bin.72": {
+      "reference_sha256": "546ca5d0961e76af318a27a608216ce942662f17bf1c2d3aa472825284b53449",
+      "coverage": "full",
+      "matched_reference_contigs": 126,
+      "total_reference_contigs": 126,
+      "features": 1762,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1075_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 328835,
+        "sha256": "c4067e4235e66f907121f19a88ddf3e058e232ffc0b963ea79ea6fa3e1eb115f"
+      }
+    },
+    "ERR1190945_bin.62": {
+      "reference_sha256": "1880349cef41276ae7fe7e2de17b8b98854b956ec1055b0c900674a4bfe9fd70",
+      "coverage": "full",
+      "matched_reference_contigs": 62,
+      "total_reference_contigs": 62,
+      "features": 2441,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS796_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 443186,
+        "sha256": "806a3302eca92dfbd60ab36cf0d531614396674a6171e74b77a5ba7d118f5ddd"
+      }
+    },
+    "ERR1190946_bin.119": {
+      "reference_sha256": "30f049c0df0a3704d7ca39cb55c57ae791ac35a7fe200bb277b23d8c31a451e7",
+      "coverage": "full",
+      "matched_reference_contigs": 207,
+      "total_reference_contigs": 207,
+      "features": 2565,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1164_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 469025,
+        "sha256": "87ffe591acf5d9f53b9222c736715f6be696f366015f3d9907f6bd0a757cd071"
+      }
+    },
+    "ERR1190946_bin.14": {
+      "reference_sha256": "00292547fcdff96733f9c35d9446dd37266b1f0cbe89864d569080f23b0bb82e",
+      "coverage": "full",
+      "matched_reference_contigs": 52,
+      "total_reference_contigs": 52,
+      "features": 2172,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1073_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 391030,
+        "sha256": "0b4acf4923bf5c4eb5683424c742276c6a9f23585c75ab3334eca6f9c144aa21"
+      }
+    },
+    "ERR1190950_bin.1": {
+      "reference_sha256": "7938c0cd1afd46ad950d61e9ee259b93efcbb00363250777ce4f36faa2e08dce",
+      "coverage": "full",
+      "matched_reference_contigs": 40,
+      "total_reference_contigs": 40,
+      "features": 1970,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS292_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 365258,
+        "sha256": "b22c74d6dbdbc0007f17e9bfac582c36c0a5e331a685389c7227fb8c72e7eff5"
+      }
+    },
+    "ERR1190954_bin.62": {
+      "reference_sha256": "920becb01cb21e4bb7390f5c3befaeafe04944e7ba9ae8c89daccf01f746e404",
+      "coverage": "full",
+      "matched_reference_contigs": 85,
+      "total_reference_contigs": 85,
+      "features": 1781,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS582_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 330267,
+        "sha256": "c101573ecdd990d5f83c7a9e54d45f43fce10f71a9edbed7199ca522107426cb"
+      }
+    },
+    "ERR1190956_bin.22": {
+      "reference_sha256": "356a2a9f6f10c4394faaeb089e501f61a5636dce2f238a406eb8ea813bc117f6",
+      "coverage": "full",
+      "matched_reference_contigs": 65,
+      "total_reference_contigs": 65,
+      "features": 2584,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS130_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 479413,
+        "sha256": "1c77eb2003694221ef52378d6f8994f179f0f07e7c433463608912ec14e3b4e0"
+      }
+    },
+    "ERR1190956_bin.7": {
+      "reference_sha256": "964573c1a345fccd0779babd000d5bf876bb227f7dc8c6b1d60d58496a736998",
+      "coverage": "full",
+      "matched_reference_contigs": 51,
+      "total_reference_contigs": 51,
+      "features": 1783,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1516_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 330214,
+        "sha256": "bd72468b98289aafcc6379e15228d47bd4db470cd1944436171d9b8042295d4c"
+      }
+    },
+    "ERR1190963_bin.31": {
+      "reference_sha256": "fa379c6309bbb238ca0ac65025c6fbe0ade029688c8bc710b0b93542fcfab945",
+      "coverage": "full",
+      "matched_reference_contigs": 38,
+      "total_reference_contigs": 38,
+      "features": 1860,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS425_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 341358,
+        "sha256": "3d40b0fc2dccd9755e90ed659aa07feb5d811ea31a8c1033a2837c2b562be7e6"
+      }
+    },
+    "ERR1190965_bin.23": {
+      "reference_sha256": "89d2f86a817466be00a6d5681a73674ad62c79b5a066cf2931d41c260ee22dac",
+      "coverage": "full",
+      "matched_reference_contigs": 76,
+      "total_reference_contigs": 76,
+      "features": 2795,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS873_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 515084,
+        "sha256": "31cd059d7ce19af5970daa5b086e02fd3cf6a67f3b498fba6b65fa23c160e3a0"
+      }
+    },
+    "ERR1190974_bin.22": {
+      "reference_sha256": "39899c214a3975b39bd2ccc21999712c472f3b8ead24ee1e7fbb783580173bdb",
+      "coverage": "full",
+      "matched_reference_contigs": 98,
+      "total_reference_contigs": 98,
+      "features": 1918,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1121_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 360597,
+        "sha256": "64b0a5773f9a1cb393518c97f4767d4c768da9eccb3cfeb44d6a52dbdde61025"
+      }
+    },
+    "ERR1190974_bin.78": {
+      "reference_sha256": "61160979663601eacd52b34ad6c7b1fc3a8f20f1a148532db758b5a932d04031",
+      "coverage": "full",
+      "matched_reference_contigs": 37,
+      "total_reference_contigs": 37,
+      "features": 1968,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS643_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 365043,
+        "sha256": "48575ec2dcd6d2437c2cf91cbcaf39db4f0ea6de87f309aa6eb53046617302f8"
+      }
+    },
+    "ERR1293651_bin.10": {
+      "reference_sha256": "ceaf2ed41d2faf869e5d61f26d104607c9b627f3fb04c886e5f2b478fe57197e",
+      "coverage": "full",
+      "matched_reference_contigs": 31,
+      "total_reference_contigs": 31,
+      "features": 2276,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS101_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 421321,
+        "sha256": "25123eede72d62ac9a54456ec7b33dd4f5531caf48bdab15750bc432b703ebb5"
+      }
+    },
+    "ERR1293653_bin.31": {
+      "reference_sha256": "21b2c6142cb92ef999739561d35c6b6ea48a3029e5166fd325b4cdf6a047b36c",
+      "coverage": "full",
+      "matched_reference_contigs": 56,
+      "total_reference_contigs": 56,
+      "features": 1599,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS149_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 293813,
+        "sha256": "b8e67cc60cdc36124061152c2d738e0da444e186dcaeb53d7fd5be0beea898ba"
+      }
+    },
+    "ERR1293658_bin.10": {
+      "reference_sha256": "d99fde3afa63cb11eab953742d414dd7ad4463ee7ca3871c86345a9430c5cada",
+      "coverage": "full",
+      "matched_reference_contigs": 315,
+      "total_reference_contigs": 315,
+      "features": 1573,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1701_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 300843,
+        "sha256": "6ca29e3f167a0555908b9bea96bca14390bc01e9b2b7b1697fc44f0c61bda3c2"
+      }
+    },
+    "ERR1293686_bin.4": {
+      "reference_sha256": "69ac063914bc949a038dc409a7619b6ea436e9f7b6851d7a322513bee59056ba",
+      "coverage": "full",
+      "matched_reference_contigs": 74,
+      "total_reference_contigs": 74,
+      "features": 1171,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1946_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 210447,
+        "sha256": "d5ba71caed15c20c01d8249eb3afad5dec280a5875a3cdf5faacaeaac9fd71d9"
+      }
+    },
+    "ERR1293707_bin.3": {
+      "reference_sha256": "0e2cc3b9dcccefd66f68d1dc0544fe45cf2a80dfdabaa84b0896ce3fcb090e87",
+      "coverage": "full",
+      "matched_reference_contigs": 42,
+      "total_reference_contigs": 42,
+      "features": 1677,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS505_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 307134,
+        "sha256": "590f3b9303a1999cfc1ab99eda248b5bbffc81799fcc06b3efc1ffa4a2f78ffb"
+      }
+    },
+    "ERR1293740_bin.13": {
+      "reference_sha256": "c479bae319ca8c8c9c9869ab372439552c3a85980cdf8d6cbed138566231060e",
+      "coverage": "full",
+      "matched_reference_contigs": 209,
+      "total_reference_contigs": 209,
+      "features": 1801,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS666_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 337915,
+        "sha256": "40deff506d3579b0b3323617bd9639a3a96cf3cf53e86b5f4eee07fb528703cc"
+      }
+    },
+    "ERR1293745_bin.10": {
+      "reference_sha256": "af1243c88fd86e768216b5d6774d7b9be5fd0043156909f5def785a0a5ffb7e2",
+      "coverage": "full",
+      "matched_reference_contigs": 77,
+      "total_reference_contigs": 77,
+      "features": 716,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1316_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 133311,
+        "sha256": "dbcdc13171defe513acc571070d36e3b1fed153a9b861522bb46bffe90f3b8d7"
+      }
+    },
+    "ERR1293861_bin.21": {
+      "reference_sha256": "c3965fe3a0cbf3618059b102a8551aaccf133939e2f21438bebdc5c31024bc8a",
+      "coverage": "full",
+      "matched_reference_contigs": 56,
+      "total_reference_contigs": 56,
+      "features": 2273,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS216_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 406428,
+        "sha256": "d4abd4947c0e5d0a36b3d0324616a08815fbf19c285a6962c0e86247c52f4127"
+      }
+    },
+    "ERR1293919_bin.19": {
+      "reference_sha256": "ab00c9c58b0609eba3b3bd6aa0dc87fac3464bf43794701f38acf982300e7303",
+      "coverage": "full",
+      "matched_reference_contigs": 20,
+      "total_reference_contigs": 20,
+      "features": 1245,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1453_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 227963,
+        "sha256": "a3b4be39690434cde04a31d7eb0ba0f240865bd91fc9faa2858cf3d6108a42e2"
+      }
+    },
+    "ERR1297644_bin.3": {
+      "reference_sha256": "68815b27c9c1cf20dc9a6f4d2d29ae7055b0b16473c54b72a61fb7a33f00b3c7",
+      "coverage": "full",
+      "matched_reference_contigs": 475,
+      "total_reference_contigs": 475,
+      "features": 1901,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS2067_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 366260,
+        "sha256": "a7f989a25d6993e6260612dcd4ff0ea25b9480aa7e658dd6248579a5fe2d7963"
+      }
+    },
+    "ERR1297707_bin.34": {
+      "reference_sha256": "ba71b9a32df1a95d4e170295da3220a63675709dd02bb1f315d036ce75eaa38a",
+      "coverage": "full",
+      "matched_reference_contigs": 136,
+      "total_reference_contigs": 136,
+      "features": 1872,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS513_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 347974,
+        "sha256": "36a4744556b409affd9b4ca6b27f89b47c0314edf2d30fd193c896c3a2c0a3de"
+      }
+    },
+    "ERR1297720_bin.9": {
+      "reference_sha256": "84c1893baa32ed4ec63c494e2dbe9648198740d18b98a84ba5d1993390fc0aa4",
+      "coverage": "full",
+      "matched_reference_contigs": 91,
+      "total_reference_contigs": 91,
+      "features": 2006,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS383_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 368677,
+        "sha256": "7757862b6f16ff9ac40b292fa6dd44304a12be11196015d514e1a6d9801c9cc8"
+      }
+    },
+    "ERR1297772_bin.30": {
+      "reference_sha256": "c2d1df35fd4fe5e72fa516c7745c3db0302acdc102b8f35aecba7933f3802ac4",
+      "coverage": "full",
+      "matched_reference_contigs": 325,
+      "total_reference_contigs": 325,
+      "features": 1762,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1816_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 335364,
+        "sha256": "c14987ae5a10166a2d7df00bfedc122c4d721fb356a68e029f11b643f368399f"
+      }
+    },
+    "ERR1297803_bin.12": {
+      "reference_sha256": "abe55ad5ad634c25c13820b3f1758410291d8a3ca888385cdb98941754697296",
+      "coverage": "full",
+      "matched_reference_contigs": 188,
+      "total_reference_contigs": 188,
+      "features": 1965,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS745_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 366219,
+        "sha256": "16e359c278af493c4521b98f03257b30857c1dc40db55ad845a8ea08653d7f78"
+      }
+    },
+    "ERR1305880_bin.2": {
+      "reference_sha256": "91fa52bcad16d0b997c533a977d3ab04ff9bcf5bd5116b58c77a82c8f8262a7a",
+      "coverage": "full",
+      "matched_reference_contigs": 286,
+      "total_reference_contigs": 286,
+      "features": 1527,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1742_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 292441,
+        "sha256": "cb6a0f84dda5506148d771121e7c135dc019536a43409d60951b02c3e648e2ff"
+      }
+    },
+    "ERR1305890_bin.5": {
+      "reference_sha256": "c026b1c8b4117dc3ef8f6fc609878266f1f068393f1c2a70c5297ba900ea997d",
+      "coverage": "full",
+      "matched_reference_contigs": 128,
+      "total_reference_contigs": 128,
+      "features": 1607,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1850_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 300562,
+        "sha256": "1ca06ced97efd13f0cc53980fe662100859e988dd3f14416da992b667a86f997"
+      }
+    },
+    "ERR1305892_bin.4": {
+      "reference_sha256": "586039be53dc87c61dba49d35dc76f136940cbc8c707a3436fc72073f66cca15",
+      "coverage": "full",
+      "matched_reference_contigs": 39,
+      "total_reference_contigs": 39,
+      "features": 2048,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS568_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 380735,
+        "sha256": "0b503f4db466eff907348f5170658c253a137b81d82962f69175fc77e54843b6"
+      }
+    },
+    "ERR1305892_bin.69": {
+      "reference_sha256": "d9cd93a1a0df4f343a167d0016a3545938983fe3114344e4e736ee9b7d9f4ee7",
+      "coverage": "full",
+      "matched_reference_contigs": 78,
+      "total_reference_contigs": 78,
+      "features": 1813,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS384_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 336732,
+        "sha256": "cd2c73a38224d63385991554b35c28f40579b482392b4c2c7710541cc3abefc1"
+      }
+    },
+    "ERR1305894_bin.87": {
+      "reference_sha256": "53c06093afafee4bf942966d68c7fa9409ab03ca138f5b9e9954da773e61068f",
+      "coverage": "full",
+      "matched_reference_contigs": 24,
+      "total_reference_contigs": 24,
+      "features": 2811,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS413_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 524177,
+        "sha256": "1b44c3f1eef341733a07c5c183154bf464d80557d603a03aa280a01f711b8408"
+      }
+    },
+    "ERR1305895_bin.68": {
+      "reference_sha256": "43659cf29ef26862e5a672d7faa8dd0927c0872948e7b228d184cc6772aada33",
+      "coverage": "full",
+      "matched_reference_contigs": 41,
+      "total_reference_contigs": 41,
+      "features": 1341,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS636_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 250232,
+        "sha256": "80adbba13ba159157b35c51e65d399079a0bbd3a20819b823a8cf8dd59d78d9b"
+      }
+    },
+    "ERR1305897_bin.45": {
+      "reference_sha256": "6d5492e4b9a431de7c80004ea38c5e5c9c3102980c658c31bfb40790b9a2f851",
+      "coverage": "full",
+      "matched_reference_contigs": 65,
+      "total_reference_contigs": 65,
+      "features": 1680,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1495_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 311525,
+        "sha256": "a3240e8364cabdae53a60e7857ef4e6f10a21b5804213acd8d510183a4f3c3f6"
+      }
+    },
+    "ERR1305897_bin.5": {
+      "reference_sha256": "20634be1a3b5dbee2d32370a7918729a24c7a93fe86c0752ce63fa0baea66b07",
+      "coverage": "full",
+      "matched_reference_contigs": 251,
+      "total_reference_contigs": 251,
+      "features": 1749,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1810_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 332244,
+        "sha256": "12aa2700e6706dc2b08b8b07e57d1a2a0d600717590e393eb6a38ffb8149ef2a"
+      }
+    },
+    "ERR1305899_bin.47": {
+      "reference_sha256": "95b31563632006058e22ae5a1c0765902aa8405876b1d039a9bbb3cf785352ff",
+      "coverage": "full",
+      "matched_reference_contigs": 75,
+      "total_reference_contigs": 75,
+      "features": 1167,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1682_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 217881,
+        "sha256": "6bc75bf877872a8b03861d67bec3a89ae5ba1bceb9b01bf0c5d31015a329061c"
+      }
+    },
+    "ERR1305900_bin.37": {
+      "reference_sha256": "c88353bb0876dedeafb9b672f63c62b48832222537fc8be2d4e3dc7b8ff414b8",
+      "coverage": "full",
+      "matched_reference_contigs": 101,
+      "total_reference_contigs": 101,
+      "features": 2181,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1350_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 404908,
+        "sha256": "47e231a1f9ab1ec4d4a472da0d6eb5f0116be8d79c275e77f5489f3eb6c8cc8b"
+      }
+    },
+    "ERR1305900_bin.91": {
+      "reference_sha256": "c8226009e390faa49db20b4c0666788a31353d4c5b8e38340678c6198fba0375",
+      "coverage": "full",
+      "matched_reference_contigs": 240,
+      "total_reference_contigs": 240,
+      "features": 1440,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1307_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 275129,
+        "sha256": "85fecc7a81bffc83f257becceb81e68e171f5722b38e130f0d77211b32c2fc64"
+      }
+    },
+    "ERR1305900_bin.95": {
+      "reference_sha256": "89f9ceba66c38230ea080f6f7245c74242e686fa542d06a5d7f1db3c1d747b6d",
+      "coverage": "full",
+      "matched_reference_contigs": 15,
+      "total_reference_contigs": 15,
+      "features": 1323,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1685_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 246623,
+        "sha256": "f88d32fc6e144eb45f181a5e23b0628533a74166b5646102046676519ad91b90"
+      }
+    },
+    "ERR1305901_bin.110": {
+      "reference_sha256": "65cfed3cc667fe2d932791c3486c3bad82fd3208c55eb1600124eb83b75148ee",
+      "coverage": "full",
+      "matched_reference_contigs": 38,
+      "total_reference_contigs": 38,
+      "features": 1831,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS293_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 339549,
+        "sha256": "544f5c7047dfd76a7dc4ba8235fa1e912893b80935556f3b562dccd260ad76f9"
+      }
+    },
+    "ERR1305901_bin.67": {
+      "reference_sha256": "f5c736a2e78773c502dd6b504af5b5910874d1e513351c984c620bf10da9365b",
+      "coverage": "full",
+      "matched_reference_contigs": 46,
+      "total_reference_contigs": 46,
+      "features": 1502,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1241_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 281976,
+        "sha256": "0229e55fb5534a2aec43c98f4f6e7d2aa2ca71882faa8ab4ba2836bedf6dd774"
+      }
+    },
+    "ERR1305901_bin.89": {
+      "reference_sha256": "f3b6b7b475a22b2dc3b429a06144e7255f47dcecc45e3d78ee75912706ede1f3",
+      "coverage": "full",
+      "matched_reference_contigs": 110,
+      "total_reference_contigs": 110,
+      "features": 1930,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS902_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 359556,
+        "sha256": "86f78e94d1f4f6f11763b4a66be794dece357fad20491d1416f9f595ab130204"
+      }
+    },
+    "ERR1578622_bin.15": {
+      "reference_sha256": "de958ebe3ceb1ec018a5f75b3acd53fd84a474733afb2d479fd571ad01d93970",
+      "coverage": "full",
+      "matched_reference_contigs": 69,
+      "total_reference_contigs": 69,
+      "features": 1701,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1673_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 315289,
+        "sha256": "7664a645157eaa97f78945e91445e5ccaa94f246bb5ce89c6b4cd6fea55954b5"
+      }
+    },
+    "ERR1578631_bin.33": {
+      "reference_sha256": "e0c52ed21d6fa8dd406de12f8ca2b50d389deed154f5125688c6e59238c00fb9",
+      "coverage": "full",
+      "matched_reference_contigs": 14,
+      "total_reference_contigs": 14,
+      "features": 753,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1835_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 136681,
+        "sha256": "7404650488817224145524af38c8204169133727d82cbf274c77089eb770090e"
+      }
+    },
+    "ERR1578633_bin.68": {
+      "reference_sha256": "4e0745accbd53ee9d5875473abd7a722998373ff2483efb2b55a9685ff29b007",
+      "coverage": "full",
+      "matched_reference_contigs": 15,
+      "total_reference_contigs": 15,
+      "features": 1927,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1473_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 347965,
+        "sha256": "3bb777d1311db200e7401592ea6859704c98a6e59d063214fc191f031f26b034"
+      }
+    },
+    "ERR1578650_bin.24": {
+      "reference_sha256": "286e2aa59778f8a8d1d7d3ff52645b4bfe8e91fda713745e09dcd2bbdf1c0883",
+      "coverage": "full",
+      "matched_reference_contigs": 62,
+      "total_reference_contigs": 62,
+      "features": 1371,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1432_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 254157,
+        "sha256": "b7efd6ad22663e99f797b348fccf34a853561ecf84df5fd8c92c759c29860032"
+      }
+    },
+    "ERR1578661_bin.80": {
+      "reference_sha256": "bdd6de202194af91b8288b2942c95cf90e054d45c21d03ee39466600cd987e14",
+      "coverage": "full",
+      "matched_reference_contigs": 299,
+      "total_reference_contigs": 299,
+      "features": 2230,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1249_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 420749,
+        "sha256": "1f3550b11c68175099c32016c5044b661456f63a96d7e1f0d289d49ce1f82608"
+      }
+    },
+    "ERR1578662_bin.36": {
+      "reference_sha256": "ce84722fce7178186edeaf46d5a2e2e2b8da13500d8524aaa58275cfc87de95e",
+      "coverage": "full",
+      "matched_reference_contigs": 46,
+      "total_reference_contigs": 46,
+      "features": 2775,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS34_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 505083,
+        "sha256": "2553b7d56eaa5566f160897495ba0d491435ead790784ffbef4a184f0da027c3"
+      }
+    },
+    "ERR1578682_bin.34": {
+      "reference_sha256": "80cc9d48fa120e8e86d85bf0673ae1793eac462750f9895e42bcfd4d49718264",
+      "coverage": "full",
+      "matched_reference_contigs": 231,
+      "total_reference_contigs": 231,
+      "features": 1792,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1653_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 338311,
+        "sha256": "a278f4daa81246cbc320237eef486ab96402d96626dc41412ffd84efb011d805"
+      }
+    },
+    "ERR1620269_bin.42": {
+      "reference_sha256": "ff1b1c49d061572fba85a168c0e39e8bc9059c4aa5c13d3ca3a98226828b4b1c",
+      "coverage": "full",
+      "matched_reference_contigs": 117,
+      "total_reference_contigs": 117,
+      "features": 2065,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1944_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 382828,
+        "sha256": "26f9a6876964995153196e938b1421c9c12eb7336b0c896782d81e2f1a44cdfd"
+      }
+    },
+    "ERR1620280_bin.21": {
+      "reference_sha256": "25983378eb6d283c066a5ce363b42337bbb9f6ed05fc310776803c8b5f5c1ef1",
+      "coverage": "full",
+      "matched_reference_contigs": 43,
+      "total_reference_contigs": 43,
+      "features": 1492,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS896_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 276516,
+        "sha256": "897d4ed547e6b74dfa53ed6f5b47020167d7ebf697a4801195b698810b477850"
+      }
+    },
+    "ERR1620285_bin.6": {
+      "reference_sha256": "2d89181a9986d42d7f196c7fe572cc595362cfbbf06d988d3453e5c6d6fb04fe",
+      "coverage": "full",
+      "matched_reference_contigs": 21,
+      "total_reference_contigs": 21,
+      "features": 2104,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS757_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 387882,
+        "sha256": "fe2822fc1c426fcf74bda6da0fb1714b9d485edea688648ac262cd849f79647d"
+      }
+    },
+    "ERR1620298_bin.4": {
+      "reference_sha256": "272f60cea6db3e8d5b4cedc6725b84d9d0ea5882c798bfc504eec7d503dafa70",
+      "coverage": "full",
+      "matched_reference_contigs": 53,
+      "total_reference_contigs": 53,
+      "features": 3741,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1389_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 696382,
+        "sha256": "a5649f638aa7456c115d29c5743e80f161b000354dae6062ecc48aa462e3c985"
+      }
+    },
+    "ERR1620299_bin.21": {
+      "reference_sha256": "11b03300d7ca49894269c2063f2bae21162053cdacf2754826e281c925490db7",
+      "coverage": "full",
+      "matched_reference_contigs": 73,
+      "total_reference_contigs": 73,
+      "features": 2247,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1087_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 415240,
+        "sha256": "2a49776c8d5a621d9931c9d6e2c0023bfe23d2b0136a7170851409e5dacdd227"
+      }
+    },
+    "ERR1620299_bin.26": {
+      "reference_sha256": "2c422683c999baa2501abdb9636253a004d8e14c4b535ff13bf39b9041bfcfc1",
+      "coverage": "full",
+      "matched_reference_contigs": 82,
+      "total_reference_contigs": 82,
+      "features": 2002,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS906_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 373763,
+        "sha256": "990c1e24bf61f4b21678512c5bf9c131f4754d033c740e3d0c516599d27cf195"
+      }
+    },
+    "ERR1620299_bin.50": {
+      "reference_sha256": "d4caf4984874d5e7970f52e112ff2de2141f0ab1e7af9fab0079f6ccfcc4f69a",
+      "coverage": "full",
+      "matched_reference_contigs": 67,
+      "total_reference_contigs": 67,
+      "features": 2628,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS416_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 484609,
+        "sha256": "8351443eb5f4bfe990160d91f879bf861a0fe7946106165a5441b3c315a921d8"
+      }
+    },
+    "ERR1620311_bin.17": {
+      "reference_sha256": "5b67c9e54f9bdcb302fe9b9af8ec4d1623750e70efff6017ecc0651686f8e7ac",
+      "coverage": "full",
+      "matched_reference_contigs": 23,
+      "total_reference_contigs": 23,
+      "features": 2196,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1534_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 393267,
+        "sha256": "54a6ed980d2519ba678ef04f880ad9b5eb8bc7301fb2acac5e6ee39f3a716e20"
+      }
+    },
+    "ERR1620319_bin.10": {
+      "reference_sha256": "d9db7d3c9816a0829154c57d3cad41233bd2ade9283961be969cd8ce95f74695",
+      "coverage": "full",
+      "matched_reference_contigs": 67,
+      "total_reference_contigs": 67,
+      "features": 1432,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS661_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 264649,
+        "sha256": "397a156427fa55c60b8dbd0c91ebd769d495c5c2540df7cc8439b4ae8da5a891"
+      }
+    },
+    "ERR1620321_bin.8": {
+      "reference_sha256": "3b2943190ff9bd08eb03677056d15f265d0181f1ee74ed1402edbb334a05c2a8",
+      "coverage": "full",
+      "matched_reference_contigs": 47,
+      "total_reference_contigs": 47,
+      "features": 1737,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS6_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 323002,
+        "sha256": "6480edbe93fbca8d33b3123b2b7d93e165aed1a627d6761bcf2029757910f4bf"
+      }
+    },
+    "ERR1620322_bin.67": {
+      "reference_sha256": "14b5f781babc9a6461b191b9f63bbaf849194d1157f445f85bae690abe06d281",
+      "coverage": "full",
+      "matched_reference_contigs": 118,
+      "total_reference_contigs": 118,
+      "features": 1892,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS753_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 351971,
+        "sha256": "bdf9182a822d7e552afbd5169eb95cb33a67da58f9a23888a9863323eba6b3ea"
+      }
+    },
+    "ERR1620325_bin.91": {
+      "reference_sha256": "f1f11ba0695767f98b6cb9095a29ccb4f51d9c9c60267d961450547bee6ccf04",
+      "coverage": "full",
+      "matched_reference_contigs": 277,
+      "total_reference_contigs": 277,
+      "features": 1809,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1755_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 344224,
+        "sha256": "c841e0229a2d5c5f19032875a1ffefaea30c35438535ba5741fb5b20329dc172"
+      }
+    },
+    "ERR1620330_bin.61": {
+      "reference_sha256": "9e47fc8649d397617ee6dfcb65753ba2e8f1edeb45d3bb5eca9b8bfdf87ec722",
+      "coverage": "full",
+      "matched_reference_contigs": 31,
+      "total_reference_contigs": 31,
+      "features": 1417,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1985_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 264177,
+        "sha256": "7d4f6ec04d8dde27e7a13492ab8ea35397a5fc200d5a2bd5501abf8b1d1657ed"
+      }
+    },
+    "ERR1620353_bin.43": {
+      "reference_sha256": "fb773a7cc836180db1f5f800a77fa162bacf08896292faef79f6f4d2a5075edb",
+      "coverage": "full",
+      "matched_reference_contigs": 203,
+      "total_reference_contigs": 203,
+      "features": 1680,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1235_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 316009,
+        "sha256": "0a214d924885a0160b9d5a545971a1fb56fdab2c3e6ce6e107a5271d926d2a0b"
+      }
+    },
+    "ERR1620358_bin.5": {
+      "reference_sha256": "8a882cc53b8c003569e88dcf0e0ec22c1bea7482d31266891c55101598efad80",
+      "coverage": "full",
+      "matched_reference_contigs": 34,
+      "total_reference_contigs": 34,
+      "features": 1715,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS733_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 315356,
+        "sha256": "de6348c10e52104c872c383266fe784a1135af05ad5a3ec0efb17be1cf2834e0"
+      }
+    },
+    "ERR1912949_bin.4": {
+      "reference_sha256": "7c7c93e5a9d3270123d6cc33b973edf24d3d078858eeffd32f101fae3642099d",
+      "coverage": "full",
+      "matched_reference_contigs": 41,
+      "total_reference_contigs": 41,
+      "features": 1170,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1306_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 216920,
+        "sha256": "2839b9b0a037dc03255f999bc35540b77e51c25c5b39672bdcb33e6340d5ed09"
+      }
+    },
+    "ERR1912960_bin.3": {
+      "reference_sha256": "f31340ef8ef1fff8499b9d8e6ba0d6db5f197b2ee373ad0c4eb3da279fc16331",
+      "coverage": "full",
+      "matched_reference_contigs": 59,
+      "total_reference_contigs": 59,
+      "features": 1726,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS132_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 316950,
+        "sha256": "7f7bc73ee3f9a1e5794770776ea4cfba690a79ed4d8da4b04b3af1c237f078db"
+      }
+    },
+    "ERR1912967_bin.19": {
+      "reference_sha256": "d95818ecd35ac4243a504c468079b67b26f8979f881852654c5a8a9c387c85af",
+      "coverage": "full",
+      "matched_reference_contigs": 109,
+      "total_reference_contigs": 109,
+      "features": 1523,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS75_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 283529,
+        "sha256": "25d334af85acb4aeb7154497a4dbe838d6f46b9c10558dfc414219028a9fbfef"
+      }
+    },
+    "ERR1912987_bin.39": {
+      "reference_sha256": "ac9a97be00fb7395bde8afa9c8b8d05099340650bca09339d959f011b4f0e022",
+      "coverage": "full",
+      "matched_reference_contigs": 114,
+      "total_reference_contigs": 114,
+      "features": 1690,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS577_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 314695,
+        "sha256": "ba470dcaa05bc5850a02a4ccd23fd96f05a11a9307d286c7df26a4daa713c6e9"
+      }
+    },
+    "ERR1912990_bin.39": {
+      "reference_sha256": "a610322432aabdb9f2ee9d10f98e1e2f3588a6fecc74f36663b0407804677a10",
+      "coverage": "full",
+      "matched_reference_contigs": 367,
+      "total_reference_contigs": 367,
+      "features": 1679,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS2021_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 323349,
+        "sha256": "3f7c9b311c098c15e6d2b81971768a15e75beed60f9da970f8b67969ab784b6b"
+      }
+    },
+    "ERR1912992_bin.32": {
+      "reference_sha256": "80be105a023920746c52be2887b33a630872228198618818c25dee551432a8b7",
+      "coverage": "full",
+      "matched_reference_contigs": 310,
+      "total_reference_contigs": 310,
+      "features": 1741,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1532_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 332075,
+        "sha256": "2721523e7bc0866b2eec102e527e5cc393c1b84fe5100b7d9da03f7222ed3f61"
+      }
+    },
+    "ERR1913008_bin.26": {
+      "reference_sha256": "ab3162746f5faeadd4af1636ea0f67b13818cedda97a91b6cc80d631cccec8ba",
+      "coverage": "full",
+      "matched_reference_contigs": 211,
+      "total_reference_contigs": 211,
+      "features": 1963,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1165_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 368261,
+        "sha256": "6c4734acb48d9404a19435f7128ed92a79b3f88383f40df8a8c5b14b1c6225da"
+      }
+    },
+    "ERR1913011_bin.11": {
+      "reference_sha256": "0900acf96c99f6e0a05f65759ab0454b57b9b432a97bd1ef24628c7468dde651",
+      "coverage": "full",
+      "matched_reference_contigs": 45,
+      "total_reference_contigs": 45,
+      "features": 2139,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS403_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 393603,
+        "sha256": "650809bdb07ddb900181ea5eed961798467b3e5b61d944b02f4bbe7a9858b8ee"
+      }
+    },
+    "ERR1913015_bin.15": {
+      "reference_sha256": "16da605479782496df1744d03a2a13f70bf76a2b40c3fc4b984eb4555e4429ca",
+      "coverage": "full",
+      "matched_reference_contigs": 144,
+      "total_reference_contigs": 144,
+      "features": 2636,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS893_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 487208,
+        "sha256": "37db659330accbfc5ed6eaafb314f707546dd6de736e929ce4c053f1bbd22528"
+      }
+    },
+    "ERR1913059_bin.17": {
+      "reference_sha256": "aa14f6ffdb4330f482a7d8e2a6bc2e908c3801f34a3c64c36699c4803ad67c72",
+      "coverage": "full",
+      "matched_reference_contigs": 45,
+      "total_reference_contigs": 45,
+      "features": 1818,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS251_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 334926,
+        "sha256": "eefbf2d5b4a329dc57748ac0136d086a48f970652facd2f50313b2d1891385f5"
+      }
+    },
+    "ERR1913063_bin.9": {
+      "reference_sha256": "6620b9c6b8bd47a127848a074b5e6aef5435f0d842a6e46963c70c1a9437a4a0",
+      "coverage": "full",
+      "matched_reference_contigs": 328,
+      "total_reference_contigs": 328,
+      "features": 1454,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1913_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 280837,
+        "sha256": "ab22c427f2634f433d0913d26c718df52bdda941141982e2ccfe20a21f0ef9e5"
+      }
+    },
+    "ERR1913087_bin.26": {
+      "reference_sha256": "b74cd07fd2df1212171f1646867cb8661c57ea0ed8d73680ee45ea977ac43c39",
+      "coverage": "full",
+      "matched_reference_contigs": 242,
+      "total_reference_contigs": 242,
+      "features": 1836,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1139_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 345755,
+        "sha256": "e6ad6b7a75ba0e0f4a9a5cd7b6e2a5253a7a9b94ae9806bfd452e2f513d5e51a"
+      }
+    },
+    "ERR1913115_bin.35": {
+      "reference_sha256": "1a4f54df5a5d644b4b226c5c087eedd01d8090752ac77f9797fe92f9a3d4498f",
+      "coverage": "full",
+      "matched_reference_contigs": 17,
+      "total_reference_contigs": 17,
+      "features": 1168,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1775_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 216781,
+        "sha256": "2c869a91b43ecb1c11251e0b224b78cf257c0603b5cf403781b8542aea151d7c"
+      }
+    },
+    "ERR1913124_bin.12": {
+      "reference_sha256": "d68942a38bd81f465fa19d43b1435ebac60c7d657b97e3af89738e8fa3e367d6",
+      "coverage": "full",
+      "matched_reference_contigs": 290,
+      "total_reference_contigs": 290,
+      "features": 1551,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1763_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 295963,
+        "sha256": "32cb2962836afd8bea4ad5c4d922a5553127abc931549384d769aef96dd69d67"
+      }
+    },
+    "ERR1953518_bin.80": {
+      "reference_sha256": "ad47dc5b536a502e7736c7d3f69b270dd55718e900990703a42cf06dced19c76",
+      "coverage": "full",
+      "matched_reference_contigs": 33,
+      "total_reference_contigs": 33,
+      "features": 1560,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS26_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 289587,
+        "sha256": "f4abc3631c2230db6b3c55bc52cbe50c9d1e830d5519c0e75201389daeeffa2e"
+      }
+    },
+    "ERR1953519_bin.47": {
+      "reference_sha256": "deae2f848c96e08e8a6b11b0139c4dcdd6c45f5152761d347e164972b34b00ed",
+      "coverage": "full",
+      "matched_reference_contigs": 24,
+      "total_reference_contigs": 24,
+      "features": 1387,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1476_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 259458,
+        "sha256": "e29bda144a3a5b9d16cca67bfde6f3fb97dd3595e762947b82e79c544f14b020"
+      }
+    },
+    "ERR1953523_bin.134": {
+      "reference_sha256": "640e236e44e5c605520a63f1c15bea0e260b5ab6601120834e26c5ef1d1032d8",
+      "coverage": "full",
+      "matched_reference_contigs": 17,
+      "total_reference_contigs": 17,
+      "features": 981,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1530_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 183679,
+        "sha256": "e4c57cf9c119e056dc6fa617d28118f1526a63b0a3d2bdc0d109fc5b40454da7"
+      }
+    },
+    "ERR2013560_bin.16": {
+      "reference_sha256": "ecea452d74c2c83c8d821c72ed5a67beaf56a52d048917986e7f8674a08cd35c",
+      "coverage": "full",
+      "matched_reference_contigs": 233,
+      "total_reference_contigs": 233,
+      "features": 1546,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1667_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 293124,
+        "sha256": "bbafad5cbf4ee319b65b826f5c2d1572ac20ddbc4cd61170018d849806c01063"
+      }
+    },
+    "ERR2013583_bin.9": {
+      "reference_sha256": "beac89b71194b3e61c7563bd9eaae6a67ae9b68c94191ca30e46fb34b4ec2654",
+      "coverage": "full",
+      "matched_reference_contigs": 21,
+      "total_reference_contigs": 21,
+      "features": 1477,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1672_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 275260,
+        "sha256": "68735cfc13e764b45ea307d2f5360b27073b87cb38a77188ddbcfb28da59c621"
+      }
+    },
+    "ERR2013604_bin.4": {
+      "reference_sha256": "77c61c1b4b1c1d8e67d58dde64f58c5f91867b9bd295a9a954e9f25035357d12",
+      "coverage": "full",
+      "matched_reference_contigs": 231,
+      "total_reference_contigs": 231,
+      "features": 1545,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1380_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 292749,
+        "sha256": "563e6970a571bf90dd1987ab11baaeef3bec34e9508cff4cc0ff58c22ecb6631"
+      }
+    },
+    "ERR2013621_bin.20": {
+      "reference_sha256": "ebb0085df177b4b69f823d9bde18a9749b0b8610145393f4df14fb2d33e9a19f",
+      "coverage": "full",
+      "matched_reference_contigs": 54,
+      "total_reference_contigs": 54,
+      "features": 1640,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1576_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 302376,
+        "sha256": "6aeddeea80a060f7e383929b178e90bdf346776d21b0907df3016d7c0b957243"
+      }
+    },
+    "ERR2013623_bin.16": {
+      "reference_sha256": "54fc5df417cadea7823a1c2bccd79d55b2aeb78cf03ec3c801c1dce3b632d8ac",
+      "coverage": "full",
+      "matched_reference_contigs": 100,
+      "total_reference_contigs": 100,
+      "features": 2920,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS826_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 539934,
+        "sha256": "6664fb2515a9456f79589a24c97eab543c6bdeb9533e306029e4b675b76c76d0"
+      }
+    },
+    "ERR209456_bin.66": {
+      "reference_sha256": "1e63e230993be85f3d280d9574ce23bbf0ea45a8b1c6f362e678d5ef2fb84caa",
+      "coverage": "full",
+      "matched_reference_contigs": 18,
+      "total_reference_contigs": 18,
+      "features": 1161,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS236_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 214509,
+        "sha256": "51ae57309286a14b2e7a32f729a9a6e6497d191ddb0fd7d31f91e3bd21a96eaf"
+      }
+    },
+    "ERR209556_bin.16": {
+      "reference_sha256": "42b27ae5a6aa893eea7a91d86ba85bdd6f34feee23366114451d513b44b3cf42",
+      "coverage": "full",
+      "matched_reference_contigs": 45,
+      "total_reference_contigs": 45,
+      "features": 1914,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS133_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 352726,
+        "sha256": "17b36584c9ee1e9c2d6e99d391b7b3f0bb9a1e91a7e5cd96d43ea9cfd949f21a"
+      }
+    },
+    "ERR209697_bin.20": {
+      "reference_sha256": "bf8e99a0a9aaf6d28c42800d89dfcbc5c5c42826c01052863d8a929f4147b878",
+      "coverage": "full",
+      "matched_reference_contigs": 213,
+      "total_reference_contigs": 213,
+      "features": 2043,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1197_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 382589,
+        "sha256": "f069e84a869a3c61c70253559d78b6523c72d65dfa5cb30652c076624dc416d1"
+      }
+    },
+    "ERR209882_bin.3": {
+      "reference_sha256": "f63c8ab3c192250c1623c420dd54f2eec9b0afb6d8d4bb80bdb0ba7a082da66f",
+      "coverage": "full",
+      "matched_reference_contigs": 285,
+      "total_reference_contigs": 285,
+      "features": 1504,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS2052_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 287545,
+        "sha256": "d9fd899535c17e50883ac0971bd39e78e7533b3f025f9c8cf19101b78fb205b5"
+      }
+    },
+    "ERR209883_bin.22": {
+      "reference_sha256": "5c5b76bf36e98794285d98984b953e0986485f70c04a68c5d1a828b4508dc909",
+      "coverage": "full",
+      "matched_reference_contigs": 27,
+      "total_reference_contigs": 27,
+      "features": 1881,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS38_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 344409,
+        "sha256": "61f0719e4ab80042be3bfec5d64cfa85df2c08514757b3e75e440e521fa641f9"
+      }
+    },
+    "ERR321291_bin.3": {
+      "reference_sha256": "d8ec4eec541707003d1bc63311e057485a036b9397053c1002d3e4801eadf77b",
+      "coverage": "full",
+      "matched_reference_contigs": 80,
+      "total_reference_contigs": 80,
+      "features": 1407,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1042_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 254273,
+        "sha256": "8131436e424540845e197af6ae1253e674f1cfee76256a5fa2cc8a8ce2338943"
+      }
+    },
+    "ERR321350_bin.5": {
+      "reference_sha256": "fefe863d4d256765200dc19bcd4e13bb19031d1cb09c84892b3312f0e9bf09d4",
+      "coverage": "full",
+      "matched_reference_contigs": 332,
+      "total_reference_contigs": 332,
+      "features": 2796,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1162_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 499487,
+        "sha256": "16a3c4a01d047c054a7218c93bf740c82677ce370001c0520e492950efc64ad5"
+      }
+    },
+    "ERR414278_bin.13": {
+      "reference_sha256": "ed67094d94ab7e9ee66f5ed5196867b83b7fca0b8519deed52e3a8b0e51b2264",
+      "coverage": "full",
+      "matched_reference_contigs": 149,
+      "total_reference_contigs": 149,
+      "features": 739,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1812_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 141203,
+        "sha256": "285d4046d75f91cc8ef69b20b8c1ec29d35aa1f6d2244f2321fb4d914d70a558"
+      }
+    },
+    "ERR414306_bin.25": {
+      "reference_sha256": "af78a839b4045e11a9fd857d05f4e14c82c3c45e3dc60581001c1b3120968ef8",
+      "coverage": "full",
+      "matched_reference_contigs": 64,
+      "total_reference_contigs": 64,
+      "features": 959,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1959_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 180329,
+        "sha256": "1e4a2c7957a7ce3a949022580ca321889864fc0ea3ac771a64ff665a7aa9c4b3"
+      }
+    },
+    "ERR414315_bin.43": {
+      "reference_sha256": "59e498b506a156e000cd9406415c34ea8ce733fc53f0ae3203db7dfdc1fc5c38",
+      "coverage": "full",
+      "matched_reference_contigs": 391,
+      "total_reference_contigs": 391,
+      "features": 2061,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1984_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 394437,
+        "sha256": "2d4ddf0797f19e03b7a0c08b88f834744e8b898c418224f6db8a71c7a3250321"
+      }
+    },
+    "ERR414334_bin.22": {
+      "reference_sha256": "10ee3f4094ea4d7f3ed680dad0be9dec00e36e9162b5805971b759065fc1c25c",
+      "coverage": "full",
+      "matched_reference_contigs": 202,
+      "total_reference_contigs": 202,
+      "features": 1509,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1598_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 277990,
+        "sha256": "1ba5b0a0a560089876c357a28207a0c71cbb508c3ca404a124be013ae4038656"
+      }
+    },
+    "ERR414337_bin.15": {
+      "reference_sha256": "a32cd24eda2343ff67f726752d8dbebf65d6419494d1914c168fa981ccc8f952",
+      "coverage": "full",
+      "matched_reference_contigs": 30,
+      "total_reference_contigs": 30,
+      "features": 2008,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS134_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 371697,
+        "sha256": "9658d6a6eab27f1b066f2bcf3d5af1b7ee26bf2b2eda8e7c9b04082c9dfda802"
+      }
+    },
+    "ERR414337_bin.26": {
+      "reference_sha256": "4889299656b14b5c00dd177ac790cc325e604c12954c1f228d1d33ddfa029f63",
+      "coverage": "full",
+      "matched_reference_contigs": 76,
+      "total_reference_contigs": 76,
+      "features": 1634,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS453_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 302178,
+        "sha256": "4e8d46a3846610a9ce8b7fa6c6414cba0602a00822880c3c4d7cc5ee52f27170"
+      }
+    },
+    "ERR414356_bin.21": {
+      "reference_sha256": "41ee4c29aa1514a52bce97fc3f1bfabaec8be3c75fa026d52513ab1ffadc3adb",
+      "coverage": "full",
+      "matched_reference_contigs": 122,
+      "total_reference_contigs": 122,
+      "features": 2656,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1622_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 492591,
+        "sha256": "f3f35715a5d12451fe3cc6dc3582cdef9d6b8daaf29a3836364de886b137b808"
+      }
+    },
+    "ERR414364_bin.11": {
+      "reference_sha256": "981082eadc0687c9bc5109a2f93adf1198e08221e0005482e025863fa5e4f476",
+      "coverage": "full",
+      "matched_reference_contigs": 249,
+      "total_reference_contigs": 249,
+      "features": 1719,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1465_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 325549,
+        "sha256": "6dc9f7a09ef953bb9e8348a9570c7516b8a6f9776efbe630601897317fe4b036"
+      }
+    },
+    "ERR414422_bin.21": {
+      "reference_sha256": "ec7cbc628c41c39e92c19ab1255caa2702129a74c84eb6acf89ca032bf397143",
+      "coverage": "full",
+      "matched_reference_contigs": 231,
+      "total_reference_contigs": 231,
+      "features": 1746,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS562_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 324666,
+        "sha256": "461187ecf52e33a85b80324d538de8652469ab82ff537b2b9df5998293f79ffb"
+      }
+    },
+    "ERR414504_bin.10": {
+      "reference_sha256": "8c67a4b2f495fb6ac0d19b93150c1d587874c153545ff4dd3ca1c2810507448c",
+      "coverage": "full",
+      "matched_reference_contigs": 87,
+      "total_reference_contigs": 87,
+      "features": 2312,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS894_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 426639,
+        "sha256": "266ed7efa253b756a0de7bbb7c9d466cefd41d5bcdbf0824979976137fa841b9"
+      }
+    },
+    "ERR505084_bin.22": {
+      "reference_sha256": "be3e0560ae698066c2fd9abc13c5fa3fe368deeeff3a238ad8e642f0ec486cf4",
+      "coverage": "full",
+      "matched_reference_contigs": 218,
+      "total_reference_contigs": 218,
+      "features": 1279,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1880_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 243953,
+        "sha256": "ef5e774e3901312b41415b086223cea9b305c4967914f4563bfc1e82087aa9d2"
+      }
+    },
+    "ERR505084_bin.34": {
+      "reference_sha256": "773312bf43a86622051ae36789546f46289cf4501a04e8bbefda66bf26e68704",
+      "coverage": "full",
+      "matched_reference_contigs": 17,
+      "total_reference_contigs": 17,
+      "features": 1109,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1491_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 207569,
+        "sha256": "efe8b0a0554861d8bfad70b0fb71e7ed9b3cae60e6ab910c6ad2c06daee1d8be"
+      }
+    },
+    "ERR505084_bin.81": {
+      "reference_sha256": "b77969fb34271ebbc940619f76ecb892dd0dd5dbb5b216d2f07a3fcb80816346",
+      "coverage": "full",
+      "matched_reference_contigs": 31,
+      "total_reference_contigs": 31,
+      "features": 1459,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS66_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 269358,
+        "sha256": "1dffaa19cc19bf3ba5f313ca9254d1f1bc184f1b36b8cf3300a1fa1db5b59532"
+      }
+    },
+    "ERR505084_bin.82": {
+      "reference_sha256": "5883d898a90682c0f577f9d3259b56ba0307f398de66c02c18ff6c43e7d7c40a",
+      "coverage": "full",
+      "matched_reference_contigs": 204,
+      "total_reference_contigs": 204,
+      "features": 1965,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1490_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 364126,
+        "sha256": "839dcfb8fd256d9c2928c8ae1354b188c91c976b8ac65c7304ac6ce04a925b4c"
+      }
+    },
+    "ERR505089_bin.21": {
+      "reference_sha256": "5fe4f988a29016292112f11c0db53881a1fc209758f4cdf29ba27fb26016eaf9",
+      "coverage": "full",
+      "matched_reference_contigs": 47,
+      "total_reference_contigs": 47,
+      "features": 1402,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS238_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 257402,
+        "sha256": "626735d5f8269105d68799d72e1bf9add79e8b391effff2e9ac2c80adb0b6ea5"
+      }
+    },
+    "ERR505092_bin.28": {
+      "reference_sha256": "08a21f7de64f85daa47864dfb0d9adee3a03c8e5fade891de3d75c0ef9547c16",
+      "coverage": "full",
+      "matched_reference_contigs": 69,
+      "total_reference_contigs": 69,
+      "features": 1339,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS732_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 248715,
+        "sha256": "7be32fb63cac1b74696f4a232cd83b900bbfd5c5be59809830912d7c9726c9c3"
+      }
+    },
+    "ERR505098_bin.42": {
+      "reference_sha256": "d1ae2981ea6b998542f2b9f3bc9d989eb1c91035432386cd396886c8bc98d63a",
+      "coverage": "full",
+      "matched_reference_contigs": 41,
+      "total_reference_contigs": 41,
+      "features": 2001,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS2019_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 370676,
+        "sha256": "313bb4c06534f5c5a71133530f1c0e2b512937fe8454f7f6d1d489f7a67f72e5"
+      }
+    },
+    "ERR505104_bin.26": {
+      "reference_sha256": "cd9b279a803775c29a8944b3b526efb56482c9ea3205876cdfc5389a95c0ce83",
+      "coverage": "full",
+      "matched_reference_contigs": 59,
+      "total_reference_contigs": 59,
+      "features": 2680,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS128_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 486438,
+        "sha256": "37d5ae32f5d36e4f2812a6243ab9bf5be0dbd2cb6daa6e342fc636a9adca6526"
+      }
+    },
+    "ERR525697_bin.54": {
+      "reference_sha256": "de9aadd46c58737e02841a7cba9d1badb56a51545955c74cf4be521e7e7cd53e",
+      "coverage": "full",
+      "matched_reference_contigs": 177,
+      "total_reference_contigs": 177,
+      "features": 1838,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS334_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 344427,
+        "sha256": "9ce65a7d4693f403bf5e986ec9f7ac822e19104ecef625f670f2eba8da012157"
+      }
+    },
+    "ERR525788_bin.2": {
+      "reference_sha256": "b43cfe3d2282d51a244b9bb457ce51b5cd982f89b6f1f5d9603a522e1130d4e3",
+      "coverage": "full",
+      "matched_reference_contigs": 100,
+      "total_reference_contigs": 100,
+      "features": 1519,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1531_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 284752,
+        "sha256": "4f7e3e2769eb70eb6f8b87a5de1baaf1e40a701dbc46f394db2540b29d1807bc"
+      }
+    },
+    "ERR525839_bin.30": {
+      "reference_sha256": "0a52f040b953ee978eade6fb29c8c7a89e3e7835c3fda5294bdbc9b3c7be8f2e",
+      "coverage": "full",
+      "matched_reference_contigs": 248,
+      "total_reference_contigs": 248,
+      "features": 1793,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1160_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 340078,
+        "sha256": "47309ad2a4898b1dc18fb0f58b617d525308a786a560cce8a4e24c2b97a25d48"
+      }
+    },
+    "ERR525840_bin.18": {
+      "reference_sha256": "2f10cb84c473049b61bcb7e7d5c5b2d8e08efa8ef10ed9fb35469828c9ab2fbb",
+      "coverage": "full",
+      "matched_reference_contigs": 59,
+      "total_reference_contigs": 59,
+      "features": 2812,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS21_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 512581,
+        "sha256": "51ec8387002269402a9feacb85dede810529d4d8a0405f4180a13fb6000625fe"
+      }
+    },
+    "ERR525857_bin.14": {
+      "reference_sha256": "5e460ffc43f125ce1f6be071956fe896dc64916416011edf2d10ab39e6010966",
+      "coverage": "full",
+      "matched_reference_contigs": 134,
+      "total_reference_contigs": 134,
+      "features": 1725,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS204_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 316696,
+        "sha256": "0ae6100fb9683602efa6ce84a9e5d749e67209b01e0483b22d23b3149e707c7e"
+      }
+    },
+    "ERR525879_bin.28": {
+      "reference_sha256": "363aee7e8a7f58b5efc5d94a7fbf27f5037c5327480d610e0ace58af8f45fe59",
+      "coverage": "full",
+      "matched_reference_contigs": 106,
+      "total_reference_contigs": 106,
+      "features": 2631,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1617_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 486343,
+        "sha256": "c42f598421a2c50b83cce6d397826109ef84bcaca50fa873236ea0ab9ff0f5a3"
+      }
+    },
+    "ERR525920_bin.20": {
+      "reference_sha256": "704f915acf2427cc396f9aec78f24de50540eefee3fe4a6036e769f6b044a320",
+      "coverage": "full",
+      "matched_reference_contigs": 181,
+      "total_reference_contigs": 181,
+      "features": 3375,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1221_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 617742,
+        "sha256": "a901bdff141067ff6a9e2f8c1a924d57c262125e54033f83b52e0d17b021bc6e"
+      }
+    },
+    "ERR525920_bin.4": {
+      "reference_sha256": "1c000326ff961dd6cce33146276f5ce7fbfa7b2175214ccab6fa6c80778c4573",
+      "coverage": "full",
+      "matched_reference_contigs": 80,
+      "total_reference_contigs": 80,
+      "features": 2406,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS97_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 438207,
+        "sha256": "0067b2fe853f864fd4a51fa7a8db30581e265dc955e2d3add9cc62cf511a1d63"
+      }
+    },
+    "ERR525931_bin.39": {
+      "reference_sha256": "d6613e2b02a3127ab4f0913007095901a1be02b7543c2983c6858a53d8fdf084",
+      "coverage": "full",
+      "matched_reference_contigs": 125,
+      "total_reference_contigs": 125,
+      "features": 1883,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1001_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 349880,
+        "sha256": "9bbaf07e166037c128b540c4e8227d42222aef50524adc6d121b8d515398f71a"
+      }
+    },
+    "ERR525961_bin.2": {
+      "reference_sha256": "51716d0c36f685d402225d2a807fa7675c78d239033d64d5f0a82ffb927621b7",
+      "coverage": "full",
+      "matched_reference_contigs": 353,
+      "total_reference_contigs": 353,
+      "features": 3054,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS680_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 564666,
+        "sha256": "c77a94bc549fd2b5cf69e8b0c3149b5360504c7f23760d9f0c0b978e18c2ea07"
+      }
+    },
+    "ERR589509_bin.11": {
+      "reference_sha256": "a2090e167c3eda2bdf506b869afc8f3c6687ae0dfae4eb39c2976940c905ae05",
+      "coverage": "full",
+      "matched_reference_contigs": 27,
+      "total_reference_contigs": 27,
+      "features": 1959,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS135_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 361724,
+        "sha256": "e2620ab1251c0b05cafd519f6523e218615cd05b0933dffd73df67e3f28a588c"
+      }
+    },
+    "ERR589576_bin.28": {
+      "reference_sha256": "4e09eb0475209cade1b201a6109c30757b1a668d52fcf958ac46159618959a4c",
+      "coverage": "full",
+      "matched_reference_contigs": 57,
+      "total_reference_contigs": 57,
+      "features": 2506,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS239_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 448696,
+        "sha256": "3f95e2c249bb0d2b40b6b0465f9bae52a617fd9532fd6a8bd7332a65608d8a65"
+      }
+    },
+    "ERR688524_bin.28": {
+      "reference_sha256": "555eee5088639852279f486c5f394a6f46b2311f661841a39ad9131d53e68842",
+      "coverage": "full",
+      "matched_reference_contigs": 130,
+      "total_reference_contigs": 130,
+      "features": 2500,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS143_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 464013,
+        "sha256": "0c42948eb18f02d3fb9f8741e7e50a0dce881ab07d4cef510386ad5261d615cb"
+      }
+    },
+    "ERR688607_bin.10": {
+      "reference_sha256": "68f0aed92ef6a2eaf0f093c7c01410679201ade5c427e4023e7615b1a1a84c2a",
+      "coverage": "full",
+      "matched_reference_contigs": 97,
+      "total_reference_contigs": 97,
+      "features": 2250,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1275_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 415374,
+        "sha256": "45062fc39b24173b0ce2394efeb4a9b58fab240537407a5e08bad007d9a122e5"
+      }
+    },
+    "ERR688621_bin.2": {
+      "reference_sha256": "6489cff9abee8395a4d04576fd58e75c61857b082606cf725beefde3413b6137",
+      "coverage": "full",
+      "matched_reference_contigs": 137,
+      "total_reference_contigs": 137,
+      "features": 2807,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS240_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 521513,
+        "sha256": "af562422990e4db749fcc640e33f1dc1b2c051c1799ed1e6c2d9257ae178eece"
+      }
+    },
+    "ERR911961_bin.38": {
+      "reference_sha256": "fcd92305c6b67c0da21cd9df1f0fa5472b20654ba7ebe45b3b9bd9328ab5dd6c",
+      "coverage": "full",
+      "matched_reference_contigs": 52,
+      "total_reference_contigs": 52,
+      "features": 2322,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS593_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 429301,
+        "sha256": "9e7cd3ea9bea63703c51fd4d7f9751b0943e206f05f7aea7650dc92ea6f791cc"
+      }
+    },
+    "SRR1761702_bin.21": {
+      "reference_sha256": "8d2b3c354e8d091b6ae96f77a710edca6504326e12a700d8b35ca7eb297de497",
+      "coverage": "full",
+      "matched_reference_contigs": 53,
+      "total_reference_contigs": 53,
+      "features": 2171,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS887_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 399039,
+        "sha256": "a5df33e765e81e1a53c58db1d48cabe3be79ae20ffeaadd6afaf876096a08e32"
+      }
+    },
+    "SRR1818227_bin.9": {
+      "reference_sha256": "cee8f6e09b6ec7869925ec81893a5f3605df454c97bf691efd5a2b06c0ac6db7",
+      "coverage": "full",
+      "matched_reference_contigs": 94,
+      "total_reference_contigs": 94,
+      "features": 4944,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS170_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 913204,
+        "sha256": "a72ed6be0f8c06a323a9956490701d57b8dde09a97e0f7c4bfb60fae7b980016"
+      }
+    },
+    "SRR2047833_bin.18": {
+      "reference_sha256": "478170bed5da19658451d41c598f874c991b8ac2fe6e8f8caeab78686e806238",
+      "coverage": "full",
+      "matched_reference_contigs": 101,
+      "total_reference_contigs": 101,
+      "features": 3122,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS421_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 582280,
+        "sha256": "b2d1573260d3cebe9574ccd98dcb0ad0cf024e6ba9f8105c348e1668dd7357e7"
+      }
+    },
+    "SRR2992911_bin.12": {
+      "reference_sha256": "da2a5a583ebc8f3e9e0653f82c8237e2cb3dae4b1e2fedca6b4f78981e356f1f",
+      "coverage": "full",
+      "matched_reference_contigs": 38,
+      "total_reference_contigs": 38,
+      "features": 2053,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS709_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 370286,
+        "sha256": "6431955f60850627a5894c6ae456864e385e5e8a2ad791738f67082de5ea00c2"
+      }
+    },
+    "SRR3108064_bin.4": {
+      "reference_sha256": "f641deda83ecf62d8a3fa3eefe4d268e8d7af2b0d8b919e4298595de6c4d3622",
+      "coverage": "full",
+      "matched_reference_contigs": 206,
+      "total_reference_contigs": 206,
+      "features": 1832,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1657_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 344281,
+        "sha256": "c86f859bda63d51dc0773d77d790bf836f6557147bd45878514c58993ac8f769"
+      }
+    },
+    "SRR3131714_bin.3": {
+      "reference_sha256": "e950b8a52073e8004ac4e346f02e8792035f76e6008d018980d96daf38043771",
+      "coverage": "full",
+      "matched_reference_contigs": 195,
+      "total_reference_contigs": 195,
+      "features": 1482,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1286_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 279353,
+        "sha256": "b2e39e5395492db008ec3ff170537888847481396c912868351504c7c86e2e04"
+      }
+    },
+    "SRR4408011_bin.14": {
+      "reference_sha256": "a0d76ab4d9dc5cd4b01c2d70433551233d28661aa4dc27999c8f457d95812cba",
+      "coverage": "full",
+      "matched_reference_contigs": 409,
+      "total_reference_contigs": 409,
+      "features": 3084,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS561_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 580806,
+        "sha256": "e2355fc5bea07cbcffae0bf16e23483d2c673837fb1c91ff3ef57c0814f59e8a"
+      }
+    },
+    "SRR4451547_bin.12": {
+      "reference_sha256": "9127eca2134aefcd0faa91e5d2659b10dacf5b953522ae88ae2b53fab79cc63f",
+      "coverage": "full",
+      "matched_reference_contigs": 746,
+      "total_reference_contigs": 746,
+      "features": 4209,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1875_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 804122,
+        "sha256": "1f132d8226d235bedb7175ebe650e337c6bcd878cc3b39ad84b0836bcabdaf40"
+      }
+    },
+    "SRR5106325_bin.8": {
+      "reference_sha256": "a812f9d62019451b468539a78dd357d23cc94edba25a49ebbe9d300ed9502fde",
+      "coverage": "full",
+      "matched_reference_contigs": 280,
+      "total_reference_contigs": 280,
+      "features": 1400,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1779_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 268041,
+        "sha256": "1169d9fa917f1edbdaca89ca50fc4ee8929927a64cafc3f697504867dfb6974a"
+      }
+    },
+    "SRR5127399_bin.6": {
+      "reference_sha256": "a64b285ad3511d3b4716fde7cb34207ac4f6703999b17f3536ae696b1beec02e",
+      "coverage": "full",
+      "matched_reference_contigs": 177,
+      "total_reference_contigs": 177,
+      "features": 1798,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS819_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 335942,
+        "sha256": "42b511b3bfd63287858c8d5cc2e695518ad1049eaacbab70ad11f12419ba9415"
+      }
+    },
+    "SRR5127408_bin.10": {
+      "reference_sha256": "db8f4588b965a8a897471d1db22494da938752299a4dc5a81108de2a82084099",
+      "coverage": "full",
+      "matched_reference_contigs": 220,
+      "total_reference_contigs": 220,
+      "features": 1773,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1100_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 332385,
+        "sha256": "d43b4db31cd3460ccad80787e5510c874afa286ba7c89f4dbc71baf544f83ef8"
+      }
+    },
+    "SRR5127532_bin.11": {
+      "reference_sha256": "b4b66b9e71fa4a25d01fd69957da47404c60620f72b90e05e50c211656f7c22a",
+      "coverage": "full",
+      "matched_reference_contigs": 263,
+      "total_reference_contigs": 263,
+      "features": 1658,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1721_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 313949,
+        "sha256": "08b79ffc9d0b947f68533beb824c37822f4d4a2849fea9dea35d4cc4ff981946"
+      }
+    },
+    "SRR5127596_bin.10": {
+      "reference_sha256": "4560140cb13610b94f422c4971b249052baa5ef2e62e931d588632e39ef04476",
+      "coverage": "full",
+      "matched_reference_contigs": 61,
+      "total_reference_contigs": 61,
+      "features": 1782,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS315_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 328475,
+        "sha256": "27be1c073dca50458e22a02849cc99e78ddffe39d34c62f1a8f2bd3e4557eef8"
+      }
+    },
+    "SRR5127700_bin.13": {
+      "reference_sha256": "ad5283cdd3d22eb92cddf152d4d8e97e511d16d6066909ff3a92929c95238781",
+      "coverage": "full",
+      "matched_reference_contigs": 334,
+      "total_reference_contigs": 334,
+      "features": 1699,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1834_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 324391,
+        "sha256": "f5da72e232390ddbb1186881c82fa4a29e98ed78204b8b998cdcd1c858f8bc68"
+      }
+    },
+    "SRR5127711_bin.7": {
+      "reference_sha256": "2ac18b9649a38f8aea86a447bbdefa7f8adf62ecbfb6946b4ca1894e583c812e",
+      "coverage": "full",
+      "matched_reference_contigs": 389,
+      "total_reference_contigs": 389,
+      "features": 1560,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS2064_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 302571,
+        "sha256": "39cd2259debd132cd01727f8bcf09cd680ad2ec82d4df97467b8c4ac596bc7d5"
+      }
+    },
+    "SRR5127720_bin.20": {
+      "reference_sha256": "65a8f262c595da21eed49f743d1c06b6a77efab55500a77eb567b16a4b15a66a",
+      "coverage": "full",
+      "matched_reference_contigs": 69,
+      "total_reference_contigs": 69,
+      "features": 1814,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS317_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 336984,
+        "sha256": "0e340c6244e07e06193ad092ad34aaabea0e643ea529e47a5bb77e3cfe71d9ac"
+      }
+    },
+    "SRR5127766_bin.2": {
+      "reference_sha256": "1940dbfc47f94c7d9196d65de2ea2fb1189c07f61660b5604a6fe411e82f5439",
+      "coverage": "full",
+      "matched_reference_contigs": 39,
+      "total_reference_contigs": 39,
+      "features": 1871,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS318_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 347150,
+        "sha256": "79d4ff1fc101a204ce44f1447c7c4f9e63312bf6b5de2c11289f72c5252ec1ff"
+      }
+    },
+    "SRR5275454_bin.18": {
+      "reference_sha256": "ef4b43f09deb3a77af5152819dcc8304b893189d9fca973703023ca66602f2f4",
+      "coverage": "full",
+      "matched_reference_contigs": 162,
+      "total_reference_contigs": 162,
+      "features": 3472,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS671_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 634450,
+        "sha256": "719b6879f5bcaadfb5480a75140b07c1129ab2b5813c916a935d09e63237af16"
+      }
+    },
+    "SRR5275455_bin.19": {
+      "reference_sha256": "da0739b9d06a3f6c5dd90e1ce00265cfc4fd8211b520b4d333e97fe23452dc00",
+      "coverage": "full",
+      "matched_reference_contigs": 85,
+      "total_reference_contigs": 85,
+      "features": 2285,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS344_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 426613,
+        "sha256": "ca25c7658d0d2c020d5323765ad102fc71bbbb1edd381ec6e946a17d7c0d6fae"
+      }
+    },
+    "SRR5275456_bin.26": {
+      "reference_sha256": "4d309dd00143ec39f16221600b216423b236a32e70f25815ea8e68d682ca7317",
+      "coverage": "full",
+      "matched_reference_contigs": 71,
+      "total_reference_contigs": 71,
+      "features": 2447,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS669_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 447469,
+        "sha256": "beeaf0d4112c69b260adfed7806df91d5fd91a688dfd9fd39f1273c8545ce4fc"
+      }
+    },
+    "SRR5558119_bin.13": {
+      "reference_sha256": "d8ea42df71c8f6f5ae7f878f923b67d5215ced7b43f478fc5c2be49e9c9d8051",
+      "coverage": "full",
+      "matched_reference_contigs": 303,
+      "total_reference_contigs": 303,
+      "features": 1558,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1853_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 298817,
+        "sha256": "aace4847202664b244c22e48b287b5f876a4029e578c090f88d3a0824eda0c23"
+      }
+    },
+    "SRR5558121_bin.13": {
+      "reference_sha256": "9d2d57025612b1a240eb7cdce3bb076bd7674ccf36ca15eb025f4f9a13e0169c",
+      "coverage": "full",
+      "matched_reference_contigs": 160,
+      "total_reference_contigs": 160,
+      "features": 1830,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS955_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 343022,
+        "sha256": "023769d080ca790d8c2eda7e6f910c73d7e56752c1b078bcb51f8cd22bbc246c"
+      }
+    },
+    "SRR5558284_bin.37": {
+      "reference_sha256": "ae018bdc05bcdae5bafb7eeacf8151f054b5cb26f12201dfc800a28e63db522e",
+      "coverage": "full",
+      "matched_reference_contigs": 30,
+      "total_reference_contigs": 30,
+      "features": 1326,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1711_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 245195,
+        "sha256": "ed9b8bb4ed009e67c588b3b5b4f770caf4ae1f7f00f604de21b01d63772d0f1d"
+      }
+    },
+    "SRR5558297_bin.55": {
+      "reference_sha256": "b71ecc8a2228f5603717f3a7509a07334af517e90fa013169b7dc186cfb5d4e4",
+      "coverage": "full",
+      "matched_reference_contigs": 246,
+      "total_reference_contigs": 246,
+      "features": 1667,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1680_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 319812,
+        "sha256": "485372ee538f532956952bcab2e373ac1ad32297bb9736caf40e3ce86773be58"
+      }
+    },
+    "SRR5558309_bin.102": {
+      "reference_sha256": "e4af808a13cbe9d6a736cd95357a0152c2b6643a04a57d07cff8485fe2797411",
+      "coverage": "full",
+      "matched_reference_contigs": 72,
+      "total_reference_contigs": 72,
+      "features": 2116,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS524_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 391275,
+        "sha256": "33a6ae4be70c5af8b96c5f46ae7a57f86385a81e51426de182f9f7d9f81db951"
+      }
+    },
+    "SRR5558411_bin.94": {
+      "reference_sha256": "f3ba31f61efb578277c19f98243e9889df6f1411659c304fddbb510ab9b9e0a3",
+      "coverage": "full",
+      "matched_reference_contigs": 239,
+      "total_reference_contigs": 239,
+      "features": 2755,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS984_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 501824,
+        "sha256": "6ec4ea073354b321f9ad564b326bad87b06542f36ceace1f0732e6003bc19c4b"
+      }
+    },
+    "SRR5579955_bin.5": {
+      "reference_sha256": "c92e366d6e6d4a13178b47a1eadbe82376a0fc0fdbe209c601c5e64408424d35",
+      "coverage": "full",
+      "matched_reference_contigs": 126,
+      "total_reference_contigs": 126,
+      "features": 2161,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS813_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 403345,
+        "sha256": "60dc25958299fabd16fcf55a57e09c7c3f75fbe9d794b375a24d03044b1fa2e7"
+      }
+    },
+    "SRR5580035_bin.87": {
+      "reference_sha256": "8bfce23df3771e6e16eee7ab01a268278b578e1d1faa4b9341aa74a711990a7d",
+      "coverage": "full",
+      "matched_reference_contigs": 25,
+      "total_reference_contigs": 25,
+      "features": 2536,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS27_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 454142,
+        "sha256": "16661d7bd56ccb3274acc7f13fc5aabe375517d9c261ff99d5396b71f82094a1"
+      }
+    },
+    "SRR5963185_bin.16": {
+      "reference_sha256": "7986a50fefa4034aecfa854e3d87067d27b365c36ef268de534584696b88c831",
+      "coverage": "full",
+      "matched_reference_contigs": 34,
+      "total_reference_contigs": 34,
+      "features": 1885,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS323_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 348334,
+        "sha256": "c86d24b577ed8df1ba1ecd98c289d04d7a6cbbcaf30c7a8b3420791521015647"
+      }
+    },
+    "SRR5963302_bin.17": {
+      "reference_sha256": "6fd66f675124355fd2e200b62279d143b3cfdbe3c3dc7f1647bae956914198f7",
+      "coverage": "full",
+      "matched_reference_contigs": 63,
+      "total_reference_contigs": 63,
+      "features": 3663,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1088_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 675852,
+        "sha256": "359137a8d74521c675fdff742ca4be4aa9de73201f0debc928d9fe7c342d7e82"
+      }
+    },
+    "SRR5963333_bin.5": {
+      "reference_sha256": "310700d68a87342bcf7b28a3ef76b63c1bbb134f2b2d86a051f65d8ddcda3ab2",
+      "coverage": "full",
+      "matched_reference_contigs": 28,
+      "total_reference_contigs": 28,
+      "features": 1916,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS822_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 352456,
+        "sha256": "79c15e5bf518d5d9c87803efe05f63915ba938f98d39348ccc8f684e18e68660"
+      }
+    },
+    "SRR5963345_bin.25": {
+      "reference_sha256": "5df4d02ecaebbb97b4ec806674c1ed0ea7076bc8fa655a22481baee41e2579bf",
+      "coverage": "full",
+      "matched_reference_contigs": 59,
+      "total_reference_contigs": 59,
+      "features": 4038,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1833_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 753070,
+        "sha256": "bd3c452eb5ddf1456ab6b4c95a9dd86ded1dd35ed0ba3a481c5907aa30b6abd5"
+      }
+    },
+    "SRR5963382_bin.19": {
+      "reference_sha256": "7e3140bfb087e8a38ab49f06ad676119581d2809672120c1bf70ef00e93fd7e4",
+      "coverage": "full",
+      "matched_reference_contigs": 42,
+      "total_reference_contigs": 42,
+      "features": 1574,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS45_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 293846,
+        "sha256": "dafc96e8bce6d5e74f6081e20fdfe210853bfc01c6f4721d052886cf08c4344d"
+      }
+    },
+    "SRR6028165_bin.10": {
+      "reference_sha256": "ba4bc39e83676ed4391ef55a363c166afe9b7c42336e52cf013ba26e8fa0aa9d",
+      "coverage": "full",
+      "matched_reference_contigs": 272,
+      "total_reference_contigs": 272,
+      "features": 2717,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1061_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 512742,
+        "sha256": "a43f8839128f1aab1a28a3cb1fea86d3a181b72b6b816ff9ad3ad69d6157b9c8"
+      }
+    },
+    "SRR6028558_bin.5": {
+      "reference_sha256": "c2cea764196c644c2211f69ff0c07fb82b470e337994f3690adb795705d1e019",
+      "coverage": "full",
+      "matched_reference_contigs": 300,
+      "total_reference_contigs": 300,
+      "features": 1254,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS1905_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 242001,
+        "sha256": "b5586dd7643e9706e40aa492ca22159b81081b849773667bd638558fb67c1a18"
+      }
+    },
+    "SRR6028570_bin.23": {
+      "reference_sha256": "8bc47372aa75485e1d0496882f804585fc2525c79bfc55eabcaa9f998402c586",
+      "coverage": "full",
+      "matched_reference_contigs": 210,
+      "total_reference_contigs": 210,
+      "features": 1895,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS905_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 355012,
+        "sha256": "e7873e538483d8afcc335ccf4c919774ac6789e4c853f8481e6bd7d544ec399c"
+      }
+    },
+    "SRR6028572_bin.16": {
+      "reference_sha256": "01b8dff37b7e28d99ccd9a1f34f6d2ffaeb58f502b79228b12dd638a3c20a51e",
+      "coverage": "full",
+      "matched_reference_contigs": 70,
+      "total_reference_contigs": 70,
+      "features": 1841,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS187_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 332595,
+        "sha256": "ce5526c0124d272971deb047ddbb1d3e20de1b62c62b0036eca1de440cb90c2a"
+      }
+    },
+    "SRR6054470_bin.20": {
+      "reference_sha256": "fd4e5c70f37d41f396c479090993f9ff66db57690a7c8fdcb6e74026a5b323b2",
+      "coverage": "full",
+      "matched_reference_contigs": 128,
+      "total_reference_contigs": 128,
+      "features": 1806,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS633_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 335087,
+        "sha256": "3bea70c1ab4f5085f32a1afa21211e073ebf5a4ceeb0a413a6d2196d7a978765"
+      }
+    },
+    "SRR6054490_bin.16": {
+      "reference_sha256": "95ae2520ee7dee1943c00dd39c3046a5200c1e263d924715c9d5cec6d6c344e9",
+      "coverage": "full",
+      "matched_reference_contigs": 85,
+      "total_reference_contigs": 85,
+      "features": 1822,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS325_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 336220,
+        "sha256": "fa23fafb8dd3ea1e1bcc110218da0c16647d3f9a548af56fa0e5fd4c52444c1c"
+      }
+    },
+    "SRR6257473_bin.10": {
+      "reference_sha256": "2c75ee46eb936c33706e657c4f954a68c2a814d1f2814633a1b0f54610d50194",
+      "coverage": "full",
+      "matched_reference_contigs": 26,
+      "total_reference_contigs": 26,
+      "features": 4321,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS201_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 805075,
+        "sha256": "c8b57d5fc28cd6a263306370911334bb1060c1668fe52a1702cd455bf19a32b4"
+      }
+    },
+    "SRR769532_bin.16": {
+      "reference_sha256": "2d7f477084f7a93c0268f52eacc9ed77306cd9179ca710932306fcdac539f205",
+      "coverage": "full",
+      "matched_reference_contigs": 23,
+      "total_reference_contigs": 23,
+      "features": 1727,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS865_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 306384,
+        "sha256": "a3d4e74ed91add4068dfdf892a4f85fd5711cff45165780834392b9972a74307"
+      }
+    },
+    "SRR924797_bin.5": {
+      "reference_sha256": "b5e09384fe69422909fffdda5d66d76392bc46ff57ca71cfcbc8da38a3e2a72b",
+      "coverage": "full",
+      "matched_reference_contigs": 132,
+      "total_reference_contigs": 132,
+      "features": 2200,
+      "source_url": "https://ftp.ebi.ac.uk/pub/databases/metagenomics/umgs_analyses/umgs/proteins/UMGS194_proteins.faa.gz",
+      "source_annotation_type": "published_Prodigal_CDS",
+      "file": {
+        "bytes": 403239,
+        "sha256": "23e2b6ce7627815a319d72ff421a952805e64d34fa501816e6773a5bc0d57439"
+      }
+    }
+  },
+  "annotation_revision": "2acf28d9cf0a276f05e6a1456d56c92ccc2292b7"
+}

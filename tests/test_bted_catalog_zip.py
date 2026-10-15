@@ -27,7 +27,7 @@ const links = Object.keys(files).map((href, index) => ({
 }));
 const button = {disabled: false, addEventListener(event, fn) {if (event === 'click') clickHandler = fn;}};
 const status = {textContent: ''};
-const frame = {dataset: {config: 'assemblies/GCF_TEST.config.json'}, src: ''};
+const frame = {dataset: {config: 'assemblies/GCF_TEST.config.json'}, src: '', closest() {return {closest() {return {append() {}};}};}};
 const select = {value: '', addEventListener() {}};
 const root = {dataset: {assembly: 'GCF_TEST'}, querySelectorAll(selector) {
   return selector === '[data-package-file][data-zip-path]' ? links : [];
@@ -41,7 +41,7 @@ global.document = {baseURI: 'https://bted.example/genomes/GCF_TEST.html', body: 
       '[data-package-status]': status}[selector] || null;
   },
   querySelectorAll() {return [];},
-  createElement() {return {click() {downloadName = this.download;}, remove() {}};},
+  createElement() {return {dataset: {}, setAttribute() {}, querySelector() {return {attachShadow() {return {append() {}};}};}, click() {downloadName = this.download;}, remove() {}};},
 };
 global.fetch = async href => {
   if (!(href in files)) return {ok: false, status: 404};

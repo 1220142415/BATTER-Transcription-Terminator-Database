@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import quote, unquote, urlparse
+from experimental_predictions import prediction_assets
+from experimental_signals import signal_assets
 
 from bted_pipeline.materialize import (
     MATERIALIZATION_SCHEMA_VERSION,
@@ -54,7 +56,7 @@ DYNAMIC_ENDPOINT_FIELDS = {
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 HF_ASSET_RE = re.compile(
     r"^https://huggingface\.co/datasets/liurulong/terminator/resolve/"
-    r"([0-9a-f]{40})/(v0\.3\.0|v0\.4\.0)/(.+)$"
+    r"([0-9a-f]{40})/(v0\.3\.0|v0\.4\.0|v0\.5\.0)/(.+)$"
 )
 LOCAL_ASSET_RE = re.compile(r"^downloads/(v0\.3\.0|v0\.4\.0)/(.+)$")
 ASSET_MANIFEST_COLUMNS = ("logical_path", "url", "byte_size", "sha256", "revision", "asset_kind")
@@ -270,6 +272,10 @@ def _asset_manifest(
             )
             if not (shared_reference or shared_signal):
                 raise V04ImportError(f"only immutable shared v0.3.0 reference and raw-signal assets may be reused: {logical_path}")
+        elif version == "v0.5.0":
+            registered = prediction_assets(signal_assets({})).get(logical_path)
+            if not registered or any(registered[k] != v for k, v in {'url': url, 'byte_size': size, 'sha256': digest, 'asset_kind': kind}.items()):
+                raise V04ImportError(f"unregistered experimental signal: {logical_path}")
         item = {
             "logical_path": logical_path,
             "url": url,
@@ -642,7 +648,16 @@ def _make_bundle_tables(
         parts = PurePosixPath(path).parts
         assembly: str | None = None
         source_id: str | None = None
-        if len(parts) >= 2 and parts[0] == "genomes":
+        if len(parts) == 10 and parts[:2] == ('genomes', 'experimental-only'):
+            assembly, source_id = parts[2], parts[6]
+            source = source_by_id.get(source_id)
+            if not source or source['assembly'] != assembly or parts[4] != f"PMID_{source['pmid']}":
+                raise V04ImportError(f"signal sample differs from source assembly or study: {path}")
+        elif len(parts) >= 4 and parts[:2] == ('genomes', 'experimental-only'):
+            assembly = parts[2]
+            if assembly not in sources_by_assembly:
+                raise V04ImportError(f"prediction references unknown experimental assembly: {path}")
+        elif len(parts) >= 2 and parts[0] == "genomes":
             assembly = parts[1]
             if assembly not in sources_by_assembly:
                 raise V04ImportError(f"asset references assembly absent from metadata.tsv: {path}")

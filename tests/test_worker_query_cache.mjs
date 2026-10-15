@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const source = readFileSync(new URL("../prototype/accession-range/src/worker.js", import.meta.url), "utf8");
-const { default: worker, currentRelease, publicAsset, cachedPublicApi } = await import(`data:text/javascript;base64,${Buffer.from(source + "\nexport { currentRelease, publicAsset, cachedPublicApi };").toString("base64")}`);
+const { default: worker, currentRelease, publicAsset, cachedPublicApi, hfMetadataRelease, hfGenomeMetadata, batterCatalogueResponse } = await import(`data:text/javascript;base64,${Buffer.from(source + "\nexport { currentRelease, publicAsset, cachedPublicApi, hfMetadataRelease, hfGenomeMetadata, batterCatalogueResponse };").toString("base64")}`);
 
 function edgeCache() {
   const entries = new Map();
@@ -18,6 +18,128 @@ function edgeCache() {
     },
   };
 }
+
+test("fixed HF release and genome reads share concurrent requests and isolate revisions", async () => {
+  const revision = "a".repeat(40);
+  let reads = 0;
+  const env = { BTED_METADATA_REVISION: revision, BTED_DB: { prepare: () => ({ bind: (...values) => ({
+    first: async () => { reads++; return { revision: values[0], metadata_json: "{}" }; },
+  }) }) } };
+  await Promise.all([hfMetadataRelease(env), hfMetadataRelease(env), hfGenomeMetadata(env, "A"), hfGenomeMetadata(env, "A")]);
+  assert.equal(reads, 2);
+  await hfGenomeMetadata(env, "B"); assert.equal(reads, 3);
+  await hfGenomeMetadata({ ...env, BTED_METADATA_REVISION: "b".repeat(40) }, "A"); assert.equal(reads, 4);
+});
+
+test("annotation supplement revisions isolate edge responses without additional database queries", async () => {
+  const originalCaches = globalThis.caches;
+  globalThis.caches = { default: edgeCache() };
+  let loads = 0;
+  const request = new Request('https://bted.example/api/batter/A/config');
+  const env = { BTED_METADATA_REVISION: 'a'.repeat(40) };
+  const load = async () => Response.json({ load: ++loads });
+  try {
+    await cachedPublicApi(request, null, load, env);
+    const withAnnotation = { ...env, BTED_ANNOTATION_REVISION: 'b'.repeat(40) };
+    assert.equal((await cachedPublicApi(request, null, load, withAnnotation)).headers.get('x-bted-cache'), 'MISS');
+    assert.equal((await cachedPublicApi(request, null, load, withAnnotation)).headers.get('x-bted-cache'), 'HIT');
+    assert.equal(loads, 2);
+  } finally { globalThis.caches = originalCaches; }
+});
+
+test("catalogue cold load scans 430 indexed page rows once without OFFSET", async () => {
+  let queries = 0, rowsRead = 0;
+  const revision = "a".repeat(40);
+  const env = { BTED_METADATA_REVISION: revision, BTED_DB: { prepare: sql => ({ bind: (...values) => ({
+    first: async () => ({ revision, catalogue_header_json: JSON.stringify({ revision }) }),
+    all: async () => {
+      assert.ok(!sql.includes("OFFSET")); assert.match(sql, /page >= \? AND page < \?/);
+      queries++;
+      const results = Array.from({ length: Math.max(0, Math.min(values[2], 430) - values[1]) }, (_, i) => ({ rows_json: JSON.stringify([[values[1] + i]]) }));
+      rowsRead += results.length; return { results };
+    },
+  }) }) } };
+  const request = new Request("https://bted.example/api/batter-catalogue");
+  const [response, concurrent] = await Promise.all([batterCatalogueResponse(request, env), batterCatalogueResponse(request, env)]);
+  assert.equal(response.status, 200);
+  const data = await response.json(); assert.equal(data.genomes.length, 430);
+  assert.deepEqual(data.genomes.at(-1), [429]); assert.equal(queries, 5); assert.equal(rowsRead, 430);
+  assert.deepEqual(await concurrent.json(), data);
+  assert.deepEqual(await (await batterCatalogueResponse(request, env)).json(), data);
+  assert.equal(queries, 5); assert.equal(rowsRead, 430);
+  const originalNow = Date.now, expired = originalNow() + 60001;
+  try {
+    Date.now = () => expired;
+    assert.deepEqual(await (await batterCatalogueResponse(request, env)).json(), data);
+    assert.equal(queries, 10); assert.equal(rowsRead, 860);
+  } finally { Date.now = originalNow; }
+});
+
+test("failed catalogue page reads do not poison a retry", async () => {
+  const revision = "a".repeat(40);
+  let queries = 0;
+  const env = { BTED_METADATA_REVISION: revision, BTED_DB: { prepare: () => ({ bind: () => ({
+    first: async () => ({ revision, catalogue_header_json: JSON.stringify({ revision }) }),
+    all: async () => { if (++queries === 1) throw new Error("unavailable"); return { results: [{ rows_json: '[["A"]]' }] }; },
+  }) }) } };
+  const request = new Request("https://bted.example/api/batter-catalogue");
+  assert.equal((await batterCatalogueResponse(request, env)).status, 503);
+  assert.deepEqual((await (await batterCatalogueResponse(request, env)).json()).genomes, [["A"]]);
+  assert.equal(queries, 2);
+});
+
+test("pinned directory browser cache and unversioned requests share the edge entry safely", async () => {
+  const originalCaches = globalThis.caches;
+  globalThis.caches = { default: edgeCache() };
+  const revision = "a".repeat(40), annotation = "b".repeat(40);
+  const env = { BTED_METADATA_REVISION: revision, BTED_ANNOTATION_REVISION: annotation };
+  let reads = 0;
+  const load = async () => Response.json({ reads: ++reads });
+  const request = query => new Request(`https://bted.example/api/batter-catalogue${query}`);
+  try {
+    const pinned = await cachedPublicApi(request(`?revision=${revision}&annotation=${annotation}&v=1`), null, load, env);
+    assert.match(pinned.headers.get("cache-control"), /max-age=31536000, s-maxage=604800, immutable/);
+    for (const query of ["", `?revision=${revision}&annotation=wrong&v=1`, `?revision=wrong&annotation=${annotation}&v=1`, `?revision=${revision}&annotation=${annotation}&v=2`]) {
+      const hit = await cachedPublicApi(request(query), null, load, env);
+      assert.equal(hit.headers.get("x-bted-cache"), "HIT");
+      assert.equal(hit.headers.get("cache-control"), "public, max-age=60, s-maxage=604800");
+    }
+    assert.equal(reads, 1);
+    const hit = await cachedPublicApi(request(`?revision=${revision}&annotation=${annotation}&v=1`), null, load, env);
+    assert.match(hit.headers.get("cache-control"), /immutable/);
+    assert.equal(reads, 1);
+  } finally { globalThis.caches = originalCaches; }
+});
+
+test("fixed metadata edge hits normalize unused queries, isolate snapshots and validate before hits", async () => {
+  const originalCaches = globalThis.caches, originalNow = Date.now;
+  let now = originalNow(), reads = 0;
+  Date.now = () => now; globalThis.caches = { default: edgeCache() };
+  const revision = "a".repeat(40), env = { BTED_METADATA_REVISION: revision };
+  const request = (path, options) => new Request(`https://bted.example${path}`, options);
+  const load = async () => { reads++; return Response.json({ reads }); };
+  try {
+    for (const path of ["/api/batter-catalogue", "/api/batter/GCF_A", "/api/batter/GCF_A/config"]) {
+      assert.equal((await cachedPublicApi(request(path), null, load, env)).headers.get("x-bted-cache"), "MISS");
+      const hit = await cachedPublicApi(request(path + "?revision=" + revision + "&v=29&unused=1"), null, load, env);
+      assert.equal(hit.headers.get("x-bted-cache"), "HIT"); assert.match(hit.headers.get("cache-control"), path === "/api/batter-catalogue" ? /s-maxage=604800/ : /s-maxage=86400/);
+    }
+    assert.equal(reads, 3);
+    now += 301000;
+    await cachedPublicApi(request("/api/batter-catalogue"), null, load, env); assert.equal(reads, 3);
+    for (const [query, status] of [["?url=x", 400], ["?revision=wrong", 409]]) {
+      const response = await cachedPublicApi(request("/api/batter/GCF_A" + query), null, async () => Response.json({}, { status }), env);
+      assert.equal(response.status, status);
+    }
+    await cachedPublicApi(request("/api/batter/GCF_A"), null, load, { BTED_METADATA_REVISION: "b".repeat(40) }); assert.equal(reads, 4);
+    for (const options of [{ method: "HEAD" }, { headers: { Range: "bytes=0-5" } }]) await cachedPublicApi(request("/api/batter/GCF_A", options), null, load, env);
+    assert.equal(reads, 6);
+    now += 86400000;
+    await cachedPublicApi(request("/api/batter/GCF_A"), null, load, env); assert.equal(reads, 7);
+    await cachedPublicApi(request("/api/batter/GCF_A/files/reference.fa.gz"), null, load, env);
+    await cachedPublicApi(request("/api/batter/GCF_A/files/reference.fa.gz"), null, load, env); assert.equal(reads, 9);
+  } finally { globalThis.caches = originalCaches; Date.now = originalNow; }
+});
 
 test("D1 release and asset lookups share concurrent reads, expire, and remain database-scoped", async () => {
   const originalNow = Date.now;

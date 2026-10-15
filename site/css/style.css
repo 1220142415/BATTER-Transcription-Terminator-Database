@@ -591,7 +591,6 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
 .home-summary strong { color: var(--navy); font-size: 28px; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
 .home-summary span { color: var(--muted); font-size: 12px; }
 .home-content { padding-top: 16px; padding-bottom: 50px; }
-.home-data-note { margin: 0 0 28px; color: var(--muted); font-size: 12px; }
 .home-phyla { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); gap: 36px; margin-bottom: 28px; padding: 28px; background: var(--white); border: 1px solid var(--line); border-radius: 10px; }
 .home-phyla h2 { margin: 5px 0 12px; color: var(--navy-dark); font-size: 24px; letter-spacing: -.025em; }
 .home-phyla p:not(.eyebrow) { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
@@ -633,19 +632,20 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
 .genome-filters-form select, .genome-filters-form input { width: 100%; min-width: 0; height: 42px; padding: 0 10px; color: var(--ink); background: var(--white); border: 1px solid #d8c8d3; border-radius: 5px; font: inherit; font-size: 13px; text-transform: none; }
 .genome-filters-form select:disabled { color: #8a7d87; background: #f5f2f4; border-color: var(--line); cursor: not-allowed; }
 .genome-refine-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding: 0 18px; }
-.genome-filter-note { margin: 10px 18px 16px; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .genome-taxonomy-panel { min-width: 0; margin: 0 18px 18px; padding: 12px 14px 14px; border: 1px solid var(--line); border-radius: 7px; background: #fcf8fa; }
 .genome-taxonomy-panel legend { padding: 0 6px; color: var(--navy); font-size: 13px; font-weight: 700; }
 .genome-taxonomy-fields { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
 .genome-filter-search-field { position: relative; display: block; }
 .genome-filter-search-field svg { position: absolute; top: 11px; left: 11px; width: 20px; height: 20px; color: var(--muted); pointer-events: none; }
 .genome-filter-search-field input { padding-left: 39px; }
-.genome-filter-reset { grid-column: 3; grid-row: 1; display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border: 1px solid #d8c8d3; border-radius: 5px; background: var(--white); color: var(--muted); font: 27px/1 Arial,sans-serif; cursor: pointer; }
+.genome-filter-reset { grid-column: 3; grid-row: 1; display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; border: 1px solid #d8c8d3; border-radius: 5px; background: var(--white); color: var(--muted); cursor: pointer; }
+.genome-filter-reset svg, .batter-pagination svg { width: 18px; height: 18px; flex: 0 0 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .genome-filter-reset:hover { color: var(--navy); border-color: var(--blue); }
 .genome-filter-bar .mobile-sort, .genome-filter-bar .mobile-sort-direction { display: none; }
 .genome-filters-form select:focus-visible, .genome-filters-form input:focus-visible, .genome-filter-reset:focus-visible, .genome-directory-table button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .genome-result-count { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin: 0; padding: 11px 18px; color: var(--muted); font-size: 13px; border-bottom: 1px solid var(--line); }
 .genome-load-status { margin: 0; padding: 14px 18px; color: var(--muted); font-size: 12px; }
+.genome-load-status:empty { display: none; }
 [data-genome-results][hidden], .genome-result-count[hidden] { display: none !important; }
 .genome-table-scroll { overflow-x: auto; }
 .genome-directory-table { width: 100%; min-width: 1080px; border-collapse: collapse; font-size: 13px; }
@@ -701,21 +701,31 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
 .genome-counts strong.count-missing { font-size: 19px; line-height: 1.85; color: var(--muted); }
 .genome-counts span { font-size: 13px; color: var(--navy); }
 .genome-counts small { color: var(--muted); font-size: 11px; }
-.genome-count-note { margin: 10px 0 24px; color: var(--muted); font-size: 11px; }
 .browser-panel { margin: 0 0 24px; overflow: hidden; background: var(--white); border: 1px solid var(--line); border-radius: 10px; }
-.browser-panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 18px 20px; }
-.browser-panel-heading h2 { margin: 2px 0 4px; color: var(--navy); font-size: 20px; }
+.browser-panel-heading { display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; }
+.browser-panel-title { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 18px; }
+.browser-panel-heading h2 { margin: 0; color: var(--navy); font-size: 20px; }
+.browser-track-legend { display: flex; flex-wrap: wrap; gap: 8px 20px; color: #5e6b78; font-size: 11px; }
+.browser-track-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.track-swatch { width: 24px; height: 10px; background: no-repeat center / 24px 10px; }
+.track-swatch-plus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 10'%3E%3Cpath d='M1 7h8v2H1Z' fill='%230f766e'/%3E%3Cpath d='M9 1h6l-2 2.5 2 2.5H9ZM9 1V9' fill='none' stroke='%230f766e' stroke-width='1.25'/%3E%3C/svg%3E"); }
+.track-swatch-minus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 10'%3E%3Cpath d='M15 7h8v2h-8Z' fill='%23be123c'/%3E%3Cpath d='M15 1H9l2 2.5-2 2.5h6ZM15 1V9' fill='none' stroke='%23be123c' stroke-width='1.25'/%3E%3C/svg%3E"); }
+.track-swatch-flag { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 10'%3E%3Cpath d='M1 1h6L5 3.5l2 2.5H1ZM1 1V9' fill='none' stroke='%23737780'/%3E%3Cpath d='M15 1h6l-2 2.5 2 2.5h-6ZM15 1V9' fill='%23737780' stroke='%23737780'/%3E%3C/svg%3E"); }
 .browser-panel-heading p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; }
-.browser-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-.browser-open { flex: 0 0 auto; display: inline-flex; align-items: center; min-height: 34px; padding: 6px 11px; color: var(--navy); background: var(--soft); border: 1px solid var(--line); border-radius: 4px; font: 600 12px var(--font-sans); text-decoration: none; cursor: pointer; }
-.browser-open:hover { background: #efe1eb; }
+.browser-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 100%; }
+.browser-open { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 8px 13px; color: var(--navy); background: var(--white); border: 1px solid var(--line); border-radius: 8px; font: 600 12px var(--font-sans); line-height: 1; white-space: nowrap; text-decoration: none; cursor: pointer; transition: background-color .15s, border-color .15s; }
+.browser-open svg { width: 16px; height: 16px; flex: 0 0 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.browser-open:hover { background: var(--soft); border-color: #cdbdca; }
+.browser-open--full { color: var(--white); background: var(--blue); border-color: var(--blue); }
+.browser-open--full:hover { background: var(--navy); border-color: var(--navy); }
+.browser-open[hidden] { display: none; }
 .browser-open:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
 .browser-open:disabled { opacity: .55; cursor: wait; }
 .browser-share-status { margin: 0; padding: 0 20px; color: var(--navy); font-size: 12px; }
 .browser-share-status:not(:empty) { padding-bottom: 10px; }
 .browser-share-manual { display: block; width: calc(100% - 40px); margin: 0 20px 12px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; font: 12px var(--font-sans); }
 .browser-share-manual[hidden] { display: none; }
-.browser-panel iframe { display: block; width: 100%; height: var(--browser-frame-height, 400px); border: 0; border-top: 1px solid var(--line); background: #fff; }
+.browser-panel iframe { display: block; box-sizing: border-box; width: calc(100% - 16px); height: var(--browser-frame-height, 400px); margin: 0 8px 8px; border: 1px solid #c9b9c3; border-radius: 6px; background: #fff; }
 .browser-unavailable { padding: 20px; }
 .browser-unavailable h2 { margin: 2px 0 5px; }
 .browser-unavailable p:last-child { margin-bottom: 0; color: var(--muted); }
@@ -750,15 +760,21 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
 .badge-review { color: #78510c; background: #fff2d7; }
 .study-downloads { margin-top: 3px; }
 .study-downloads .download-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-.study-downloads .download-card { display: inline-flex; align-items: center; min-height: 38px; width: auto; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--soft); color: var(--navy); font-size: 11px; font-weight: 750; text-decoration: none; box-shadow: none; }
+.study-downloads .download-card { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; width: auto; padding: 6px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); color: var(--navy); font-size: 12px; font-weight: 650; text-decoration: none; box-shadow: none; }
 .study-downloads .download-card:hover { background: #efe1eb; }
 .genome-downloads { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px 24px; margin-top: 24px; padding: 19px 20px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); }
 .genome-downloads h2 { margin: 2px 0 4px; color: var(--navy); font-size: 19px; }
 .genome-downloads p:not(.eyebrow) { margin: 0; color: var(--muted); font-size: 12px; }
 .genome-download-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.genome-download-actions .button { min-height: 36px; padding: 7px 11px; font-size: 12px; }
+.genome-download-actions .button { min-height: 38px; padding: 7px 11px; gap: 7px; font-size: 12px; }
+.genome-download-actions .button::before, .study-downloads .download-card::before { content: ""; width: 16px; height: 16px; flex: 0 0 16px; background: currentColor; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5'/%3E%3C/svg%3E") center / contain no-repeat; }
+.genome-download-actions [data-download-genome-package]::before { mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12m-5-5 5 5 5-5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4'/%3E%3C/svg%3E"); }
 .genome-download-actions button:disabled { opacity: .65; cursor: wait; }
 .genome-download-actions .package-status { flex: 1 0 100%; min-height: 14px; color: var(--muted); font-size: 11px; }
+.genome-download-actions .package-status:empty { display: none; }
+.genome-computational-files { margin-top: 20px; padding: 12px 0; border-top: 1px solid var(--line); }
+.genome-computational-files summary { color: var(--navy); font-size: 13px; font-weight: 650; cursor: pointer; }
+.genome-computational-files .genome-download-actions { margin-top: 12px; }
 .audit-card { background: #fbfaf6; border-left: 3px solid #d0aa55; box-shadow: none; }
 .audit-card > p { margin: 12px 0 0; color: #57534b; font-size: 12px; }
 .muted, .empty-state { color: var(--muted); }
@@ -797,7 +813,6 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
   .study-count { display: flex; align-items: baseline; gap: 8px; text-align: left; }
   .genome-filter-bar { grid-template-columns: 1fr 42px; padding: 12px; }
   .genome-refine-filters { grid-template-columns: 1fr; gap: 12px; padding: 0 12px; }
-  .genome-filter-note { margin: 10px 12px 16px; }
   .genome-filter-search { grid-column: 1; }
   .genome-filter-reset { grid-column: 2; grid-row: 1; }
   .genome-filter-bar label:nth-of-type(n):not(.genome-filter-search) { grid-column: 1 / -1; }
@@ -812,7 +827,9 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
   .genome-card-facts { justify-content: flex-start; }
   .card-open { grid-column: auto; min-height: 28px; display: flex; align-items: center; }
   .browser-panel-heading { align-items: stretch; flex-direction: column; padding: 15px 13px 9px; }
-  .browser-actions { justify-content: flex-start; }
+  .browser-panel-title { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .browser-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .browser-open--full { grid-column: 1 / -1; }
   .browser-share-status { padding-inline: 13px; }
   .browser-share-manual { width: calc(100% - 26px); margin-inline: 13px; }
   .browser-panel iframe { min-height: 300px; }
@@ -821,6 +838,8 @@ main.page-shell { padding-top: 34px; padding-bottom: 60px; min-width: 0; }
 }
 /* The genome directory shares its layout across experimental and training data. */
 .batter-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 22px 0; }
+.batter-pagination .button { min-height: 40px; gap: 7px; padding: 8px 13px; font-size: 12px; }
+.batter-pagination [data-genome-page-number] { min-width: 76px; color: var(--muted); text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; }
 [hidden] { display: none !important; }
 
 /* Shared navigation and readable content for the current portal. */
@@ -859,18 +878,15 @@ main:focus { outline: none; }
 .notes-table tbody th { min-width: 150px; font-weight: 600; }
 #usage-status:not(:empty) { padding: 16px 20px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; }
 .button:disabled { opacity: .5; cursor: not-allowed; }
-.browser-open { min-height: 40px; }
-.source-notes summary { padding: 5px 0; }
+.source-notes summary { width: fit-content; min-height: 36px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); font-weight: 600; list-style-position: inside; }
+.source-notes summary:hover, .source-notes[open] summary { color: var(--blue); background: var(--soft); border-color: #cdbdca; }
+.source-notes[open] summary { margin-bottom: 10px; }
 .genome-directory-table a:focus-visible { outline-offset: 5px; }
 .genome-provenance { margin: 0 0 24px; padding: 24px; background: var(--white); border: 1px solid var(--line); border-radius: 10px; }
 .genome-provenance h2 { margin: 0 0 18px; color: var(--navy); font-size: 18px; }
 .genome-provenance dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin: 0; }
 .genome-provenance dt { color: var(--muted); font-size: 12px; }
 .genome-provenance dd { margin: 4px 0 0; color: var(--navy); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
-.genome-provenance p { margin: 20px 0 0; padding-top: 15px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
-.genome-provenance details { margin-top: 12px; font-size: 12px; color: var(--muted); }
-.genome-provenance summary { padding: 4px 0; cursor: pointer; }
-.genome-provenance code { display: block; padding-top: 6px; overflow-wrap: anywhere; }
 .genome-overview { margin: 0 0 24px; padding: 22px 24px; background: var(--white); border: 1px solid var(--line); border-radius: 10px; }
 .genome-overview h2 { margin: 0 0 18px; color: var(--navy); font-size: 18px; }
 .genome-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 24px; margin: 0; }
@@ -924,3 +940,24 @@ main:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
 }
+
+/* Promoter-style external details: no iframe drawer or page-bottom jump. */
+.browser-workspace { position: relative; min-width: 0; }
+.browser-feature-details { position: fixed; top: 90px; right: 18px; z-index: 25; display: flex; flex-direction: column; width: min(384px, calc(100% - 24px)); max-height: calc(100dvh - 108px); border: 1px solid #c9b9c3; border-radius: 8px; background: #fff; overflow: hidden; box-shadow: 0 8px 28px rgba(75,45,71,.16); }
+.browser-feature-details[hidden] { display: none; }
+.browser-feature-details-heading { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.browser-feature-details-heading h2 { margin: 0; font-size: 16px; }
+.browser-feature-details-heading button { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; background: #fff; color: var(--ink); font: inherit; cursor: pointer; }
+.browser-feature-details-heading button:hover { background: #faf7f9; }
+.browser-feature-details-heading button:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+[data-feature-details-content] { display: block; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 8px; }
+.browser-widget-note { margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.5; }
+@media (min-width: 1640px) {
+  .browser-workspace:has(.browser-feature-details:not([hidden])) { display: grid; grid-template-columns: minmax(0, 1fr) 384px; align-items: start; gap: 16px; width: calc(100% + 400px); margin-left: -200px; }
+  .browser-feature-details { position: sticky; top: 90px; right: auto; z-index: 1; width: 100%; box-shadow: none; }
+}
+@media (max-width: 600px) {
+  .browser-feature-details { top: 84px; right: 12px; max-height: calc(100dvh - 96px); }
+}
+
+.genome-evidence[hidden] { display: none; }

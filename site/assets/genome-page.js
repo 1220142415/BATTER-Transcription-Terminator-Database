@@ -9,6 +9,7 @@
   let params = new URLSearchParams(window.location.search);
   const browserUrl = new URL("../jbrowse/index.html", document.baseURI);
   const shareButton = document.querySelector("[data-share-view]");
+  const trackButtons = document.querySelectorAll("[data-select-tracks], [data-add-user-track]");
   const shareStatus = document.querySelector("[data-share-status]");
   const shareManual = document.querySelector("[data-share-manual]");
   const browserStatus = document.querySelector("[data-browser-status]");
@@ -31,23 +32,23 @@
   function parseSharedView(query) {
     if (!query.has("view")) return null;
     const keys = ["view", "ref", "center", "zoom", "rev", "tracks"];
-    if (keys.some((key) => query.getAll(key).length !== 1) || query.get("view") !== "1") throw new Error("This shared view link is invalid.");
+    if (keys.some((key) => query.getAll(key).length !== 1) || query.get("view") !== "1") throw new Error("Invalid view link.");
     const ref = query.get("ref");
     const center = Number(query.get("center"));
     const zoom = Number(query.get("zoom"));
     const rev = query.get("rev");
     if (!ref || ref.length > 255 || !Number.isSafeInteger(center) || center < 1 ||
-        !Number.isFinite(zoom) || zoom <= 0 || !["0", "1"].includes(rev)) throw new Error("This shared view link is invalid.");
+        !Number.isFinite(zoom) || zoom <= 0 || !["0", "1"].includes(rev)) throw new Error("Invalid view link.");
     const tracks = query.get("tracks") ? query.get("tracks").split(",").map((entry) => {
       const divider = entry.lastIndexOf(":");
       const id = entry.slice(0, divider);
       const height = Number(entry.slice(divider + 1));
       if (divider < 1 || !/^[A-Za-z0-9_.-]{1,128}$/.test(id) || !Number.isFinite(height) || height < 20 || height > 1000) {
-        throw new Error("This shared view has an invalid track list.");
+        throw new Error("Invalid track list.");
       }
       return { id, height };
     }) : [];
-    if (tracks.length > 100 || new Set(tracks.map((track) => track.id)).size !== tracks.length) throw new Error("This shared view has an invalid track list.");
+    if (tracks.length > 100 || new Set(tracks.map((track) => track.id)).size !== tracks.length) throw new Error("Invalid track list.");
     return { version: 1, ref, center, zoom, reversed: rev === "1", tracks };
   }
 
@@ -82,6 +83,7 @@
       bridgeReady = true;
       setBrowserStatus("");
       if (shareButton) shareButton.disabled = false;
+      trackButtons.forEach((button) => { button.disabled = false; });
       try {
         const state = parseSharedView(params);
         if (state) {
@@ -98,7 +100,7 @@
           if (!root.dataset.preserveDefaultView) showDefaultView();
         } else setShareStatus("");
       } catch (error) {
-        setShareStatus(`${error.message} Showing the default view.`);
+        setShareStatus(`${error.message} Default view restored.`);
         showDefaultView();
       }
       return;
@@ -107,15 +109,15 @@
     if (!action) {
       if (message.type === "error") {
         window.clearTimeout?.(loadingTimer);
-        setBrowserStatus(`${message.message || "Browser unavailable."} Select Reload to retry.`);
+        setBrowserStatus(message.message || "Browser unavailable.");
       }
       return;
     }
     pending.delete(message.id);
     if (message.type === "error") {
-      setShareStatus(message.message || "The browser view is unavailable.");
+      setShareStatus(message.message || "View unavailable.");
       if (["navigate", "restore"].includes(action)) {
-        setShareStatus(`${message.message || "The browser view is unavailable."} Showing the default view.`);
+        setShareStatus(`${message.message || "View unavailable."} Default view restored.`);
         showDefaultView();
       }
     } else if (action === "restore" && message.type === "restored") {
@@ -125,7 +127,7 @@
       try {
         await navigator.clipboard.writeText(url);
         if (shareManual) shareManual.hidden = true;
-        setShareStatus("View link copied.");
+        setShareStatus(`Link copied.${message.hasUserTracks ? " Imported tracks excluded." : ""}`);
       } catch {
         if (shareManual) {
           shareManual.hidden = false;
@@ -133,7 +135,7 @@
           shareManual.focus();
           shareManual.select();
         }
-        setShareStatus("Copy the link shown below.");
+        setShareStatus(`Copy link below.${message.hasUserTracks ? " Imported tracks excluded." : ""}`);
       }
     }
   });
@@ -146,6 +148,13 @@
     shareMessage({ type: "capture", id });
   });
 
+  trackButtons.forEach((button) => button.addEventListener("click", () => {
+    if (!bridgeReady) return;
+    const id = String(++requestNumber);
+    pending.set(id, "panel");
+    shareMessage({ type: button.hasAttribute("data-select-tracks") ? "select-tracks" : "add-user-track", id });
+  }));
+
   function selectedSource() {
     return params.get("source_id") || "";
   }
@@ -157,19 +166,43 @@
   }
 
   function loadBrowser() {
+    // Each iframe load gets a fresh host; stale feature details never survive Reload.
+    document.querySelector("[data-browser-feature-details]")?.remove();
+    const panel = frame.closest(".browser-panel");
+    let workspace = panel.closest(".browser-workspace");
+    if (!workspace) {
+      workspace = document.createElement("div");
+      workspace.className = "browser-workspace";
+      panel.before(workspace);
+      workspace.append(panel);
+    }
+    const details = document.createElement("aside");
+    details.className = "browser-feature-details";
+    details.dataset.browserFeatureDetails = "";
+    details.hidden = true;
+    details.setAttribute("aria-labelledby", "browser-feature-details-heading");
+    details.innerHTML = '<div class="browser-feature-details-heading"><h2 id="browser-feature-details-heading">Feature details</h2><button type="button" data-close-feature-details aria-label="Close feature details">Close <span aria-hidden="true">×</span></button></div><p class="browser-widget-note" data-browser-widget-note hidden></p><div data-feature-details-content></div>';
+    const shadow = details.querySelector("[data-feature-details-content]").attachShadow({ mode: "open" });
+    const widgetHost = document.createElement("div");
+    widgetHost.dataset.nativeFeatureDetails = "";
+    shadow.append(widgetHost);
+    workspace.append(details);
     window.clearTimeout?.(loadingTimer);
     setBrowserStatus("Loading browser…");
     setShareStatus("");
     loadingTimer = window.setTimeout?.(() => {
-      if (!bridgeReady) setBrowserStatus("Browser loading is slow. Select Reload to retry.");
+      if (!bridgeReady) setBrowserStatus("Browser loading timed out. Reload to retry.");
     }, 30000);
     bridgeReady = false;
     bridgeNonce = Math.random().toString(36).slice(2);
     if (shareButton) shareButton.disabled = true;
+    trackButtons.forEach((button) => { button.disabled = true; });
     if (shareManual) shareManual.hidden = true;
     pending.clear();
     const frameParams = new URLSearchParams();
-    frameParams.set("config", new URL(frame.dataset.config, browserUrl).href);
+    const configUrl = new URL(frame.dataset.config, browserUrl);
+    configUrl.searchParams.set("v", "37");
+    frameParams.set("config", configUrl.href);
     frameParams.set("bted_bridge", bridgeNonce);
     ["session", "tracks", "highlight"].forEach((key) => {
       if (params.has("view")) return;

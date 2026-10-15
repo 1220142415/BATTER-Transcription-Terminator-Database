@@ -16,44 +16,38 @@
   async function loadGenome() {
     status.textContent = "Loading genome data…"; reload.disabled = true;
     try {
-      if (!id || !/^[A-Za-z0-9_.-]{1,128}$/.test(id)) throw new Error("Select a genome from the catalog.");
+      if (!id || !/^[A-Za-z0-9_.-]{1,128}$/.test(id)) throw new Error("Genome ID required.");
       const api = new URL(`../api/batter/${encodeURIComponent(id)}`, document.baseURI);
       const requestedRevision = new URLSearchParams(location.search).get("revision");
       if (requestedRevision) api.searchParams.set("revision", requestedRevision);
       const response = await fetch(api);
       if (response.status === 409) throw new Error("Data version changed. Reopen the genome from the catalog.");
-      if (!response.ok) throw new Error(response.status === 404 ? "Genome not found in the catalog." : "Genome files unavailable. Select Reload to retry.");
+      if (!response.ok) throw new Error(response.status === 404 ? "Genome not found." : "Genome files unavailable.");
       const data = await response.json();
       const pageUrl = new URL(location.href); pageUrl.searchParams.set("revision", data.revision); history.replaceState(null, "", pageUrl);
       const name = data.taxonomy.split(";").find(taxon => taxon.startsWith("s__"))?.slice(3) || id;
       document.title = `${name} · BTED`;
       if ($("[data-batter-title]")) $("[data-batter-title]").textContent = name;
-      if ($("[data-batter-id]")) $("[data-batter-id]").textContent = `Genome ID: ${id}${data.otu_id ? ` · GEM OTU: ${data.otu_id}` : ""} · ${data.genome_type}`;
+      if ($("[data-batter-id]")) $("[data-batter-id]").textContent = name === id ? "" : id;
       if ($("[data-batter-reference]")) $("[data-batter-reference]").textContent = `Sequence source: ${data.reference.source}. ${format(data.reference.contigs)} contigs · ${format(data.reference.bases)} bp.`;
       const provenance = $("[data-batter-provenance]");
       if (provenance) {
-        const heading = document.createElement("h2"), facts = document.createElement("dl"), note = document.createElement("p");
+        const heading = document.createElement("h2"), facts = document.createElement("dl");
         heading.textContent = "Reference details";
         const source = ({ "NCBI-RefSeq": "NCBI RefSeq", "NCBI-MAG": "NCBI GenBank", "NCBI-SAG": "NCBI GenBank" })[data.source_collection] || data.source_collection || "Not cataloged";
-        for (const [label, value] of [["Genome ID", id], ["GEM OTU", data.otu_id], ["Genome source", source], ["Sequence source", data.reference.source], ["Genome type", data.genome_type], ["Reference length", `${format(data.reference.bases)} bp`], ["Contigs", format(data.reference.contigs)], ["Input FASTA", data.reference.source_path]]) {
+        for (const [label, value] of [["Genome ID", id], ["GEM OTU", data.otu_id], ["Genome source", source], ["Sequence source", data.reference.source], ["Genome type", data.genome_type], ["Reference length", `${format(data.reference.bases)} bp`], ["Contigs", format(data.reference.contigs)]]) {
           if (!value) continue;
           const item = document.createElement("div"), term = document.createElement("dt"), description = document.createElement("dd");
           term.textContent = label; description.textContent = value; item.append(term, description); facts.append(item);
         }
-        note.textContent = "Prediction coordinates use this FASTA, not all members of its GEM OTU. An NCBI accession alone does not confirm sequence identity.";
-        provenance.replaceChildren(heading, facts, note);
-        if (data.reference.source_sha256) {
-          const details = document.createElement("details"), summary = document.createElement("summary"), checksum = document.createElement("code");
-          summary.textContent = "Original FASTA SHA-256"; checksum.textContent = data.reference.source_sha256;
-          details.append(summary, checksum); provenance.append(details);
-        }
+        provenance.replaceChildren(heading, facts);
         provenance.hidden = false;
       }
       const taxonomy = $("[data-batter-taxonomy]");
       if (taxonomy) {
         const header = document.createElement("div"), heading = document.createElement("h2"), source = document.createElement("span"), lineage = document.createElement("dl");
         header.className = "taxonomy-heading"; heading.textContent = "Taxonomy";
-        source.append(link("GEM · GTDB classification", "https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv"));
+        source.append(link("GEM / GTDB", "https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv"));
         header.append(heading, source); lineage.className = "taxonomy-lineage";
         const ranks = Object.fromEntries((data.taxonomy || "").split(";").map(value => value.trim()).map(value => [value.slice(0, 1), value.slice(3)]));
         for (const [key, label] of [["p", "Phylum"], ["c", "Class"], ["o", "Order"], ["f", "Family"], ["g", "Genus"], ["s", "Species"]]) {
@@ -63,6 +57,19 @@
         taxonomy.replaceChildren(header, lineage); taxonomy.hidden = false;
       }
       const counts = data.feature_counts || {};
+      if (counts.otu_augmentation_span || counts.rfam_training_span || counts.tes_prediction) {
+        const legend = document.createElement("div");
+        legend.className = "browser-track-legend";
+        legend.setAttribute("aria-label", "Track symbols");
+        legend.title = "Bar: region. Hollow flag: 3′ boundary. Solid flag: experimental 3′ end.";
+        for (const [kind, label] of [["plus", "+ strand"], ["minus", "− strand"], ["flag", "Hollow: region · Solid: experimental"]]) {
+          const item = document.createElement("span"), swatch = document.createElement("i");
+          swatch.className = `track-swatch track-swatch-${kind}`;
+          swatch.setAttribute("aria-hidden", "true");
+          item.append(swatch, label); legend.append(item);
+        }
+        $(".browser-panel-heading").append(legend);
+      }
       const validCount = value => Number.isSafeInteger(value) && value >= 0;
       const hasTrainingCounts = validCount(counts.otu_augmentation_span) && validCount(counts.rfam_training_span);
       const training = hasTrainingCounts ? counts.otu_augmentation_span + counts.rfam_training_span : null;
@@ -73,23 +80,28 @@
       }
       $("[data-training-breakdown]").textContent = hasTrainingCounts ? `OTU ${format(counts.otu_augmentation_span)} · Rfam ${format(counts.rfam_training_span)}` : "";
       const downloads = $("[data-batter-downloads]"); downloads.replaceChildren();
-      for (const [file, label] of [["prediction.gff3.gz", "Prediction GFF3"], ["augmentation.gff3.gz", "Training GFF3"], ["reference.fa.gz", "Reference FASTA"], ["genes.gff3.gz", "Gene annotation"]]) {
+      for (const [file, label] of [["prediction.gff3.gz", "Predicted regions (GFF3)"], ["augmentation.gff3.gz", "Augmentation / Rfam regions (GFF3)"], ["reference.fa.gz", "Reference FASTA"], [data.annotation.recovered ? "genes.gff3" : "genes.gff3.gz", "Gene annotation"]]) {
         if (!data.browser_files[file] || (file.startsWith("genes") && data.annotation.status !== "matched")) continue;
         const node = link(label, data.browser_files[file].url); node.className = "button"; downloads.append(node);
       }
-      const metadataLink = link("Metadata", api.href); metadataLink.className = "button"; downloads.append(metadataLink);
-      if (data.annotation.status !== "matched" || !counts.otu_augmentation_span && !counts.rfam_training_span) {
+      if (data.annotation.coverage === "partial") {
         const note = document.createElement("p"); note.className = "muted";
-        note.textContent = [data.annotation.status !== "matched" ? "No matching gene annotation." : "", !counts.otu_augmentation_span && !counts.rfam_training_span ? "No augmentation / Rfam regions." : ""].filter(Boolean).join(" ");
+        note.textContent = `Gene annotation: ${data.annotation.matched_reference_contigs} of ${data.annotation.total_reference_contigs} contigs.`;
+        downloads.append(note);
+      }
+      const metadataLink = link("Genome metadata (JSON)", api.href); metadataLink.className = "button"; downloads.append(metadataLink);
+      if (data.annotation.status !== "matched") {
+        const note = document.createElement("p"); note.className = "muted";
+        note.textContent = "Gene annotation: Missing.";
         downloads.append(note);
       }
       const config = new URL(api); config.pathname += "/config"; config.searchParams.set("revision", data.revision);
       const configResponse = await fetch(config);
-      if (!configResponse.ok) throw new Error("Browser files unavailable. Select Reload to retry.");
+      if (!configResponse.ok) throw new Error("Browser files unavailable.");
       const browserConfig = await configResponse.json();
       if (browserConfig.metadata?.combined_reference_status === "separate_views") {
         const note = document.createElement("p"); note.className = "muted";
-        note.textContent = "Experimental and computational references differ and use separate coordinate views.";
+        note.textContent = "Different references; separate coordinate views.";
         downloads.append(note);
       }
       const frame = $("[data-browser-frame]");

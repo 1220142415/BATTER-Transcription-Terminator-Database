@@ -10,6 +10,7 @@ test("genome provenance uses registered metadata and remains readable when the b
     const element = () => ({ children: [], dataset: {}, hidden: true, textContent: "",
       append(...items) { this.children.push(...items); },
       replaceChildren(...items) { this.children = items; },
+      setAttribute() {},
       addEventListener() {}, removeEventListener() {},
     });
     const nodes = new Map();
@@ -36,7 +37,7 @@ test("genome provenance uses registered metadata and remains readable when the b
     assert.equal(facts["GEM OTU"], otu || undefined);
     assert.equal(facts["Genome source"], "IMG");
     assert.equal(facts["Sequence source"], "GEM representative");
-    assert.equal(facts["Input FASTA"], metadata.reference.source_path);
+    assert.equal(facts["Input FASTA"], undefined);
     assert.equal(facts["Reference length"], "1,309,253 bp");
     assert.equal(facts["Contigs"], "46");
     const taxonomy = select("[data-batter-taxonomy]");
@@ -51,8 +52,8 @@ test("genome provenance uses registered metadata and remains readable when the b
     assert.equal(select("[data-prediction-count]").textContent, otu ? "0" : "Not cataloged");
     assert.equal(select("[data-training-count]").textContent, otu ? "16" : "Not cataloged");
     assert.equal(select("[data-training-breakdown]").textContent, otu ? "OTU 11 · Rfam 5" : "");
-    assert.match(panel.children[2].textContent, /not all members/);
-    assert.equal(panel.children[3].children[1].textContent, metadata.reference.source_sha256);
+    assert.equal(panel.children.length, 2);
+    assert.ok(!JSON.stringify(panel).includes(metadata.reference.source_sha256));
     assert.match(select("[data-browser-status]").textContent, /unavailable/);
   }
 });

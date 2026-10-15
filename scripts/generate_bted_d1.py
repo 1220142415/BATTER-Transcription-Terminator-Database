@@ -14,6 +14,8 @@ import json
 import shutil
 from pathlib import Path
 from typing import Any, Iterable, Sequence
+from experimental_signals import load_signals
+from experimental_predictions import load_predictions
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -97,7 +99,18 @@ def main() -> int:
 
     publications = jsonl(bundle / "publications.jsonl")
     assemblies = jsonl(bundle / "assemblies.jsonl")
+    predictions = load_predictions()
     contigs = jsonl(bundle / "contigs.jsonl")
+    assembly_ids = {row['assembly_accession'] for row in assemblies}
+    for genome, prediction in predictions['genomes'].items():
+        if genome not in assembly_ids:
+            continue
+        for name, length in prediction['reference']['contigs'].items():
+            existing = next((r for r in contigs if r['assembly_accession'] == genome and r['contig_accession'] == name), None)
+            if existing:
+                assert existing['length_bp'] == length
+            else:
+                contigs.append({'assembly_accession': genome, 'contig_accession': name, 'contig_name': name, 'length_bp': length})
     sources = jsonl(bundle / "sources.jsonl")
     accessions = jsonl(bundle / "source_accessions.jsonl")
     endpoints = jsonl(bundle / "endpoints.jsonl")
@@ -144,13 +157,18 @@ def main() -> int:
         "assemblies",
         (
             "release_version", "accession", "assembly_name", "organism_name", "strain",
-            "taxon_id", "reference_url",
+            "taxon_id", "reference_url", "prediction_count", "prediction_run", "prediction_revision", "prediction_reference_sha256", "prediction_contig_counts_json",
         ),
         (
             (
                 release_version, row["assembly_accession"], row.get("assembly_name"),
                 row.get("organism_name"), row.get("strain"), row.get("taxon_id"),
                 row.get("reference_url"),
+                predictions['genomes'].get(row['assembly_accession'], {}).get('prediction_count', 0),
+                predictions['run'] if row['assembly_accession'] in predictions['genomes'] else None,
+                predictions['revision'] if row['assembly_accession'] in predictions['genomes'] else None,
+                predictions['genomes'].get(row['assembly_accession'], {}).get('reference', {}).get('fasta_sha256'),
+                json_value(predictions['genomes'].get(row['assembly_accession'], {}).get('contig_counts')),
             )
             for row in assemblies
         ),
@@ -214,6 +232,7 @@ def main() -> int:
         ),
     )
 
+    signal_samples = {s['source_id']: s for s in load_signals()[0]}
     track_rows = []
     for order, source in enumerate(sources, 1):
         source_id = source["source_id"]
@@ -243,6 +262,12 @@ def main() -> int:
             )
             track_public = bool(bed.get("is_public")) if bed else source_track_public
             endpoint_asset = bed
+        signal_sample = signal_samples.get(source_id)
+        signal_info = None
+        if signal_sample and all(s['path'].split('/', 1)[1] in asset_by_path for s in signal_sample['signals']):
+            if signal_sample['genome_id'] != source.get('assembly_id_ref') or signal_sample['pmid'] != str(source['publication_id_ref']):
+                raise ValueError('Signal sample differs from source genome or study')
+            signal_info = {k: signal_sample[k] for k in ('sample_id', 'pmid', 'genome_id', 'assay', 'conditions', 'coverage', 'reference_contigs')}
         track_rows.append(
             (
                 f"{source_id}--track", release_version, source_id, source.get("assembly_id_ref"),
@@ -255,6 +280,7 @@ def main() -> int:
                 source.get("record_count", 0), endpoint_asset.get("asset_id") if endpoint_asset else None,
                 1 if track_public else 0, order,
                 json_value({
+                    **({'signal_sample': signal_info} if signal_info else {}),
                     "source_note": source.get("source_note"),
                     "decision_note": source.get("decision_note"),
                     "known_limitations": source.get("known_limitations"),

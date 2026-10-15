@@ -38,6 +38,11 @@ CREATE TABLE IF NOT EXISTS assemblies (
   strain TEXT,
   taxon_id TEXT,
   reference_url TEXT,
+  prediction_count INTEGER NOT NULL DEFAULT 0 CHECK (prediction_count >= 0),
+  prediction_run TEXT,
+  prediction_revision TEXT,
+  prediction_reference_sha256 TEXT,
+  prediction_contig_counts_json TEXT CHECK (prediction_contig_counts_json IS NULL OR json_valid(prediction_contig_counts_json)),
   UNIQUE (release_version, accession)
 );
 

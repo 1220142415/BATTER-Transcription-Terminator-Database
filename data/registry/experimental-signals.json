@@ -1,0 +1,115 @@
+{
+  "schema": "bted-experimental-signals-v1",
+  "revision": "b35aa8a05dcab593eea7d616c1772d7212c64e1b",
+  "catalogue_sha256": "f0a69358eb1c0e52942e413e31592857dbf9ccb0c5c1a442af0fd1110228ec08",
+  "samples": [
+    {
+      "genome_id": "GCF_000005845.1",
+      "source_id": "BATTER_S1_001",
+      "pmid": "29606352",
+      "sample_id": "GSM2500131",
+      "series_accession": "GSE95211",
+      "reference_contigs": {
+        "NC_000913.2": 4639675
+      },
+      "signals": [
+        {
+          "byte_size": 3775908,
+          "path": "v0.5.0/genomes/experimental-only/GCF_000005845.1/studies/PMID_29606352/sources/BATTER_S1_001/samples/GSM2500131/signal.plus.bw",
+          "sha256": "4a77d8b122711dfc3691d2e3fee85a7b793b120c6a1913e03454a0d3c5a96810",
+          "strand": "plus"
+        },
+        {
+          "byte_size": 3951395,
+          "path": "v0.5.0/genomes/experimental-only/GCF_000005845.1/studies/PMID_29606352/sources/BATTER_S1_001/samples/GSM2500131/signal.minus.bw",
+          "sha256": "c40f81d14175cbca4c79a76f69b09530f24ed42d999f5a757ecda4bc90160f97",
+          "strand": "minus"
+        }
+      ],
+      "assay": "Rend-seq",
+      "conditions": "MOPS complete; pooled 25s fragments; no shadow",
+      "coverage": "NC_000913.2"
+    },
+    {
+      "genome_id": "GCF_000009045.1",
+      "source_id": "BATTER_S1_003",
+      "pmid": "29606352",
+      "sample_id": "GSM2500127",
+      "series_accession": "GSE95211",
+      "reference_contigs": {
+        "NC_000964.3": 4215606
+      },
+      "signals": [
+        {
+          "byte_size": 4299203,
+          "path": "v0.5.0/genomes/experimental-only/GCF_000009045.1/studies/PMID_29606352/sources/BATTER_S1_003/samples/GSM2500127/signal.plus.bw",
+          "sha256": "4aa7a32dc65d15f2a3fcf4d226073164f2e62604d22d3fb781f3fdb2a89e777f",
+          "strand": "plus"
+        },
+        {
+          "byte_size": 4315451,
+          "path": "v0.5.0/genomes/experimental-only/GCF_000009045.1/studies/PMID_29606352/sources/BATTER_S1_003/samples/GSM2500127/signal.minus.bw",
+          "sha256": "37be3048bddbd19725c3ac75215809c4d3ffaa7b4ecb3ca30692af5dd6f8fa22",
+          "strand": "minus"
+        }
+      ],
+      "assay": "Rend-seq",
+      "conditions": "LB; pooled 25s fragments; no shadow",
+      "coverage": "NC_000964.3"
+    },
+    {
+      "genome_id": "GCF_000022005.1",
+      "source_id": "BATTER_S1_004",
+      "pmid": "29606352",
+      "sample_id": "GSM2971251",
+      "series_accession": "GSE95211",
+      "reference_contigs": {
+        "CP001340.1": 4042929
+      },
+      "signals": [
+        {
+          "byte_size": 4492339,
+          "path": "v0.5.0/genomes/experimental-only/GCF_000022005.1/studies/PMID_29606352/sources/BATTER_S1_004/samples/GSM2971251/signal.plus.bw",
+          "sha256": "360a7132cb326f6014b1eba827c4c0de202bb174011e1419abeb6994ba6bfbb0",
+          "strand": "plus"
+        },
+        {
+          "byte_size": 4689625,
+          "path": "v0.5.0/genomes/experimental-only/GCF_000022005.1/studies/PMID_29606352/sources/BATTER_S1_004/samples/GSM2971251/signal.minus.bw",
+          "sha256": "047fbc53816c1d4fd0318e454d483853088638d350789dbbffe0a4bf58782ec9",
+          "strand": "minus"
+        }
+      ],
+      "assay": "Rend-seq",
+      "conditions": "PYE; pooled 25s fragments; no shadow",
+      "coverage": "CP001340.1"
+    },
+    {
+      "genome_id": "GCF_001456255.1",
+      "source_id": "BATTER_S1_005",
+      "pmid": "29606352",
+      "sample_id": "GSM2971249",
+      "series_accession": "GSE95211",
+      "reference_contigs": {
+        "CP009977.1": 3248023
+      },
+      "signals": [
+        {
+          "byte_size": 3054947,
+          "path": "v0.5.0/genomes/experimental-only/GCF_001456255.1/studies/PMID_29606352/sources/BATTER_S1_005/samples/GSM2971249/signal.plus.bw",
+          "sha256": "9f92cff24aace8db02b77e9f51421e22887c6babc27b6a1b25b269081fbe1fad",
+          "strand": "plus"
+        },
+        {
+          "byte_size": 2750725,
+          "path": "v0.5.0/genomes/experimental-only/GCF_001456255.1/studies/PMID_29606352/sources/BATTER_S1_005/samples/GSM2971249/signal.minus.bw",
+          "sha256": "70a3efb696d2f17ca62b889762b543ef50fbc8f0a0c8424a0430b313f992e0bd",
+          "strand": "minus"
+        }
+      ],
+      "assay": "Rend-seq",
+      "conditions": "MOPS complete, 3% NaCl; pooled 25s fragments; no shadow",
+      "coverage": "Chromosome 1 only (CP009977.1)."
+    }
+  ]
+}

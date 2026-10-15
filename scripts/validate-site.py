@@ -23,6 +23,8 @@ import json
 import hashlib
 from html.parser import HTMLParser
 from pathlib import Path
+from experimental_predictions import prediction_assets, load_predictions
+from experimental_signals import signal_assets
 
 MAX_FILE_BYTES = 1024 * 1024  # 1 MiB；站点页面与样式均为 KB 级
 MAX_JBROWSE_FILE_BYTES = 64 * 1024 * 1024
@@ -211,6 +213,7 @@ def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: 
 
     allowed_urls: set[str] = set()
     allowed_local: set[str] = set()
+    registered_signals = prediction_assets(signal_assets({}))
     for logical_path, entry in assets.items():
         if (
             not isinstance(logical_path, str)
@@ -247,6 +250,8 @@ def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: 
             if not path.is_file() or path.stat().st_size != size or _sha256_file(path) != sha256:
                 problems.append(f"本地发布资产缺失或校验失败: {rel}")
         elif published_url and url == published_url and asset_revision == revision:
+            pass
+        elif (registered := registered_signals.get(logical_path)) and all(entry.get(k) == registered[k] for k in ('url', 'revision', 'sha256', 'byte_size', 'asset_kind')):
             pass
         else:
             problems.append(f"资产 URL 未固定到批准版本: {logical_path}")
@@ -295,9 +300,9 @@ def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: 
             problems.append(f"{config_path.relative_to(site_dir).as_posix()} 缺少唯一 BTED 插件配置")
         for plugin in configured_plugins:
             uri = plugin.get("esmUrl") if isinstance(plugin, dict) else None
-            if not isinstance(plugin, dict) or plugin.get("name") != "BTEDTrackPlugin" or uri != "plugins/bted-track-plugin.js":
+            if not isinstance(plugin, dict) or plugin.get("name") != "BTEDTrackPlugin" or uri not in {"plugins/bted-track-plugin.js", "plugins/bted-track-plugin.js?v=37"}:
                 problems.append(f"{config_path.relative_to(site_dir).as_posix()} 的 BTED 插件配置无效")
-            elif not (jbrowse_root / uri).is_file():
+            elif not (jbrowse_root / uri.split("?", 1)[0]).is_file():
                 problems.append(f"{config_path.relative_to(site_dir).as_posix()} 缺少 BTED 插件文件")
         for track in config.get("tracks", []):
             if not isinstance(track, dict):
@@ -305,13 +310,18 @@ def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: 
                 continue
             about = track.get("metadata", {}).get("btedAbout", {})
             kind = about.get("kind") if isinstance(about, dict) else None
-            if kind not in {"endpoint", "signal", "reference"}:
+            if kind not in {"endpoint", "signal", "reference", "prediction"}:
                 problems.append(f"{config_path.relative_to(site_dir).as_posix()} 轨道 About 缺少 BTED 证据类型")
             if kind == "endpoint":
                 display = (track.get("displays") or [{}])[0]
                 renderer = display.get("renderer", {}) if isinstance(display, dict) else {}
                 if renderer.get("color1") != "jexl:btedStrandColor(feature)":
                     problems.append(f"{config_path.relative_to(site_dir).as_posix()} 端点轨道未按链着色")
+            if kind == "prediction":
+                registered = load_predictions()['genomes'].get(config_path.name.removesuffix('.config.json'))
+                counts = track.get('metadata', {}).get('btedContigCounts', {})
+                if not registered or counts != registered['contig_counts'] or about.get('record_count') != registered['prediction_count'] or about.get('evidence') != 'Model prediction':
+                    problems.append(f"{config_path.relative_to(site_dir).as_posix()} 预测轨道与已核验登记不符")
             if kind == "reference":
                 display = (track.get("displays") or [{}])[0]
                 renderer = display.get("renderer", {}) if isinstance(display, dict) else {}

@@ -17,6 +17,7 @@ class WorkerAssetProxyTests(unittest.TestCase):
         local_asset_base: str | None = None,
         fetch_mode: str = "success",
         data_release_manifest_mode: str = "valid",
+        signal_sample_mode: str = "none",
     ) -> dict[str, object]:
         worker_path = json.dumps(str(WORKER))
         request_url_js = json.dumps(request_url)
@@ -24,6 +25,7 @@ class WorkerAssetProxyTests(unittest.TestCase):
         local_asset_base_js = json.dumps(local_asset_base)
         fetch_mode_js = json.dumps(fetch_mode)
         data_release_manifest_mode_js = json.dumps(data_release_manifest_mode)
+        signal_sample_mode_js = json.dumps(signal_sample_mode)
         script = f"""
 import {{ readFileSync }} from "node:fs";
 
@@ -126,6 +128,7 @@ const db = {{
     if (sql.startsWith("SELECT * FROM tracks WHERE")) return {{ bind() {{ return {{ all: async () => ({{ results: browserTracks }}) }}; }} }};
     if (sql.startsWith("SELECT * FROM sources WHERE")) return {{ bind() {{ return {{ first: async () => browserSource }}; }} }};
     if (sql.startsWith("SELECT contig_accession, length_bp")) return {{ bind() {{ return {{ first: async () => browserContigs.sort((a,b) => b.length_bp-a.length_bp || a.contig_accession.localeCompare(b.contig_accession))[0] }}; }} }};
+    if (sql.startsWith("SELECT source_id, reference_name, COUNT(*)")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ source_id: "BATTER_S1_003", reference_name: "NC_000964.3", record_count: 1070 }}] }}) }}; }} }};
     if (sql.startsWith("SELECT biological_coordinate_1based FROM endpoints WHERE")) return {{ bind() {{ return {{ first: async () => ({{ biological_coordinate_1based: 19000 }}) }}; }} }};
     if (sql.startsWith("SELECT reference_name, biological_coordinate_1based")) return {{ bind() {{ return {{ first: async () => ({{ reference_name: "NC_000964.3", biological_coordinate_1based: 19000 }}) }}; }} }};
     if (sql.includes("FROM assets")) return {{ bind(...params) {{ return {{ first: async () => params[0] === asset.asset_key && params[1] === asset.release_version ? asset : null, all: async () => ({{ results: params[1] === browserAssembly.accession ? browserAssets : params[1] === browserSource.source_id ? signalAssets : [] }}) }}; }} }};
@@ -152,6 +155,18 @@ const dataReleaseManifest = {{
     "genomes/GCF_000009045.1/metadata.tsv": {{ url: "https://huggingface.co/datasets/liurulong/terminator/resolve/abcdefabcdefabcdefabcdefabcdefabcdefabcd/v0.4.0/genomes/GCF_000009045.1/metadata.tsv", revision: "abcdefabcdefabcdefabcdefabcdefabcdefabcd", asset_kind: "metadata", byte_size: 50, sha256: "a".repeat(64) }},
   }},
 }};
+if ({signal_sample_mode_js} !== "none") {{
+  const sample = {{ sample_id: "GSM2500127", pmid: browserTracks[0].pmid, genome_id: browserAssembly.accession,
+    assay: "Rend-seq", conditions: "LB", coverage: "NC_000964.3", reference_contigs: {{ "NC_000964.3": 4215606 }} }};
+  if ({signal_sample_mode_js} === "mismatch") sample.genome_id = "wrong";
+  browserTracks[0].metadata_json = JSON.stringify({{ ...JSON.parse(browserTracks[0].metadata_json), signal_sample: sample }});
+  for (const [index, strand] of ["plus", "minus"].entries()) {{
+    const path = `genomes/experimental-only/${{browserAssembly.accession}}/studies/PMID_${{browserTracks[0].pmid}}/sources/BATTER_S1_003/samples/GSM2500127/signal.${{strand}}.bw`;
+    signalAssets[index].logical_path = path;
+    dataReleaseManifest.assets[path] = {{ url: `https://huggingface.co/datasets/liurulong/terminator/resolve/${{"a".repeat(40)}}/v0.5.0/${{path}}`, revision: "a".repeat(40),
+      byte_size: signalAssets[index].byte_size, sha256: signalAssets[index].sha256, asset_kind: "bigwig" }};
+  }}
+}}
 globalThis.fetch = async (url) => {{
   fetchedUrl = String(url);
   if (fetchMode === "throw") throw new Error("Network connection lost");
@@ -300,13 +315,14 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(default_view["offsetPx"], 18499)
         self.assertEqual(config["defaultSession"]["name"], "BTED · GCF_000009045.1")
         self.assertEqual(config["plugins"][0]["name"], "BTEDTrackPlugin")
-        self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js")
+        self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js?v=37")
         endpoint_track = next(track for track in config["tracks"] if track["trackId"].startswith("source_"))
         expected_gff3 = "https://huggingface.co/datasets/liurulong/terminator/resolve/abcdefabcdefabcdefabcdefabcdefabcdefabcd/v0.4.0/genomes/GCF_000009045.1/studies/PMID_12345678/endpoints.gff3.gz"
         self.assertEqual(endpoint_track["adapter"]["type"], "Gff3Adapter")
         self.assertEqual(endpoint_track["adapter"]["gffLocation"]["uri"], expected_gff3)
         self.assertEqual(endpoint_track["metadata"]["GFF3_download"], expected_gff3)
         self.assertEqual(endpoint_track["metadata"]["source_ids"], ["BATTER_S1_003"])
+        self.assertEqual(endpoint_track["metadata"]["btedContigCounts"], {"NC_000964.3": 1070})
         self.assertEqual(endpoint_track["metadata"]["btedAbout"]["authors"], "A Researcher; B Researcher")
         self.assertNotIn("license", endpoint_track["metadata"]["btedAbout"])
         self.assertEqual(endpoint_track["metadata"]["btedDownloads"][0]["kind"], "endpoint")
@@ -327,7 +343,22 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(reference_track["adapter"]["gffGzLocation"]["uri"], "https://preview.example.test/api/assets/v0.3.0--assembly-GCF_000009045.1--gff3")
         self.assertEqual(reference_track["displays"][0]["renderer"]["color1"], "jexl:btedStrandColor(feature)")
         self.assertEqual(reference_track["displays"][0]["renderer"]["color2"], "jexl:btedStrandColor(feature)")
-        self.assertGreater(reference_track["displays"][0]["height"], endpoint_track["displays"][0]["height"])
+        self.assertEqual(endpoint_track["displays"][0]["height"], 140)
+        self.assertEqual(signal_track["displays"][0]["autoscale"], "global")
+        self.assertEqual(signal_track["displays"][0]["scaleType"], "log")
+
+    def test_sample_signal_follows_study_and_rejects_genome_mismatch(self):
+        params = dict(request_url='https://preview.example.test', request_path='/api/assemblies/GCF_000009045.1/jbrowse-config')
+        result = self.run_worker(**params, signal_sample_mode='valid')
+        self.assertEqual(result['status'], 200)
+        tracks = result['body']['tracks']
+        endpoint_index = next(i for i,t in enumerate(tracks) if t['metadata']['btedAbout']['kind'] == 'endpoint')
+        signal = tracks[endpoint_index + 1]
+        self.assertEqual(signal['metadata']['btedAbout']['sample_id'], 'GSM2500127')
+        self.assertIn('/v0.5.0/genomes/experimental-only/', signal['adapter']['subadapters'][0]['bigWigLocation']['uri'])
+        mismatch = self.run_worker(**params, signal_sample_mode='mismatch')
+        self.assertEqual(mismatch['status'], 503)
+        self.assertEqual(mismatch['body']['error'], 'signal_sample_mismatch')
 
     def test_stats_keeps_release_and_source_status_counts(self):
         payload = self.run_worker(request_path="/api/stats")
@@ -341,6 +372,32 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(payload["body"]["endpoints"]["total"], 29460)
         self.assertEqual(payload["body"]["assemblies"]["total"], 21)
         self.assertNotIn("augmentation", payload["body"])
+
+    def test_only_hashed_application_and_current_plugin_get_long_cache(self):
+        script = r'''
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const code = fs.readFileSync(process.argv[1], 'utf8') + '\nexport { staticAsset };';
+const { staticAsset } = await import('data:text/javascript,' + encodeURIComponent(code));
+let status = 200;
+const env = { ASSETS: { async fetch() { return new Response('unchanged', { status,
+  headers: { 'cache-control': 'no-cache', etag: 'original' } }); } } };
+for (const path of ['/jbrowse/static/js/main.de203b0d.js', '/jbrowse/static/js/6514.48beaae4.chunk.js',
+  '/jbrowse/static/css/main.12345678.css', '/jbrowse/plugins/bted-track-plugin.js?v=37']) {
+  const result = await staticAsset(new Request('https://bted.example' + path), env);
+  assert.equal(result.headers.get('cache-control'), 'public, max-age=31536000, immutable');
+  assert.equal(result.headers.get('etag'), 'original'); assert.equal(await result.text(), 'unchanged');
+}
+for (const path of ['/genomes/GCF_TEST.html', '/assets/data-release.json', '/jbrowse/assemblies/GCF_TEST.config.json',
+  '/jbrowse/plugins/bted-track-plugin.js', '/jbrowse/plugins/bted-track-plugin.js?v=29', '/jbrowse/plugins/bted-track-plugin.js?v=7']) {
+  assert.equal((await staticAsset(new Request('https://bted.example' + path), env)).headers.get('cache-control'), 'no-cache');
+}
+status = 404;
+assert.equal((await staticAsset(new Request('https://bted.example/jbrowse/static/js/missing.12345678.js'), env)).headers.get('cache-control'), 'no-cache');
+'''
+        result = subprocess.run(["node", "--input-type=module", "-e", script, str(WORKER)],
+                                cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stderr[:1500])
 
     def test_augmentation_api_route_is_removed(self):
         response = self.run_worker(request_path="/api/augmentation")

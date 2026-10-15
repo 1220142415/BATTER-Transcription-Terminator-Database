@@ -22,6 +22,8 @@ from build_v0_3_site import build_site as build_v03_site
 from build_batter_browser import build as build_batter_browser
 import build_v0_4_site as v04_site
 from build_v0_4_site import SiteBuildError, build_site as build_v04_site, materialize_browser_tracks, read_release as read_v04_release
+from experimental_predictions import prediction_assets, load_predictions, apply_prediction_track, prediction_only_config
+from experimental_signals import apply_signal_tracks, signal_assets
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -757,7 +759,7 @@ def _safe_logical_asset_path(raw: str) -> str:
 
 def _asset_url_revision(url: str) -> tuple[str, str, str] | None:
     match = re.fullmatch(
-        r"https://huggingface\.co/datasets/liurulong/terminator/resolve/([0-9a-f]{40})/(v0\.3\.0|v0\.4\.0)/(.+)",
+        r"https://huggingface\.co/datasets/liurulong/terminator/resolve/([0-9a-f]{40})/(v0\.3\.0|v0\.4\.0|v0\.5\.0)/(.+)",
         url,
     )
     if not match:
@@ -820,6 +822,10 @@ def load_v04_browser_assets(
                 raise StageError(f"Browser asset URL/revision does not match its logical path: {logical_path}")
             if version == "v0.3.0" and remote_revision != V03_SHARED_REVISION:
                 raise StageError(f"Shared v0.3.0 asset is not pinned to the approved commit: {logical_path}")
+            if version == "v0.5.0":
+                registered = prediction_assets(signal_assets({})).get(logical_path)
+                if not registered or any(registered[k] != v for k, v in {'url': url, 'byte_size': byte_size, 'sha256': sha256, 'asset_kind': asset_kind}.items()):
+                    raise StageError(f"Unregistered experimental signal: {logical_path}")
             if version == "v0.4.0":
                 remote_v04_bases.add(f"{HF_DATASET_ROOT}/{remote_revision}/v0.4.0")
             versions_seen.add(version)
@@ -902,7 +908,7 @@ def load_v04_browser_assets(
                 "local_path": path.resolve(),
                 "version": "v0.4.0",
             }
-    return assets, selected_base
+    return prediction_assets(signal_assets(assets)), selected_base
 
 
 def _v04_jbrowse_uri(asset: dict[str, object]) -> str:
@@ -1179,16 +1185,12 @@ def _endpoint_track_v04(
     source_id = source["source_id"]
     track_id = f"bted_v04_{source_id.lower()}_endpoints"
     evidence = str(source.get("evidence_class", ""))
-    title = f"{source_id} · PMID {source['pmid']} · endpoint records"
-    description = (
-        f"Study-level endpoint records from PMID {source['pmid']}. "
-        f"Evidence class: {evidence or 'not specified'}. "
-        "Endpoint records are shown separately from experimental signal tracks."
-    )
+    title = f"PMID {source['pmid']} · 3′ ends"
+    description = "Study-reported 3′ ends."
     evidence_text = (
-        "Paper-reported transcript 3′ end; this is not proof of terminator function."
+        "Author-reported 3′ end"
         if evidence == "author_called_endpoint" else
-        "Literature-curated 3′ end; BTED did not re-call this position from reads."
+        "Literature-curated 3′ end"
     )
     accession = str(source.get("raw_data_accessions", "")).split(";", 1)[0].strip()
     raw_data_url = (
@@ -1203,9 +1205,16 @@ def _endpoint_track_v04(
     study_gff3 = (PurePosixPath("genomes") / genome / source["study_gff3"]).as_posix()
     source_track = asset.get("local_path")
     reference_name = ""
+    contig_counts = {}
     if isinstance(source_track, Path) and source_track.is_file():
         with source_track.open(encoding="utf-8") as handle:
-            reference_name = next((line.split("\t", 1)[0] for line in handle if line.strip() and not line.startswith("#")), "")
+            for line in handle:
+                if line.strip() and not line.startswith("#"):
+                    ref = line.split("\t", 1)[0]
+                    reference_name = reference_name or ref
+                    contig_counts[ref] = contig_counts.get(ref, 0) + 1
+        if sum(contig_counts.values()) != int(source["record_count_number"]):
+            raise StageError(f"Endpoint contig counts do not match published count: {source_id}")
     study_asset = all_assets.get(study_gff3)
     if not study_asset:
         raise StageError(f"Study GFF3 download is missing from asset allowlist: {study_gff3}")
@@ -1216,7 +1225,7 @@ def _endpoint_track_v04(
         "doi_url": f"https://doi.org/{quote(citation['doi'], safe='/')}" if citation["doi"] else "",
         "source_id": source_id, "assay": source["assay"],
         "record_count": source["record_count_number"], "evidence": evidence_text,
-        "explanation": "GFF3 rows are independent by source; same-coordinate studies are not merged.",
+        "explanation": "Study records counted separately.",
         "assembly": genome, "reference_name": reference_name,
         "limitations": source["known_limitations"],
         "raw_data_accessions": source["raw_data_accessions"], "raw_data_url": raw_data_url,
@@ -1239,11 +1248,12 @@ def _endpoint_track_v04(
                 "color1": "jexl:btedStrandColor(feature)",
                 "color2": "jexl:btedStrandColor(feature)",
                 "height": 14,
+                "showLabels": False,
             },
             "showLabels": False,
-            "height": 64,
+            "height": 140,
         }],
-        "category": ["BTED v0.4.0", "Endpoint features", str(source["pmid"])],
+        "category": ["Experimental 3′ ends", f"PMID {source['pmid']}"],
         "assemblyNames": [assembly_name],
         "metadata": {
             "release_version": "v0.4.0",
@@ -1252,6 +1262,7 @@ def _endpoint_track_v04(
             "record_count": int(source["record_count_number"]),
             "evidence_class": evidence,
             "btedAbout": about,
+            "btedContigCounts": contig_counts if reference_name else None,
             "btedDownloads": [{
                 "kind": "endpoint", "label": "3′ end GFF3", "url": _v04_jbrowse_uri(asset),
                 "filename": f"{source_id}.endpoints.gff3", "source_id": source_id,
@@ -1314,10 +1325,10 @@ def _default_signal_tracks(
             })
         merged = {
             "type": "MultiQuantitativeTrack", "trackId": track_id,
-            "name": f"{source_match} · experimental signal (+ / −)",
-            "description": "Measured BigWig signal mirrored around zero for display; raw values are unchanged.",
+            "name": f"PMID {source['pmid']} · experimental signal",
+            "description": "Experimental signal.",
             "adapter": {"type": "MultiWiggleAdapter", "subadapters": subadapters},
-            "category": ["Observed experimental signal", source_match],
+            "category": ["Experimental signal", f"PMID {source['pmid']}"],
             "assemblyNames": pair["plus"].get("assemblyNames", []),
             "metadata": {
                 "evidence_class": "observed_signal", "release_version": "v0.4.0",
@@ -1337,12 +1348,12 @@ def _default_signal_tracks(
                     "assay": source.get("assay", ""), "assembly": source.get("assembly", ""),
                     "raw_data_accessions": source.get("raw_data_accessions", ""),
                     "limitations": source.get("known_limitations", ""),
-                    "explanation": "Measured signal from the study. The graph mirrors + and − around zero; the original BigWig values are unchanged. This track does not mark called 3′ ends.",
+                    "explanation": "+ strand above zero; − strand below.",
                 },
             },
             "displays": [{
                 "type": "MultiLinearWiggleDisplay", "displayId": f"{track_id}-MultiLinearWiggleDisplay",
-                "defaultRendering": "xyplot", "height": 180,
+                "defaultRendering": "xyplot", "autoscale": "global", "scaleType": "log", "height": 180,
             }],
         }
         config["tracks"].append(merged)
@@ -1447,6 +1458,7 @@ def build_v04_jbrowse_configs(
 
         source_lookup = {row["source_id"]: row for row in published}
         _default_signal_tracks(config, source_lookup, citations)
+        apply_signal_tracks(config, source_lookup)
         fai_file = _reference_fai_file(assembly, assets, package_root, asset_paths)
         reference_name, reference_length = _longest_fai_reference(fai_file, assembly)
         first_site: int | None = None
@@ -1485,7 +1497,9 @@ def build_v04_jbrowse_configs(
                 "type": "LinearBasicDisplay",
                 "displayId": f"{track_id}-LinearBasicDisplay",
                 "height": 130,
+                "jexlFilters": ["get(feature,'type')!='region'"],
                 "renderer": {
+                    "showDescriptions": False,
                     "type": "SvgFeatureRenderer",
                     "color1": "jexl:btedStrandColor(feature)",
                     "color2": "jexl:btedStrandColor(feature)",
@@ -1493,7 +1507,6 @@ def build_v04_jbrowse_configs(
             }]
             uris = _all_config_uris(track)
             annotation_asset = next((item for item in assets.values() if item.get("url") in uris and item.get("asset_kind") == "gff3"), None)
-            annotation_hash = str(annotation_asset.get("sha256", "")) if annotation_asset else ""
             track["metadata"] = {
                 **(track.get("metadata", {}) if isinstance(track.get("metadata"), dict) else {}),
                 "btedDownloads": [{
@@ -1504,9 +1517,8 @@ def build_v04_jbrowse_configs(
                 "btedAbout": {
                     "kind": "reference", "assembly": assembly,
                     "reference": f"{species} · {assembly}", "reference_name": reference_name,
-                    "annotation_version": f"GFF3 SHA-256 {annotation_hash[:16]}" if annotation_hash else "",
                     "reference_url": f"https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/",
-                    "explanation": "NCBI-derived gene annotation for the displayed reference assembly.",
+                    "explanation": "NCBI gene annotation.",
                 },
             }
         config_file = package_root / "assemblies" / f"{assembly}.config.json"
@@ -1521,6 +1533,17 @@ def build_v04_jbrowse_configs(
             "source_ids": source_ids,
             "endpoint_track_ids": [track_ids[source_id] for source_id in source_ids],
         }
+
+    for assembly, prediction in load_predictions()['genomes'].items():
+        config_file = package_root / 'assemblies' / f'{assembly}.config.json'
+        if config_file.exists():
+            config = apply_prediction_track(_read_config(config_file), assembly)
+        else:
+            config = prediction_only_config(assembly)
+            browser_configs[assembly] = f'assemblies/{assembly}.config.json'
+            catalog['assemblies'][assembly] = {'assembly': assembly, 'species': prediction['reference']['organism_name'],
+                'config': browser_configs[assembly], 'source_ids': [], 'endpoint_track_ids': []}
+        config_file.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
     (package_root / "catalog.json").write_text(json.dumps(catalog, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return browser_configs, track_ids, catalog
@@ -1614,9 +1637,9 @@ def validate_v04_jbrowse_configs(
                     raise StageError(f"{assembly}: mirrored signal has the wrong strand colors")
                 signal_track_count += len(subadapters)
                 track_id = str(track.get("trackId", ""))
-                if track_id not in default_ids:
+                if track_id not in default_ids and not any(t.get('metadata', {}).get('btedAbout', {}).get('sample_id') for t in tracks):
                     raise StageError(f"{assembly}: experimental signal track is not shown by default: {track_id}")
-                if "experimental signal" not in str(track.get("name", "")).casefold():
+                if "experimental signal" not in str(track.get("name", "")).casefold() and not track.get('metadata', {}).get('btedAbout', {}).get('sample_id'):
                     raise StageError(f"{assembly}: signal track is not labelled as experimental signal: {track_id}")
 
         for uri in _all_config_uris(config):
@@ -1630,8 +1653,9 @@ def validate_v04_jbrowse_configs(
         raise StageError(
             f"JBrowse configs contain {endpoint_count} endpoint tracks, expected {expected_endpoint_count}"
         )
-    if signal_track_count != 8:
-        raise StageError(f"JBrowse configs contain {signal_track_count} raw experimental BigWig tracks, expected 8")
+    expected_signals = 8 + len(signal_assets({}))
+    if signal_track_count != expected_signals:
+        raise StageError(f"JBrowse configs contain {signal_track_count} raw experimental BigWig tracks, expected {expected_signals}")
 
 
 def assemble_v04(
@@ -1734,7 +1758,7 @@ def assemble_v04(
             }
             config["plugins"] = [{
                 "name": "BTEDTrackPlugin",
-                "esmUrl": "plugins/bted-track-plugin.js",
+                "esmUrl": "plugins/bted-track-plugin.js?v=37",
             }]
             config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         # The upstream package also contains v0.2 source configs with relative

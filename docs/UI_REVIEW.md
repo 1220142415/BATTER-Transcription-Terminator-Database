@@ -1,5 +1,25 @@
 # BTED 页面整理与视觉检查 · 2026-10-04
 
+## 2026-10-14 D1 标量查询与旧表清理
+
+当前 Worker 为 `22194ff8-595c-4cc2-bcdf-3a63d93aae5e`，插件 v=32。实际浏览器确认首屏 25 条、Next 后为第二页 25 条，搜索 `3300013286_22` 返回一条。进入该基因组页后，256 个预测区间、13 个增强区间和参考序列正常加载。旧 JSON／路径登记表删除后，新的未缓存 metadata、配置及目录请求仍通过；当前接口不再返回历史坐标修正字段。截图为 `dist/d1-runtime-current-2026-10-14/genome-live.png`，完整核验见 [D1 metadata](D1_METADATA.md)。页面布局、科学数据和资产版本沿用前版。
+
+## 2026-10-14 首屏分页与 HF 合并
+
+当前 Worker 为 `24fa89c6-8823-411e-9fae-5648cd3c7771`，插件 v=32。首屏只显示并请求 25 个基因组，完整目录不下载、不预取；Next 再查询第二页。实测压缩首屏响应约 2.6 KB，替代之前约 1.46 MB 的全目录响应。总数与 Available/Missing 保持一致；线上分页、搜索、分类和排序检查通过。恢复注释已并入 `v0.5.0`，固定版本与原参考 SHA 对应通过。线上 API 及真实浏览器记录见 `dist/d1-directory-merged-2026-10-14/`。下节全目录优化属于前一版本。
+
+## 2026-10-14 目录性能
+
+当前 Worker 为 `4fb542e6-1404-451d-97fd-9d883ecb13b6`，插件及科学资产保持 v=32。目录使用固定版本浏览器缓存、7 天边缘缓存及 isolate 内并发查询复用；筛选和分页不增加目录请求或 D1 查询。5 次本机全目录模拟的中位翻页计算从 105.5 ms 降至 20.4 ms；这个对照不含网络或真实 DOM 布局。线上真实页面核对了 42,923 条总数、14,593 个 Available、28,330 个 Missing、分页及 GCF_000009765.2 搜索；再次加载至表格可见约 1,086 ms，包含浏览器控制开销。完整 API 内容与变更前相同，首次完整下载仍受网络影响。证据及截图位于 `dist/genomes-performance-2026-10-14/`。
+
+## 2026-10-14 文案整理
+
+文案版本 Worker 为 `5e3322cc-548d-4fe1-aea6-ac1d0cddba6b`，插件和配置为 v=32。本次删除网页中的 SHA-256、内部 FASTA 路径、来源编号、分类获取日期和重复说明。实验轨道使用 PMID 和 3′ ends，计算轨道使用 Augmentation / Rfam regions 与 Predicted regions。About track 保留文献、方法、参考和计数；悬停保留坐标、长度、分数或全 contig 双链计数。显示缺失的情况不伪装成零；部分注释仍标明覆盖 contig 数。科学口径集中在 Data notes，原始 metadata 与核验记录保留完整信息。
+
+构建检查确认 20 份配置的适配器、参考、坐标、计数及文件地址未改变，发布资产清单 SHA-256 沿用原值。24 项 Node 检查、6 项插件、11 项 Worker、7 项页面、1 项分享检查和站点验证通过。52 个线上静态文件与本地产物一致；完整与部分注释样本的参考 SHA、补充版本和覆盖范围保持一致。构建和发布核验见 `dist/plain-copy-2026-10-14/`。下文 2026-10-04 的原始 FASTA 路径和 SHA 展示记录属于历史版本。
+
+内置浏览器已检查实验和计算页面、About track、Data notes 与 v=32 内嵌 JBrowse。参考信息区无 SHA 和内部 FASTA 路径；实验轨道标题按 PMID 显示，records 与 regions 计数保留。线上截图为 `dist/plain-copy-2026-10-14/reference-details-live.png` 和 `about-track-live.png`。
+
 本轮基于 `main` 的 `9a1fb9b`，保留该提交的 Genome ID、GEM OTU 和 Genome source 展示。修改位于网页生成模板、共享 CSS、首页 SVG 和详情页来源说明；公开数据与已固定的资产版本沿用原值。
 
 ## 页面清单
@@ -38,7 +58,7 @@
 
 目录默认按实验端点记录数降序排列，让有实验数据的基因组先显示。清空筛选恢复此顺序；用户指定的排序和分享链接仍按其选择恢复，默认数据类型保持 All data。
 
-目录增加 Genome source、Genome type 和 Gene annotation，可与文本、数据类型和分类层级组合。来源选项来自实际目录，NCBI-MAG 和 NCBI-SAG 统一显示为 NCBI GenBank；基因组类型采用登记的 Isolate、MAG、SAG，未登记的实验条目保留 Not cataloged。注释筛选与表格状态一致，区分可用、不兼容、缺失、不可用和未登记。
+目录增加 Genome source、Genome type 和 Gene annotation，可与文本、数据类型和分类层级组合。来源选项来自实际目录，NCBI-MAG 和 NCBI-SAG 统一显示为 NCBI GenBank；基因组类型采用登记的 Isolate、MAG、SAG，未登记的实验条目保留 Not cataloged。Gene annotation 已在 2026-10-14 统一为 Available / Missing；原始缺失原因保留在悬停说明中。恢复依据、部分覆盖和发布状态见 [注释校正](ANNOTATION_RECOVERY.md)。
 
 Data type 保留 All data、Experimental、Prediction 和 Augmentation / Rfam。所有基因组后续均计划提供预测，目前的差异来自上传进度，因此不设置实验与预测交集选项。筛选保存在 URL 中，支持分享、恢复、一键清空和分页；全部在已加载目录上进行，不额外查询 D1 或下载序列文件。终止机制、效率和模型分数尚无完整可筛选字段，本轮不作推断。
 

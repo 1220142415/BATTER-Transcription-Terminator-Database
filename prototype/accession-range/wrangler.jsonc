@@ -19,7 +19,10 @@
   ],
   "vars": {
     "ALLOWED_ORIGIN_HOST": "huggingface.co",
-    "BTED_ANALYTICS": "on"
+    "BTED_ANALYTICS": "on",
+    "BTED_RUNTIME_FIELDS": "on",
+    "BTED_METADATA_REVISION": "9f81698a3cee64f4eaf90b90cd36d640f38d9315",
+    "BTED_ANNOTATION_REVISION": "2acf28d9cf0a276f05e6a1456d56c92ccc2292b7"
   },
   "triggers": { "crons": ["20 3 * * *"] }
 }

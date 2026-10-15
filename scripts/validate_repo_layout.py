@@ -53,6 +53,8 @@ REQUIRED_PATHS = {
     "data/archive/BTED-external-intake-2026-08-10.tar.gz.sha256",
 }
 ALLOWED_DOC_FILES = {
+    "docs/D1_METADATA.md",
+    "docs/ANNOTATION_RECOVERY.md",
     "docs/GENOME_METADATA.md",
     "docs/HF_REFRESH_2026-10-07.md",
     "docs/releases/v0.4.0.md",
@@ -60,6 +62,7 @@ ALLOWED_DOC_FILES = {
     "docs/SOURCES.md",
     "docs/UI_REVIEW.md",
     "docs/USAGE_ANALYTICS.md",
+    "docs/browser-controls.md",
     "docs/deployment.md",
 }
 REMOVED_ROOT_FILES = {

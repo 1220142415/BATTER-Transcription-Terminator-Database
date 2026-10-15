@@ -1,0 +1,819 @@
+{
+  "revision": "b35aa8a05dcab593eea7d616c1772d7212c64e1b",
+  "run": "BATTER-TPE-20261014",
+  "genomes": {
+    "GCF_000005845.1": {
+      "prediction_count": 4415,
+      "contig_counts": {
+        "NC_000913.2": 4415
+      },
+      "strand_counts": {
+        "-": 2252,
+        "+": 2163
+      },
+      "reference": {
+        "genome_id": "GCF_000005845.1",
+        "organism_name": "Escherichia coli str. K-12 substr. MG1655",
+        "fasta_sha256": "2a8e2f78bc145fa82fa325acf7d34dc944612795cee74f793045dc64d782176c",
+        "contigs": {
+          "NC_000913.2": 4639675
+        },
+        "genome_length": 4639675,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000005845.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "a56662df49e2b782610d561bb790022639e71183604940839a66c5135186d353",
+          "byte_size": 241019
+        },
+        "prediction.gff3.gz": {
+          "sha256": "ef448fc6cea91804ab170f65980341534475121501e345bc604fc546dff02d81",
+          "byte_size": 86708
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "0bf9d7791791740fb52ede707bca390db4e9cdfa6b8255474b4e57d9b3cd05cb",
+          "byte_size": 2257
+        }
+      },
+      "first_region": {
+        "refName": "NC_000913.2",
+        "start": 265,
+        "end": 314
+      }
+    },
+    "GCF_000005845.2": {
+      "prediction_count": 4447,
+      "contig_counts": {
+        "NC_000913.3": 4447
+      },
+      "strand_counts": {
+        "-": 2261,
+        "+": 2186
+      },
+      "reference": {
+        "genome_id": "GCF_000005845.2",
+        "organism_name": "Escherichia coli str. K-12 substr. MG1655",
+        "fasta_sha256": "53bb6a51b6e92139ced1e38f74b7938781027c52200922ff03718c2237d23bb4",
+        "contigs": {
+          "NC_000913.3": 4641652
+        },
+        "genome_length": 4641652,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/af09386924ee9e24162d51b10a18d3cf9b9a42ed/v0.5.0/genomes/experimental-only/GCF_000005845.2/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "8de654045acb954bb7c723c84e8819dbbe5db789aeda070a195442900af34536",
+          "byte_size": 242845
+        },
+        "prediction.gff3.gz": {
+          "sha256": "75fe9235fbb63617e8056c018d7714759b5ae0227396655ddc74bd6a3a0d6074",
+          "byte_size": 87534
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "8e9286d327eda86ebfd80d75e19fb58c05d0475d6de0fc4b8fe3a8e43ac0dbc1",
+          "byte_size": 2293
+        }
+      },
+      "first_region": {
+        "refName": "NC_000913.3",
+        "start": 265,
+        "end": 314
+      },
+      "reference_files": {
+        "reference.fna": {
+          "sha256": "53bb6a51b6e92139ced1e38f74b7938781027c52200922ff03718c2237d23bb4",
+          "byte_size": 4699745,
+          "revision": "af09386924ee9e24162d51b10a18d3cf9b9a42ed"
+        },
+        "reference.fna.fai": {
+          "sha256": "f00a6ac16bdd1c3d70143fbc0d963de95e84da507f301ae1a87b9a1e08dfe19e",
+          "byte_size": 29,
+          "revision": "af09386924ee9e24162d51b10a18d3cf9b9a42ed"
+        }
+      }
+    },
+    "GCF_000006765.1": {
+      "prediction_count": 7337,
+      "contig_counts": {
+        "NC_002516.2": 7337
+      },
+      "strand_counts": {
+        "+": 3673,
+        "-": 3664
+      },
+      "reference": {
+        "genome_id": "GCF_000006765.1",
+        "organism_name": "Pseudomonas aeruginosa PAO1",
+        "fasta_sha256": "a91b487d476a6ce69554b7646b6390bd5d49254593a7b71d3b2dcf1f38889fa3",
+        "contigs": {
+          "NC_002516.2": 6264404
+        },
+        "genome_length": 6264404,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000006765.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "edea1e6037e3530fc24ab578e542e2572091b9c519c1c501d9ff34cdf7561f44",
+          "byte_size": 403089
+        },
+        "prediction.gff3.gz": {
+          "sha256": "9016901dc1c7c0e8777d472b373974bd7382b2fe4af31898f501397541ffe514",
+          "byte_size": 144760
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "75aac1a4edb0c80aac027e55331ceaed226952fbba4c7a2964b51cc3b1b0e6e1",
+          "byte_size": 2961
+        }
+      },
+      "first_region": {
+        "refName": "NC_002516.2",
+        "start": 412,
+        "end": 461
+      }
+    },
+    "GCF_000006885.1": {
+      "prediction_count": 2269,
+      "contig_counts": {
+        "NC_003028.3": 2269
+      },
+      "strand_counts": {
+        "+": 1155,
+        "-": 1114
+      },
+      "reference": {
+        "genome_id": "GCF_000006885.1",
+        "organism_name": "Streptococcus pneumoniae TIGR4",
+        "fasta_sha256": "c82b4a4c1b70cfcf60810db9fd08629db8f1f4118cffa342868c4ff95aadf16f",
+        "contigs": {
+          "NC_003028.3": 2160842
+        },
+        "genome_length": 2160842,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000006885.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "d4f0881cb8f5e66deabdc58975d50c465ba8a8cd4551e51dbd616cf0ef501ba7",
+          "byte_size": 123656
+        },
+        "prediction.gff3.gz": {
+          "sha256": "5ff34eff5129acd47e941f65939275cf82e95f1430b1a8c30fb3a83e5bdba65e",
+          "byte_size": 45470
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "e2570c1f027f4f2bc9d528f2a2ba786e4e962e3568ba3274be9d0aaf5dbbb0d9",
+          "byte_size": 1184
+        }
+      },
+      "first_region": {
+        "refName": "NC_003028.3",
+        "start": 1538,
+        "end": 1587
+      }
+    },
+    "GCF_000008685.2": {
+      "prediction_count": 2036,
+      "contig_counts": {
+        "NC_000948.1": 35,
+        "NC_000949.1": 33,
+        "NC_000950.1": 31,
+        "NC_000951.1": 26,
+        "NC_000952.1": 30,
+        "NC_000953.1": 34,
+        "NC_000954.1": 34,
+        "NC_000955.2": 19,
+        "NC_000956.1": 93,
+        "NC_000957.1": 12,
+        "NC_001318.1": 1121,
+        "NC_001849.2": 37,
+        "NC_001850.1": 45,
+        "NC_001851.2": 41,
+        "NC_001852.1": 28,
+        "NC_001853.1": 58,
+        "NC_001854.1": 54,
+        "NC_001855.1": 72,
+        "NC_001856.1": 70,
+        "NC_001857.2": 105,
+        "NC_001903.1": 37,
+        "NC_001904.1": 21
+      },
+      "strand_counts": {
+        "+": 1044,
+        "-": 992
+      },
+      "reference": {
+        "genome_id": "GCF_000008685.2",
+        "organism_name": "Borreliella burgdorferi B31",
+        "fasta_sha256": "6aab455e57798864f90a76a18bc725dac5d04d496f5b0d5a9cea7e77228fd5c6",
+        "contigs": {
+          "NC_001318.1": 910724,
+          "NC_001903.1": 26498,
+          "NC_000948.1": 30750,
+          "NC_000949.1": 30223,
+          "NC_000950.1": 30299,
+          "NC_000951.1": 29838,
+          "NC_000952.1": 30800,
+          "NC_000953.1": 30885,
+          "NC_000954.1": 30651,
+          "NC_001904.1": 9386,
+          "NC_001849.2": 16821,
+          "NC_000955.2": 18777,
+          "NC_001850.1": 24177,
+          "NC_001851.2": 28155,
+          "NC_001852.1": 29766,
+          "NC_001853.1": 28601,
+          "NC_001854.1": 27323,
+          "NC_001855.1": 36849,
+          "NC_001856.1": 38829,
+          "NC_000957.1": 5228,
+          "NC_001857.2": 53657,
+          "NC_000956.1": 52971
+        },
+        "genome_length": 1521208,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000008685.2/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "da14c761760aee5a240b603fd3b43a19ad758ce2b98da2b34ce31d0d8febf3a8",
+          "byte_size": 105234
+        },
+        "prediction.gff3.gz": {
+          "sha256": "8d1ff45c3072d3300402980351118447351fb9131a755fd4fd7648069a43873b",
+          "byte_size": 40666
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "85098a678e9bc1567fd67e7827915c01d0b0d7b140b4a0319daf0ccdf0ba143c",
+          "byte_size": 1125
+        }
+      },
+      "first_region": {
+        "refName": "NC_000948.1",
+        "start": 1980,
+        "end": 2013
+      }
+    },
+    "GCF_000009045.1": {
+      "prediction_count": 4962,
+      "contig_counts": {
+        "NC_000964.3": 4962
+      },
+      "strand_counts": {
+        "+": 2461,
+        "-": 2501
+      },
+      "reference": {
+        "genome_id": "GCF_000009045.1",
+        "organism_name": "Bacillus subtilis subsp. subtilis str. 168",
+        "fasta_sha256": "a334e891ffc0e307f23f48842775d3383177a9d9cb5d5075b552a2cccddfe139",
+        "contigs": {
+          "NC_000964.3": 4215606
+        },
+        "genome_length": 4215606,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000009045.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "1421b887516f5d6f911c2f87f980bcfe88b14bd50b2500659f59c6e799140b35",
+          "byte_size": 270578
+        },
+        "prediction.gff3.gz": {
+          "sha256": "ddd512ec13bc26ad088481e0c81053ae4e101ce3ce7ba560a5e4b64fe77a62d5",
+          "byte_size": 96194
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "32c92d8625bc999b05ef9b80af86dda4b476c436f375b840275ec1eadc290e87",
+          "byte_size": 2106
+        }
+      },
+      "first_region": {
+        "refName": "NC_000964.3",
+        "start": 312,
+        "end": 362
+      }
+    },
+    "GCF_000009725.1": {
+      "prediction_count": 1997,
+      "contig_counts": {
+        "NC_000911.1": 1997
+      },
+      "strand_counts": {
+        "-": 991,
+        "+": 1006
+      },
+      "reference": {
+        "genome_id": "GCF_000009725.1",
+        "organism_name": "Synechocystis sp. PCC 6803",
+        "fasta_sha256": "5d45a3a3e61e6e57eb8606a0a666807bfd90f5978a693f4df5c74df546f7ffca",
+        "contigs": {
+          "NC_000911.1": 3573470
+        },
+        "genome_length": 3573470,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000009725.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "6ee65741320730f58630cdee3807c16b58877effc2403cdb01b087db746e8947",
+          "byte_size": 108020
+        },
+        "prediction.gff3.gz": {
+          "sha256": "735b56a263e6a90efa84e1bf8af8f5964b3a4459972977c466a3569941bfb5e9",
+          "byte_size": 39565
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "2296f785f9e904d280f98374ac0ec862d9dcf2e37943fe0d3f2e845b1bc4ef88",
+          "byte_size": 1838
+        }
+      },
+      "first_region": {
+        "refName": "NC_000911.1",
+        "start": 2959,
+        "end": 3014
+      }
+    },
+    "GCF_000010605.1": {
+      "prediction_count": 11173,
+      "contig_counts": {
+        "NC_010572.1": 11173
+      },
+      "strand_counts": {
+        "+": 5608,
+        "-": 5565
+      },
+      "reference": {
+        "genome_id": "GCF_000010605.1",
+        "organism_name": "Streptomyces griseus subsp. griseus NBRC 13350",
+        "fasta_sha256": "568589c4c1345e48d6df65d051eca1c13ac1962316a1aa6425d11002e5cbfe16",
+        "contigs": {
+          "NC_010572.1": 8545929
+        },
+        "genome_length": 8545929,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000010605.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "f69906ac58e508ea4e270ba7c100d019ae8ddaab1b7634ba0ec4fb840721d674",
+          "byte_size": 615813
+        },
+        "prediction.gff3.gz": {
+          "sha256": "cad3f0beb020ef965a9d8004e1392a4b71587fbce261785ffac038ae0b31d84e",
+          "byte_size": 221619
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "fce992e3fd3a7e9a8b40c3abd19937b2877aa647fccfd61e9e51102ae1b92679",
+          "byte_size": 4122
+        }
+      },
+      "first_region": {
+        "refName": "NC_010572.1",
+        "start": 1876,
+        "end": 1911
+      }
+    },
+    "GCF_000022005.1": {
+      "prediction_count": 5343,
+      "contig_counts": {
+        "CP001340.1": 5343
+      },
+      "strand_counts": {
+        "+": 2647,
+        "-": 2696
+      },
+      "reference": {
+        "genome_id": "GCF_000022005.1",
+        "organism_name": "Caulobacter vibrioides NA1000",
+        "fasta_sha256": "415795a2e4f48a504c0d75806320dc715a0f53984fcf0ab1f67caf027c69a58c",
+        "contigs": {
+          "CP001340.1": 4042929
+        },
+        "genome_length": 4042929,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000022005.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "8cb318cbd687c16f6a041657ecffe55d766e70b530c227c43641bdf760fbf849",
+          "byte_size": 285878
+        },
+        "prediction.gff3.gz": {
+          "sha256": "1c1a02f8d006cad95a3317a79cda57e8c1c830540cd525ecdbbc2982e3e3fa2b",
+          "byte_size": 105281
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "cec4cc3451f71cdf9da578a16d9075489e4fbec570180c0fa5599f83db2a917a",
+          "byte_size": 2005
+        }
+      },
+      "first_region": {
+        "refName": "CP001340.1",
+        "start": 157,
+        "end": 191
+      }
+    },
+    "GCF_000147055.1": {
+      "prediction_count": 5339,
+      "contig_counts": {
+        "NC_014500.1": 5339
+      },
+      "strand_counts": {
+        "+": 2686,
+        "-": 2653
+      },
+      "reference": {
+        "genome_id": "GCF_000147055.1",
+        "organism_name": "Dickeya dadantii 3937",
+        "fasta_sha256": "64e4a0952049c35bacc35e92c71a342a3828a7f4e71fc2dfa6a454b16afd0f65",
+        "contigs": {
+          "NC_014500.1": 4922802
+        },
+        "genome_length": 4922802,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000147055.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "69026d1e688cfcd66b02aec1e550c62718e0f3a27c564b7ffae9b50f772a8043",
+          "byte_size": 291507
+        },
+        "prediction.gff3.gz": {
+          "sha256": "bbb4d39c9b7a27ee3e4b20c5ff9103893c201e45973c6555b794d56aab9f49f2",
+          "byte_size": 105008
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "60ebb676f82c9f5aaf77b773864bdf5ba9b4b4dc22ef37d882d09a4e1bf237a1",
+          "byte_size": 2348
+        }
+      },
+      "first_region": {
+        "refName": "NC_014500.1",
+        "start": 218,
+        "end": 261
+      }
+    },
+    "GCF_000195955.2": {
+      "prediction_count": 3739,
+      "contig_counts": {
+        "NC_000962.3": 3739
+      },
+      "strand_counts": {
+        "+": 1906,
+        "-": 1833
+      },
+      "reference": {
+        "genome_id": "GCF_000195955.2",
+        "organism_name": "Mycobacterium tuberculosis H37Rv",
+        "fasta_sha256": "427dc8cea7ffbbac1b0baa31362bb7a30cac0a3ca9052d73634adf9122a63b28",
+        "contigs": {
+          "NC_000962.3": 4411532
+        },
+        "genome_length": 4411532,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000195955.2/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "12256b4c2d9fa990ab21245286d02bc0df2c24baf4eef6c595085afc3cf3dee6",
+          "byte_size": 204377
+        },
+        "prediction.gff3.gz": {
+          "sha256": "cb7966efbbaccfcd58e9c10965eb85d2d4c7da87d01372591df9d43274668769",
+          "byte_size": 74076
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "bc1ba63f35958c416fc4c92c5f2770467fa46d24b925dad3b6c3eceeea047946",
+          "byte_size": 2256
+        }
+      },
+      "first_region": {
+        "refName": "NC_000962.3",
+        "start": 1551,
+        "end": 1613
+      }
+    },
+    "GCF_000203835.1": {
+      "prediction_count": 10775,
+      "contig_counts": {
+        "NC_003888.3": 10775
+      },
+      "strand_counts": {
+        "+": 5439,
+        "-": 5336
+      },
+      "reference": {
+        "genome_id": "GCF_000203835.1",
+        "organism_name": "Streptomyces coelicolor A3(2)",
+        "fasta_sha256": "f84328d4daea480f90e0606e97f7e89367beeab735159b5a5e14efbc89ad9801",
+        "contigs": {
+          "NC_003888.3": 8667507
+        },
+        "genome_length": 8667507,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000203835.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "7ab7de2d06414807753e71f21a1bd36f2988558c9f7ce718c83ec55ba7457492",
+          "byte_size": 593779
+        },
+        "prediction.gff3.gz": {
+          "sha256": "4a9414063d45e53e18e732c17bcacd2fdaf1f1853c2a9b3ea93f34051c02740c",
+          "byte_size": 213817
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "e7bdbb80236680be6b8ea4820a91adce0402c630a891c8772fc14492b33214e7",
+          "byte_size": 4158
+        }
+      },
+      "first_region": {
+        "refName": "NC_003888.3",
+        "start": 29,
+        "end": 78
+      }
+    },
+    "GCF_000739105.1": {
+      "prediction_count": 10618,
+      "contig_counts": {
+        "CP009124.1": 10618
+      },
+      "strand_counts": {
+        "+": 5231,
+        "-": 5387
+      },
+      "reference": {
+        "genome_id": "GCF_000739105.1",
+        "organism_name": "Streptomyces lividans\u00a0TK24",
+        "fasta_sha256": "14f117887bc4c29f9336aef4b8ace10fef9cec66a92d37076c396b4aff8017af",
+        "contigs": {
+          "CP009124.1": 8345283
+        },
+        "genome_length": 8345283,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_000739105.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "b2c8e99a1f25e4b3f196b6e5c8f076e8f5564dfed5fb5f60654334aa8edde4fc",
+          "byte_size": 574445
+        },
+        "prediction.gff3.gz": {
+          "sha256": "1b253252121f8f96d3401da6cb3b1dd678fffe78e4c20fb65c0ad8816e5592f1",
+          "byte_size": 210848
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "93ec03ecb8bd032cb47a80edbdd438a495c0c7444e9eae60b4a8a9fc594e4e56",
+          "byte_size": 3764
+        }
+      },
+      "first_region": {
+        "refName": "CP009124.1",
+        "start": 27,
+        "end": 77
+      }
+    },
+    "GCF_001456255.1": {
+      "prediction_count": 4593,
+      "contig_counts": {
+        "CP009977.1": 3011,
+        "CP009978.1": 1582
+      },
+      "strand_counts": {
+        "+": 2325,
+        "-": 2268
+      },
+      "reference": {
+        "genome_id": "GCF_001456255.1",
+        "organism_name": "Vibrio natriegens NBRC 15636",
+        "fasta_sha256": "f8198cbdcd29eeb17b389fdcf3a834c6eb7652f7a6cad559b8e2732296b9dd9a",
+        "contigs": {
+          "CP009977.1": 3248023,
+          "CP009978.1": 1927130
+        },
+        "genome_length": 5175153,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_001456255.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "cda0e8bbfcb8a3527ae65eaecaf3e550bd65deae4b0d0bf7dfb3c214ec9b07ea",
+          "byte_size": 244967
+        },
+        "prediction.gff3.gz": {
+          "sha256": "8d33d56efc27d045054b3f89dc13099e4024fdd95d040afbcf44a602afc82f29",
+          "byte_size": 89283
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "ba939478a060cd150dcded7ff6b4e622b5e7083e13d6a81f389bfbe50b05473f",
+          "byte_size": 2565
+        }
+      },
+      "first_region": {
+        "refName": "CP009977.1",
+        "start": 1774,
+        "end": 1818
+      }
+    },
+    "GCF_003054575.1": {
+      "prediction_count": 2328,
+      "contig_counts": {
+        "CP023715.1": 2215,
+        "CP023716.1": 33,
+        "CP023717.1": 30,
+        "CP023718.1": 27,
+        "CP023719.1": 23
+      },
+      "strand_counts": {
+        "+": 1212,
+        "-": 1116
+      },
+      "reference": {
+        "genome_id": "GCF_003054575.1",
+        "organism_name": "Zymomonas mobilis subsp. mobilis ZM4",
+        "fasta_sha256": "10991375da9f73136a0ffcaf93737b8160b2c1a7c87001f3dfb6c7cbb1da26a6",
+        "contigs": {
+          "CP023715.1": 2058755,
+          "CP023716.1": 32791,
+          "CP023717.1": 33006,
+          "CP023718.1": 36494,
+          "CP023719.1": 39266
+        },
+        "genome_length": 2200312,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_003054575.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "1fa85356c28a4e8d1c6505b393d3879de8ff784ab1c851f4a0e69e86063127f4",
+          "byte_size": 123729
+        },
+        "prediction.gff3.gz": {
+          "sha256": "23a4759643c8ea37336c3f0e2018a1276c8c39a9eee7a51ead2dd498c942fb07",
+          "byte_size": 46283
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "3d298da467c41b5ae78d7153ae418ac9cf7a3d50998383ea9e496fc49d7de72d",
+          "byte_size": 1165
+        }
+      },
+      "first_region": {
+        "refName": "CP023715.1",
+        "start": 156,
+        "end": 189
+      }
+    },
+    "GCF_003932715.1": {
+      "prediction_count": 9919,
+      "contig_counts": {
+        "CP020700.1": 9919
+      },
+      "strand_counts": {
+        "+": 5035,
+        "-": 4884
+      },
+      "reference": {
+        "genome_id": "GCF_003932715.1",
+        "organism_name": "Streptomyces tsukubensis",
+        "fasta_sha256": "b3e58b3e5ff8562fd983595d6503cf8ee66af8af9d48fc6528e9d0d279df77c4",
+        "contigs": {
+          "CP020700.1": 7963742
+        },
+        "genome_length": 7963742,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_003932715.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "24eaee105095837f1d7b8b8098cf26a2245cadd0f206747740d0e643367cf436",
+          "byte_size": 536763
+        },
+        "prediction.gff3.gz": {
+          "sha256": "d7f8eb1794a71a5572835f4b6cd97d09e1a685acb28329f03b0b46cecc428b48",
+          "byte_size": 196089
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "5bc700a1d972b7454b09e4d07ebc27807637ac631af89795ed18f18278f79ab8",
+          "byte_size": 3833
+        }
+      },
+      "first_region": {
+        "refName": "CP020700.1",
+        "start": 1297,
+        "end": 1340
+      }
+    },
+    "GCF_005519465.1": {
+      "prediction_count": 11098,
+      "contig_counts": {
+        "CP027858.1": 8862,
+        "CP027859.1": 2236
+      },
+      "strand_counts": {
+        "+": 5531,
+        "-": 5567
+      },
+      "reference": {
+        "genome_id": "GCF_005519465.1",
+        "organism_name": "Streptomyces clavuligerus",
+        "fasta_sha256": "664caa032ca382cdbdc2c3a70dc7b196651ade70e428bf8448d7d953e985ee6b",
+        "contigs": {
+          "CP027858.1": 6748591,
+          "CP027859.1": 1795495
+        },
+        "genome_length": 8544086,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_005519465.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "47d1d37b4b6f7994b3489a33a1405bb68aa756d07ac47e24f702435f2709e80e",
+          "byte_size": 598018
+        },
+        "prediction.gff3.gz": {
+          "sha256": "ef5ee438f2a2512f6ef6366e4a831acae5411853fe3f88df21ff9adf74e27407",
+          "byte_size": 219922
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "6baa0d3a95cf9ec18f10021899a12082673d4e76418a9bf36b95db53b1bf6581",
+          "byte_size": 4022
+        }
+      },
+      "first_region": {
+        "refName": "CP027858.1",
+        "start": 0,
+        "end": 48
+      }
+    },
+    "GCF_015710995.1": {
+      "prediction_count": 11715,
+      "contig_counts": {
+        "CP059991.1": 11715
+      },
+      "strand_counts": {
+        "+": 5872,
+        "-": 5843
+      },
+      "reference": {
+        "genome_id": "GCF_015710995.1",
+        "organism_name": "Streptomyces venezuelae",
+        "fasta_sha256": "d47d1a46eb8c5c92a18eb080bffd50c3f01f7a9042c7d3e2da43c2e66b02f053",
+        "contigs": {
+          "CP059991.1": 9054805
+        },
+        "genome_length": 9054805,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_015710995.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "d03bd55d9a91416ee96d462aaf58709a351cf8dbd41357958b7e44845848f2f0",
+          "byte_size": 633729
+        },
+        "prediction.gff3.gz": {
+          "sha256": "71d263b3061914c45136e6faf795dbd7178215dca04c4a4fde7d7eee12f38271",
+          "byte_size": 231969
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "eb731736650a43d0f82d17a66b074d41e69dbb8bb3c96602941a868f1d8d7b54",
+          "byte_size": 4068
+        }
+      },
+      "first_region": {
+        "refName": "CP059991.1",
+        "start": 1043,
+        "end": 1083
+      }
+    },
+    "GCF_018282115.1": {
+      "prediction_count": 2126,
+      "contig_counts": {
+        "CP054306.1": 2046,
+        "CP054307.1": 46,
+        "CP054308.1": 29,
+        "CP054309.1": 5
+      },
+      "strand_counts": {
+        "+": 1059,
+        "-": 1067
+      },
+      "reference": {
+        "genome_id": "GCF_018282115.1",
+        "organism_name": "Synechocystis sp. PCC 7338",
+        "fasta_sha256": "ee70461b7798c3bc1eb9f964ea1f97b28753faebcfbd75b8ff9fb8a46e9fcd97",
+        "contigs": {
+          "CP054306.1": 3704690,
+          "CP054307.1": 81333,
+          "CP054308.1": 45216,
+          "CP054309.1": 1564
+        },
+        "genome_length": 3832803,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/90651318aedf5a5ca26b8308070927d36fd3d6c9/v0.3.0/assemblies/GCF_018282115.1/reference/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "7a51fcdcc688b973f895ccaf28474cdf521328c8c4f4292e7371f6658f3d4e47",
+          "byte_size": 112685
+        },
+        "prediction.gff3.gz": {
+          "sha256": "d38b94f22641e67045587de599e71a39ee0347866f274d6137bca5e49d5687c7",
+          "byte_size": 41969
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "7c233592d83eb95cc1a7450f0438d3e495f974ff619993918e54377deadec87e",
+          "byte_size": 1999
+        }
+      },
+      "first_region": {
+        "refName": "CP054306.1",
+        "start": 1085,
+        "end": 1121
+      }
+    }
+  }
+}

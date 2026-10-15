@@ -14,7 +14,7 @@ BTED 整理公开论文中的细菌转录本 3′ 端位置。每条记录保留
 
 正式文件位于 [`data/public/v0.4.0/`](data/public/v0.4.0/)；内部来源判断与旧版可校验归档分别位于 `data/registry/` 和 [`data/archive/`](data/archive/)。网页由构建脚本生成，`site/` 只保存样式和交互脚本。
 
-基因组目录可按研究、方法、证据和实验信号筛选。JBrowse 用青绿和红色区分正负链；有双链实验信号的研究将两条 BigWig 显示为一条镜像轨道。基因组页可分享当前位置和轨道布局，轨道菜单可下载原文件或当前区段的端点 GFF3。
+基因组目录支持按数据类型、基因组来源、基因组类型、注释状态和分类层级筛选，也可搜索研究标题或 PMID。JBrowse 用青绿和红色区分正负链；有双链实验信号的研究将两条 BigWig 显示为一条镜像轨道。基因组页可分享当前位置和轨道布局，轨道菜单可下载原文件或当前区段的端点 GFF3。
 
 本地检查：
 
@@ -28,3 +28,5 @@ python -m unittest discover -s tests -p 'test*.py' -q
 线上网站：[bted.1052596411.workers.dev](https://bted.1052596411.workers.dev/)。首页展示当前发布统计和 BATTER 引用，基因组目录位于 `genomes.html`，Usage 提供地区访问统计。
 
 BATTER 论文：Jin, Y., Cui, J., Liu, R. et al. *Conserved 3′ stem-loop structures enable comprehensive analysis of bacterial transcription termination in metagenomes.* Microbiome 14, 222 (2026). [DOI](https://doi.org/10.1186/s40168-026-02454-1)。作者代码：[xu-research-lab/BATTER](https://github.com/xu-research-lab/BATTER)。引用于 2026-10-03 根据 Crossref 正式出版记录核对，未采用作者 README 中的旧预印本引用。
+
+当前工作目录统一命名为 `BTED`。基因组页在 Studies 标题旁提供实验研究 ZIP 和来源元数据，论文卡片保留单文件链接；NCBI 组装记录位于概览。重叠基因组的预测和训练文件默认折叠显示，纯计算基因组保留 Data files 区域。

@@ -8,6 +8,8 @@ import hashlib
 import json
 import re
 from pathlib import Path
+from experimental_predictions import prediction_assets
+from experimental_signals import signal_assets
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +36,8 @@ def _kind(path: str) -> str:
         return "bigwig"
     if lower.endswith(".tbi"):
         return "tbi"
+    if lower.endswith(".bed"):
+        return "bed"
     if lower.endswith(".json"):
         return "json"
     if lower.endswith("sha256sums.txt"):
@@ -91,7 +95,8 @@ def build_manifest(release_root: Path, objects_root: Path, revision: str) -> lis
                 "revision": revision,
                 "asset_kind": _kind(logical_path),
             }
-    return [rows[key] for key in sorted(rows)]
+    prediction_assets(signal_assets(rows))
+    return [{key: ({'logical_path': path, **row})[key] for key in COLUMNS} for path, row in sorted(rows.items())]
 
 
 def main() -> int:
