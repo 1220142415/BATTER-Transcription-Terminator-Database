@@ -17,7 +17,7 @@ const listeners = {};
 const posted = [];
 const root = {dataset:{assembly:'GCF_TEST'}};
 const frameWindow = {postMessage(message, target){posted.push({message,target});}};
-const frame = {dataset:{config:'assemblies/GCF_TEST.config.json'},contentWindow:frameWindow,src:'',closest(){return {closest(){return {append(){}};}};}};
+const frame = {style:{},dataset:{config:'assemblies/GCF_TEST.config.json'},contentWindow:frameWindow,src:'',closest(){return {closest(){return {append(){}};}};}};
 const button = {disabled:true,addEventListener(type,fn){this[type]=fn;}};
 const status = {textContent:''};
 const manual = {hidden:true,value:'',focus(){},select(){}};
@@ -37,7 +37,8 @@ async function receive(type, id='', details={}){
   await listeners.message({origin:'https://bted.example',source:frameWindow,data:{channel:'bted-browser-v1',nonce,type,id,...details}});
 }
 (async()=>{
-  await receive('ready');
+  await receive('ready','',{frameHeight:1266});
+  if(frame.style.height!=='1266px')throw Error('Browser height does not include all D1 tracks');
   const restore = posted.find(row=>row.message.type==='restore')?.message;
   if(restore)await receive('restored',restore.id);
   button.click();

@@ -46,7 +46,7 @@ jobs:
       - name: Run regression tests
         run: |
           python3 -m unittest discover -s tests -p 'test*.py' -v
-          node --test tests/test_genome_provenance.mjs tests/test_batter_browser.mjs tests/test_usage_analytics.mjs tests/test_worker_query_cache.mjs
+          node --test tests/*.mjs
       - name: Check Python syntax
         run: python3 -m compileall -q scripts bted_pipeline
       - name: Check Worker and site JavaScript syntax

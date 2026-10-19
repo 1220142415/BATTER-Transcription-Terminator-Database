@@ -81,6 +81,9 @@
     if (message.type === "ready") {
       window.clearTimeout?.(loadingTimer);
       bridgeReady = true;
+      if (Number.isFinite(message.frameHeight) && message.frameHeight >= 300 && message.frameHeight <= 10000) {
+        frame.style.height = `${message.frameHeight}px`;
+      }
       setBrowserStatus("");
       if (shareButton) shareButton.disabled = false;
       trackButtons.forEach((button) => { button.disabled = false; });
@@ -201,7 +204,7 @@
     pending.clear();
     const frameParams = new URLSearchParams();
     const configUrl = new URL(frame.dataset.config, browserUrl);
-    configUrl.searchParams.set("v", "37");
+    configUrl.searchParams.set("v", "39");
     frameParams.set("config", configUrl.href);
     frameParams.set("bted_bridge", bridgeNonce);
     ["session", "tracks", "highlight"].forEach((key) => {

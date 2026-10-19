@@ -1,0 +1,278 @@
+{
+  "schema": "bted-derived-condition-signals-v1",
+  "source_id": "BATTER_S1_021",
+  "genome_id": "GCF_000008685.2",
+  "pmid": "37402717",
+  "revision": "b3d2111f399e169e255e3da437e87636bfc085e6",
+  "provenance_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/b3d2111f399e169e255e3da437e87636bfc085e6/v0.5.0/genomes/experimental-only/GCF_000008685.2/studies/PMID_37402717/sources/BATTER_S1_021/signals/mean3-provenance.json",
+  "conditions": [
+    {
+      "condition_id": "log",
+      "label": "Mid-logarithmic phase",
+      "conditions": "Barbour–Stoenner–Kelly II (BSK-II) medium; mid-logarithmic phase at 35°C",
+      "assay": "3′ RNA-seq (modified from Term-seq)",
+      "derived": true,
+      "aggregation": "arithmetic_mean",
+      "biological_replicates": 3,
+      "series_accession": "GSE222087",
+      "samples": [
+        {
+          "accession": "GSM6914696",
+          "url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM6914696"
+        },
+        {
+          "accession": "GSM6914697",
+          "url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM6914697"
+        },
+        {
+          "accession": "GSM6914698",
+          "url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM6914698"
+        }
+      ],
+      "sample_mapping_note": "Accessions describe this condition; no individual author track-to-GSM mapping inferred.",
+      "reference": {
+        "name": "Schutzer_B31",
+        "contigs": {
+          "chr": 910724,
+          "lp28-3": 28601,
+          "lp25": 24177,
+          "lp28-2": 29766,
+          "lp38": 38829,
+          "lp36": 36849,
+          "lp28-4": 27323,
+          "lp54": 53657,
+          "cp9": 9386,
+          "cp26": 26498,
+          "lp17": 16821,
+          "lp28-1": 28155,
+          "cp32-1": 30750,
+          "cp32-3": 30223,
+          "cp32-4": 30299,
+          "cp32-6": 29838,
+          "cp32-7": 30800,
+          "cp32-8": 30885,
+          "cp32-9": 30651,
+          "lp21": 18777,
+          "lp5": 5228,
+          "lp56": 52971
+        },
+        "browser_status": "sequence_verified_aliases",
+        "aliases": {
+          "NC_001318.1": "chr",
+          "NC_001903.1": "cp26",
+          "NC_000948.1": "cp32-1",
+          "NC_000949.1": "cp32-3",
+          "NC_000950.1": "cp32-4",
+          "NC_000951.1": "cp32-6",
+          "NC_000952.1": "cp32-7",
+          "NC_000953.1": "cp32-8",
+          "NC_000954.1": "cp32-9",
+          "NC_001904.1": "cp9",
+          "NC_001849.2": "lp17",
+          "NC_000955.2": "lp21",
+          "NC_001850.1": "lp25",
+          "NC_001851.2": "lp28-1",
+          "NC_001852.1": "lp28-2",
+          "NC_001853.1": "lp28-3",
+          "NC_001854.1": "lp28-4",
+          "NC_001855.1": "lp36",
+          "NC_001856.1": "lp38",
+          "NC_000957.1": "lp5",
+          "NC_001857.2": "lp54",
+          "NC_000956.1": "lp56"
+        },
+        "sequence_sha256": {
+          "NC_001318.1": "d504c1e596ee1e9325cb6fd0aeb368851a735e4bb7ff08fc1d841a818681d213",
+          "NC_001903.1": "ab701a19532d707fcac929c2d2fe2ee8ca652df627c844b6fd1c6126c64e7524",
+          "NC_000948.1": "91a1146f7c5e84b712bf4441738f5bc939b0619dd4e992e4d79c1666b62f7169",
+          "NC_000949.1": "8801f5d552c98bdf929d21856a458b3d2712d9a6f1962fab6cc9121c57d3d832",
+          "NC_000950.1": "45a9c5b69fefbf4031b17266b73a7befa980a4c4a2e14f20e37f22e784f777bb",
+          "NC_000951.1": "ce223990d10a40ed314fe75d8afc404cc8a5b55498fdc964a888cd14ed046171",
+          "NC_000952.1": "1bda2288e420cad52148c20435dcf95a422b1c405ce2a9604fb26baee2cb8540",
+          "NC_000953.1": "7db5db9c6885944c7318d124beee53fc0410ab19d26332e94a88b7177e2ec776",
+          "NC_000954.1": "9674c9e5e7b78d556850fbac0c8cbf5722cb88dca2bee9a79ff82ff1233d426a",
+          "NC_001904.1": "d6d3477f959a3a0f12c123ae67f83f27d56e74e903054c003f48b338001402e2",
+          "NC_001849.2": "bad7728504fbe0e8f9dd1e12cee67b4530e463b59032367866e26ff9b9a69023",
+          "NC_000955.2": "fe5111a701fb5eb758520746b9514a9bb71129d9bdd865a4ee946dba6a22c3a9",
+          "NC_001850.1": "90f5580edff7d21956bec7016a93b4a21a785dca5bcaae1a14d5c4453523f165",
+          "NC_001851.2": "ee37189aaa002c9d2eb5c9fbc1208ec6f1e7819cdcca123ee63c25be9f8fd72b",
+          "NC_001852.1": "834207a032f9365f9a1969df03deb714b4ca59f604b6febac00ec740c1533aeb",
+          "NC_001853.1": "69b83f97c17168d901dfc3665a56546557dc3b323df9e501bb7d37bb5563593c",
+          "NC_001854.1": "39ea5fe4c707eac5482d054e4dcbb7bbe8cad7fbca132762b09d363daf532195",
+          "NC_001855.1": "6763c54138d15d5ca2b5db305acec5e2a865c526fef2c350928ded472513add4",
+          "NC_001856.1": "e6acbec9df8649c968c26ca76849ec2e6419f5e6469885ef20a0979698ca0187",
+          "NC_000957.1": "7ea5efeaa0f029a0faf94adeff1ef34a313921a487c0ffec1287a30c6f79b2d9",
+          "NC_001857.2": "315ded224ca7369fa6139f8289b7994ffa8dcad5e0776668fcb83e7851631ba8",
+          "NC_000956.1": "3ed0cc1f3f1309a502d2c54b9eb6f153a88be88c66b19d5e6babae3d65aa0923"
+        },
+        "verification": "All 22 sequences match after UCSC 2bit IUPAC-to-N conversion; lengths and coordinates unchanged."
+      },
+      "units": "Author BigWig values retained; normalization unit not explicitly established.",
+      "formula": "(replicate_1 + replicate_2 + replicate_3) / 3",
+      "signals": [
+        {
+          "strand": "plus",
+          "asset_key": "v0.4.0--369c82e2e1bf052c437c916165b1457755a0b81bf49f8ca12f2cf2a3b2dfaa77",
+          "path": "v0.5.0/genomes/experimental-only/GCF_000008685.2/studies/PMID_37402717/sources/BATTER_S1_021/conditions/log/mean3/signal.plus.bw",
+          "sha256": "9b92fa3a3ec6e3855b70b48e9b81a14edcbec0170f83260ebada4b9208aa8e05",
+          "byte_size": 1463850,
+          "url": "https://huggingface.co/datasets/liurulong/terminator/resolve/b3d2111f399e169e255e3da437e87636bfc085e6/v0.5.0/genomes/experimental-only/GCF_000008685.2/studies/PMID_37402717/sources/BATTER_S1_021/conditions/log/mean3/signal.plus.bw",
+          "range_status": 206,
+          "original_author_files": [
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_log_FWD_1.bigWig",
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_log_FWD_2.bigWig",
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_log_FWD_3.bigWig"
+          ]
+        },
+        {
+          "strand": "minus",
+          "asset_key": "v0.4.0--0ff930d21b6077c605420e7f99ab1f72bb15809c0bb404b9efd23edd6c947ee8",
+          "path": "v0.5.0/genomes/experimental-only/GCF_000008685.2/studies/PMID_37402717/sources/BATTER_S1_021/conditions/log/mean3/signal.minus.bw",
+          "sha256": "2c926abc33bc2f6730b68e5ecd64365581d8c001f1a3d46d344aa172dc38ef8e",
+          "byte_size": 1466440,
+          "url": "https://huggingface.co/datasets/liurulong/terminator/resolve/b3d2111f399e169e255e3da437e87636bfc085e6/v0.5.0/genomes/experimental-only/GCF_000008685.2/studies/PMID_37402717/sources/BATTER_S1_021/conditions/log/mean3/signal.minus.bw",
+          "range_status": 206,
+          "original_author_files": [
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_log_REV_1.bigWig",
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_log_REV_2.bigWig",
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_log_REV_3.bigWig"
+          ]
+        }
+      ]
+    },
+    {
+      "condition_id": "TS-stationary",
+      "label": "Temperature-shifted stationary phase",
+      "conditions": "Barbour–Stoenner–Kelly II (BSK-II) medium; mid-logarithmic phase at 35°C, approximately 23°C for 48 h, then 35°C for 48 h to stationary phase",
+      "assay": "3′ RNA-seq (modified from Term-seq)",
+      "derived": true,
+      "aggregation": "arithmetic_mean",
+      "biological_replicates": 3,
+      "series_accession": "GSE222087",
+      "samples": [
+        {
+          "accession": "GSM6914699",
+          "url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM6914699"
+        },
+        {
+          "accession": "GSM6914700",
+          "url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM6914700"
+        },
+        {
+          "accession": "GSM6914701",
+          "url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSM6914701"
+        }
+      ],
+      "sample_mapping_note": "Accessions describe this condition; no individual author track-to-GSM mapping inferred.",
+      "reference": {
+        "name": "Schutzer_B31",
+        "contigs": {
+          "chr": 910724,
+          "lp28-3": 28601,
+          "lp25": 24177,
+          "lp28-2": 29766,
+          "lp38": 38829,
+          "lp36": 36849,
+          "lp28-4": 27323,
+          "lp54": 53657,
+          "cp9": 9386,
+          "cp26": 26498,
+          "lp17": 16821,
+          "lp28-1": 28155,
+          "cp32-1": 30750,
+          "cp32-3": 30223,
+          "cp32-4": 30299,
+          "cp32-6": 29838,
+          "cp32-7": 30800,
+          "cp32-8": 30885,
+          "cp32-9": 30651,
+          "lp21": 18777,
+          "lp5": 5228,
+          "lp56": 52971
+        },
+        "browser_status": "sequence_verified_aliases",
+        "aliases": {
+          "NC_001318.1": "chr",
+          "NC_001903.1": "cp26",
+          "NC_000948.1": "cp32-1",
+          "NC_000949.1": "cp32-3",
+          "NC_000950.1": "cp32-4",
+          "NC_000951.1": "cp32-6",
+          "NC_000952.1": "cp32-7",
+          "NC_000953.1": "cp32-8",
+          "NC_000954.1": "cp32-9",
+          "NC_001904.1": "cp9",
+          "NC_001849.2": "lp17",
+          "NC_000955.2": "lp21",
+          "NC_001850.1": "lp25",
+          "NC_001851.2": "lp28-1",
+          "NC_001852.1": "lp28-2",
+          "NC_001853.1": "lp28-3",
+          "NC_001854.1": "lp28-4",
+          "NC_001855.1": "lp36",
+          "NC_001856.1": "lp38",
+          "NC_000957.1": "lp5",
+          "NC_001857.2": "lp54",
+          "NC_000956.1": "lp56"
+        },
+        "sequence_sha256": {
+          "NC_001318.1": "d504c1e596ee1e9325cb6fd0aeb368851a735e4bb7ff08fc1d841a818681d213",
+          "NC_001903.1": "ab701a19532d707fcac929c2d2fe2ee8ca652df627c844b6fd1c6126c64e7524",
+          "NC_000948.1": "91a1146f7c5e84b712bf4441738f5bc939b0619dd4e992e4d79c1666b62f7169",
+          "NC_000949.1": "8801f5d552c98bdf929d21856a458b3d2712d9a6f1962fab6cc9121c57d3d832",
+          "NC_000950.1": "45a9c5b69fefbf4031b17266b73a7befa980a4c4a2e14f20e37f22e784f777bb",
+          "NC_000951.1": "ce223990d10a40ed314fe75d8afc404cc8a5b55498fdc964a888cd14ed046171",
+          "NC_000952.1": "1bda2288e420cad52148c20435dcf95a422b1c405ce2a9604fb26baee2cb8540",
+          "NC_000953.1": "7db5db9c6885944c7318d124beee53fc0410ab19d26332e94a88b7177e2ec776",
+          "NC_000954.1": "9674c9e5e7b78d556850fbac0c8cbf5722cb88dca2bee9a79ff82ff1233d426a",
+          "NC_001904.1": "d6d3477f959a3a0f12c123ae67f83f27d56e74e903054c003f48b338001402e2",
+          "NC_001849.2": "bad7728504fbe0e8f9dd1e12cee67b4530e463b59032367866e26ff9b9a69023",
+          "NC_000955.2": "fe5111a701fb5eb758520746b9514a9bb71129d9bdd865a4ee946dba6a22c3a9",
+          "NC_001850.1": "90f5580edff7d21956bec7016a93b4a21a785dca5bcaae1a14d5c4453523f165",
+          "NC_001851.2": "ee37189aaa002c9d2eb5c9fbc1208ec6f1e7819cdcca123ee63c25be9f8fd72b",
+          "NC_001852.1": "834207a032f9365f9a1969df03deb714b4ca59f604b6febac00ec740c1533aeb",
+          "NC_001853.1": "69b83f97c17168d901dfc3665a56546557dc3b323df9e501bb7d37bb5563593c",
+          "NC_001854.1": "39ea5fe4c707eac5482d054e4dcbb7bbe8cad7fbca132762b09d363daf532195",
+          "NC_001855.1": "6763c54138d15d5ca2b5db305acec5e2a865c526fef2c350928ded472513add4",
+          "NC_001856.1": "e6acbec9df8649c968c26ca76849ec2e6419f5e6469885ef20a0979698ca0187",
+          "NC_000957.1": "7ea5efeaa0f029a0faf94adeff1ef34a313921a487c0ffec1287a30c6f79b2d9",
+          "NC_001857.2": "315ded224ca7369fa6139f8289b7994ffa8dcad5e0776668fcb83e7851631ba8",
+          "NC_000956.1": "3ed0cc1f3f1309a502d2c54b9eb6f153a88be88c66b19d5e6babae3d65aa0923"
+        },
+        "verification": "All 22 sequences match after UCSC 2bit IUPAC-to-N conversion; lengths and coordinates unchanged."
+      },
+      "units": "Author BigWig values retained; normalization unit not explicitly established.",
+      "formula": "(replicate_1 + replicate_2 + replicate_3) / 3",
+      "signals": [
+        {
+          "strand": "plus",
+          "asset_key": "v0.4.0--97d43914cd9b15957f6cc209c7b8efbfce13565be4d3ece6e4c093da19d396c6",
+          "path": "v0.5.0/genomes/experimental-only/GCF_000008685.2/studies/PMID_37402717/sources/BATTER_S1_021/conditions/TS-stationary/mean3/signal.plus.bw",
+          "sha256": "345726a6293fbd0d0b58e8cc3604a42b2a24a998ebf9231bd2fdf186a6b03cef",
+          "byte_size": 930956,
+          "url": "https://huggingface.co/datasets/liurulong/terminator/resolve/b3d2111f399e169e255e3da437e87636bfc085e6/v0.5.0/genomes/experimental-only/GCF_000008685.2/studies/PMID_37402717/sources/BATTER_S1_021/conditions/TS-stationary/mean3/signal.plus.bw",
+          "range_status": 206,
+          "original_author_files": [
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_TS-tempshift_FWD_1.bigWig",
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_TS-tempshift_FWD_2.bigWig",
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_TS-tempshift_FWD_3.bigWig"
+          ]
+        },
+        {
+          "strand": "minus",
+          "asset_key": "v0.4.0--dca4833c8e1228dfcd9c4c28995847ca76cba14aeb0af79711620b8e58c23ca8",
+          "path": "v0.5.0/genomes/experimental-only/GCF_000008685.2/studies/PMID_37402717/sources/BATTER_S1_021/conditions/TS-stationary/mean3/signal.minus.bw",
+          "sha256": "0d2da885995b0629a94f22346fb9762603ad689432d01b8b7070c9cee7cdc5c1",
+          "byte_size": 934279,
+          "url": "https://huggingface.co/datasets/liurulong/terminator/resolve/b3d2111f399e169e255e3da437e87636bfc085e6/v0.5.0/genomes/experimental-only/GCF_000008685.2/studies/PMID_37402717/sources/BATTER_S1_021/conditions/TS-stationary/mean3/signal.minus.bw",
+          "range_status": 206,
+          "original_author_files": [
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_TS-tempshift_REV_1.bigWig",
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_TS-tempshift_REV_2.bigWig",
+            "https://hpc.nih.gov/~NICHD-core0/storz/trackhubs/Bb_termseq_rnaseq_tmpshift/Schutzer_B31/3_prime_TS-tempshift_REV_3.bigWig"
+          ]
+        }
+      ]
+    }
+  ]
+}

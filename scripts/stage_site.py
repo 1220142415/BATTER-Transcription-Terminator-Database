@@ -7,6 +7,7 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -1758,7 +1759,7 @@ def assemble_v04(
             }
             config["plugins"] = [{
                 "name": "BTEDTrackPlugin",
-                "esmUrl": "plugins/bted-track-plugin.js?v=37",
+                "esmUrl": "plugins/bted-track-plugin.js?v=39",
             }]
             config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         # The upstream package also contains v0.2 source configs with relative
@@ -2083,7 +2084,12 @@ def main() -> int:
                 hf_v04_data_base_url=args.hf_v04_data_base_url,
             )
     except (StageError, SiteBuildError, OSError, ValueError, tarfile.TarError, json.JSONDecodeError, subprocess.SubprocessError) as exc:
-        print(f"FAIL  {exc}", file=sys.stderr)
+        message = str(exc)
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            message = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+            print(f"::error::{message}", file=sys.stderr)
+        else:
+            print(f"FAIL  {message}", file=sys.stderr)
         return 1
     return 0
 

@@ -300,7 +300,7 @@ def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: 
             problems.append(f"{config_path.relative_to(site_dir).as_posix()} 缺少唯一 BTED 插件配置")
         for plugin in configured_plugins:
             uri = plugin.get("esmUrl") if isinstance(plugin, dict) else None
-            if not isinstance(plugin, dict) or plugin.get("name") != "BTEDTrackPlugin" or uri not in {"plugins/bted-track-plugin.js", "plugins/bted-track-plugin.js?v=37"}:
+            if not isinstance(plugin, dict) or plugin.get("name") != "BTEDTrackPlugin" or uri not in {"plugins/bted-track-plugin.js", "plugins/bted-track-plugin.js?v=39"}:
                 problems.append(f"{config_path.relative_to(site_dir).as_posix()} 的 BTED 插件配置无效")
             elif not (jbrowse_root / uri.split("?", 1)[0]).is_file():
                 problems.append(f"{config_path.relative_to(site_dir).as_posix()} 缺少 BTED 插件文件")

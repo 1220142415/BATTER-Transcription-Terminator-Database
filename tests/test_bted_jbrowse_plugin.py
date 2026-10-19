@@ -118,7 +118,9 @@ const pm = { rootModel: { session, jbrowse: { tracks: [], assemblies: [] } },
     return {};
   } };
 new mod.default().install(pm);
+current.tracks = [{ displays: [{height:120}] }, { displays: [{height:180}] }, { displays: [{height:180}] }];
 ready(); assert.equal(replies.at(-1).trackCount, 7);
+assert.equal(replies.at(-1).frameHeight, 758);
 const message = type => ({ origin: 'https://bted.example', source: window.parent,
   data: { channel: 'bted-browser-v1', nonce: 'unit', id: '1', type } });
 await listener({ ...message('add-user-track'), origin: 'https://other.example' });

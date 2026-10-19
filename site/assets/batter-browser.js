@@ -47,7 +47,7 @@
       if (taxonomy) {
         const header = document.createElement("div"), heading = document.createElement("h2"), source = document.createElement("span"), lineage = document.createElement("dl");
         header.className = "taxonomy-heading"; heading.textContent = "Taxonomy";
-        source.append(link("GEM / GTDB", "https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv"));
+        source.append(link("GEM / GTDB (original)", "https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv"));
         header.append(heading, source); lineage.className = "taxonomy-lineage";
         const ranks = Object.fromEntries((data.taxonomy || "").split(";").map(value => value.trim()).map(value => [value.slice(0, 1), value.slice(3)]));
         for (const [key, label] of [["p", "Phylum"], ["c", "Class"], ["o", "Order"], ["f", "Family"], ["g", "Genus"], ["s", "Species"]]) {

@@ -80,10 +80,12 @@ const nativeFetch = globalThis.fetch.bind(globalThis);
 const backupAssets = new Set();
 let releaseManifest;
 const batterManifests = new Map();
+const conditionManifests = new Map();
 async function fetchRegisteredBtedAsset(input, init = {}) {
   const url = input instanceof Request ? input.url : String(input);
   const method = init.method || (input instanceof Request ? input.method : 'GET');
-  const match = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/[0-9a-f]{40}\/v0\.[34]\.0\/(.+)$/.exec(url)
+  const condition = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/[0-9a-f]{40}\/v0\.5\.0\/(genomes\/experimental-only\/(GCF_\d+\.\d+)\/studies\/PMID_\d+\/sources\/(BATTER_[A-Za-z0-9_]+)\/conditions\/[A-Za-z0-9_-]+\/mean3\/signal\.(?:plus|minus)\.bw)$/.exec(url);
+  const match = condition || /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/[0-9a-f]{40}\/v0\.[34]\.0\/(.+)$/.exec(url)
     || /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/[0-9a-f]{40}\/v0\.5\.0\/(genomes\/experimental-only\/[A-Za-z0-9_.-]+\/studies\/PMID_\d+\/sources\/BATTER_[A-Za-z0-9_]+\/samples\/GSM\d+\/signal\.(?:plus|minus)\.bw)$/.exec(url)
     || /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/[0-9a-f]{40}\/v0\.5\.0\/(genomes\/experimental-only\/GCF_\d+\.\d+\/predictions\/BATTER-TPE-\d{8}\/prediction\.(?:bed|gff3\.gz(?:\.tbi)?))$/.exec(url)
     || /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/[0-9a-f]{40}\/v0\.5\.0\/(genomes\/experimental-only\/GCF_000005845\.2\/reference\/reference\.fna(?:\.fai)?)$/.exec(url);
@@ -128,13 +130,32 @@ async function fetchRegisteredBtedAsset(input, init = {}) {
       backupAssets.add(url);
       return response;
     }
-    releaseManifest ||= nativeFetch(`${globalThis.location.origin}/assets/data-release.json`, { cache: 'no-cache' }).then(response => {
-      if (!response.ok) throw new Error('Data manifest unavailable.');
-      return response.json();
-    });
-    const manifest = await releaseManifest;
-    const asset = manifest.assets?.[decodeURIComponent(match[1])];
-    if (manifest.releaseVersion !== 'v0.4.0' || asset?.url !== url ||
+    let asset;
+    if (condition) {
+      const sourceId = condition[3];
+      if (!conditionManifests.has(sourceId)) {
+        const promise = nativeFetch(`${globalThis.location.origin}/api/sources/${sourceId}`, { signal, cache: 'no-cache' }).then(response => {
+          if (!response.ok) throw new Error('Signal metadata unavailable.');
+          return response.json();
+        });
+        conditionManifests.set(sourceId, promise);
+        promise.catch(() => conditionManifests.delete(sourceId));
+      }
+      const payload = await conditionManifests.get(sourceId);
+      const entry = payload.source?.assets?.find(a => a.logical_path === condition[1] && a.asset_kind === 'bigwig');
+      if (payload.release?.release_version !== 'v0.4.0' || payload.source?.assembly_accession !== condition[2]
+          || payload.source?.source_id !== sourceId || !/^[0-9a-f]{64}$/.test(entry?.sha256 || '')) throw new Error('Signal metadata mismatched.');
+      asset = { url: entry.origin_url, sha256: entry.sha256, fallback_url: `/api/assets/${entry.asset_key}` };
+    } else {
+      releaseManifest ||= nativeFetch(`${globalThis.location.origin}/assets/data-release.json`, { cache: 'no-cache' }).then(response => {
+        if (!response.ok) throw new Error('Data manifest unavailable.');
+        return response.json();
+      });
+      const manifest = await releaseManifest;
+      if (manifest.releaseVersion !== 'v0.4.0') throw new Error('Data manifest mismatched.');
+      asset = manifest.assets?.[decodeURIComponent(match[1])];
+    }
+    if (asset?.url !== url ||
         !/^\/api\/assets\/v0\.4\.0--[0-9a-f]{64}$/.test(asset.fallback_url || '')) throw originalError || new Error('No matching backup asset.');
     const backupRequest = new Request(new URL(asset.fallback_url, `${globalThis.location.origin}/`), input instanceof Request ? input : init);
     const response = await nativeFetch(backupRequest, init);
@@ -1042,7 +1063,8 @@ export default class BTEDTrackPlugin {
           if (nonce) for (const current of root().session.views) {
             if (current.type === 'LinearGenomeView') current.setTrackLabels('overlapping');
           }
-          reply('ready', '', { trackCount: trackCount() });
+          reply('ready', '', { trackCount: trackCount(), frameHeight: Math.ceil(200 + view().tracks.reduce(
+            (height, track) => height + (track.displays?.[0]?.height || 140) + 26, 0)) });
           // Keep the count with its own track; native coordinate/contig navigation remains available.
           const { reaction } = pluginManager.jbrequire('mobx');
           let labels = [];

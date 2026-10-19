@@ -8,12 +8,13 @@ const PUBLIC_EVIDENCE = new Set([
 const CURRENT_RELEASE_VERSION = "v0.4.0";
 const RETIRED_RELEASE_ARCHIVE = "data/archive/BTED-v0.2.0.tar.gz";
 const DATA_RELEASE_MANIFEST_PATH = "/assets/data-release.json";
-const BTED_PLUGIN_PATH = "/jbrowse/plugins/bted-track-plugin.js?v=37";
+const BTED_PLUGIN_PATH = "/jbrowse/plugins/bted-track-plugin.js?v=39";
 const HF_DATA_ASSET_PATTERN = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/(v0\.3\.0|v0\.4\.0|v0\.5\.0)\/(.+)$/;
 const LOCAL_DATA_ASSET_PATTERN = /^downloads\/(v0\.3\.0|v0\.4\.0)\/(.+)$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
 const PLUS_STRAND_COLOR = "#0f766e";
 const MINUS_STRAND_COLOR = "#be123c";
+const CONDITION_SIGNAL_PATH = /^genomes\/experimental-only\/(GCF_\d+\.\d+)\/studies\/PMID_(\d+)\/sources\/(BATTER_[A-Za-z0-9_]+)\/conditions\/([A-Za-z0-9_-]+)\/mean3\/signal\.(plus|minus)\.bw$/;
 
 function trackCitation(track) {
   try {
@@ -211,7 +212,7 @@ function safeLogicalPath(value) {
 
 function allowedAsset(manifest, logicalPath, expectedAsset = null) {
   if (!safeLogicalPath(logicalPath)) throw dataReleaseError("data_release_manifest_invalid");
-  const asset = manifest.assets[logicalPath];
+  const asset = manifest.assets[logicalPath] || registeredConditionAsset(expectedAsset);
   const compatibleKind = !expectedAsset || !asset?.asset_kind
     || asset.asset_kind === expectedAsset.asset_kind
     || (asset.asset_kind === "tsv" && expectedAsset.asset_kind === "metadata");
@@ -223,6 +224,17 @@ function allowedAsset(manifest, logicalPath, expectedAsset = null) {
     throw dataReleaseError("data_release_manifest_invalid");
   }
   return asset;
+}
+
+function registeredConditionAsset(asset) {
+  if (!asset) return null;
+  const path = CONDITION_SIGNAL_PATH.exec(asset.logical_path || "");
+  const origin = HF_DATA_ASSET_PATTERN.exec(asset.origin_url || "");
+  if (!path || !origin || origin[2] !== "v0.5.0" || origin[3] !== asset.logical_path
+      || path[1] !== asset.assembly_accession || path[3] !== asset.source_id
+      || asset.asset_kind !== "bigwig" || Number(asset.is_public) !== 1
+      || !SHA256_PATTERN.test(asset.sha256) || !Number.isSafeInteger(asset.byte_size) || asset.byte_size <= 0) return null;
+  return { url: asset.origin_url, revision: origin[1], byte_size: asset.byte_size, sha256: asset.sha256, asset_kind: "bigwig" };
 }
 
 function dataAssetUrl(manifest, logicalPath, request, expectedAsset = null) {
@@ -245,12 +257,12 @@ function assetUrl(request, assetKey, route = "/api/assets/") {
 
 async function publicAsset(env, releaseVersion, assetKey) {
   return cachedD1Lookup(env.BTED_DB, `asset:${releaseVersion}:${assetKey}`, () => env.BTED_DB.prepare(
-    "SELECT asset_key, release_version, assembly_accession, source_id, asset_kind, logical_path, origin_host, content_type, byte_size, sha256, supports_range, redistribution_status, is_public FROM assets WHERE asset_key = ? AND release_version = ? AND active = 1 AND is_public = 1",
+    "SELECT asset_key, release_version, assembly_accession, source_id, asset_kind, logical_path, origin_url, origin_host, content_type, byte_size, sha256, supports_range, redistribution_status, is_public FROM assets WHERE asset_key = ? AND release_version = ? AND active = 1 AND is_public = 1",
   ).bind(assetKey, releaseVersion).first());
 }
 
 async function allAssets(env, releaseVersion, accession, sourceId) {
-  let sql = "SELECT asset_key, release_version, assembly_accession, source_id, asset_kind, logical_path, origin_host, content_type, byte_size, sha256, supports_range, redistribution_status, is_public FROM assets WHERE release_version = ? AND active = 1 AND is_public = 1";
+  let sql = "SELECT asset_key, release_version, assembly_accession, source_id, asset_kind, logical_path, origin_url, origin_host, content_type, byte_size, sha256, supports_range, redistribution_status, is_public FROM assets WHERE release_version = ? AND active = 1 AND is_public = 1";
   const params = [releaseVersion];
   if (accession) {
     sql += " AND assembly_accession = ?";
@@ -579,6 +591,88 @@ function experimentalPredictionTrack(request, manifest, assembly, assets, assemb
       btedDownloads: ["prediction.bed", "prediction.gff3.gz"].map(name => ({ kind: "prediction", label: name.endsWith(".bed") ? "Prediction BED" : "Prediction GFF3", url: uri(name).uri, filename: `${assembly.accession}.${name}` })) } };
 }
 
+async function applyConditionSignals(config, request, env, accession, rows = null) {
+  rows ||= await trackRows(env, CURRENT_RELEASE_VERSION, accession, null);
+  for (const row of rows) {
+    const info = JSON.parse(row.metadata_json || "{}");
+    const conditions = info.signal_conditions;
+    if (!conditions?.length || Number(row.is_public) !== 1) continue;
+    if (row.assembly_accession !== accession || !Array.isArray(conditions)) throw dataReleaseError("signal_condition_mismatch");
+    const endpoint = config.tracks.find(t => t.metadata?.btedAbout?.kind === "endpoint"
+      && [t.metadata?.source_id, ...(t.metadata?.source_ids || []), t.metadata?.btedAbout?.source_id].includes(row.source_id));
+    if (!endpoint || String(endpoint.metadata.btedAbout.pmid) !== row.pmid) throw dataReleaseError("signal_condition_mismatch");
+    const assets = await allAssets(env, CURRENT_RELEASE_VERSION, accession, row.source_id);
+    const groups = [], ids = new Set(), aliasLines = new Set();
+    for (const condition of conditions) {
+      const id = condition.condition_id;
+      const reference = condition.reference;
+      if (!/^[A-Za-z0-9_-]+$/.test(id) || ids.has(id) || condition.aggregation !== "arithmetic_mean"
+          || condition.biological_replicates !== 3 || condition.signals?.length !== 2
+          || new Set(condition.signals.map(s => s.strand)).size !== 2
+          || reference?.browser_status !== "sequence_verified_aliases" || !Object.keys(reference.aliases || {}).length) {
+        throw dataReleaseError("signal_condition_mismatch");
+      }
+      ids.add(id);
+      for (const [canonical, alias] of Object.entries(reference.aliases)) {
+        if (!/^[A-Za-z0-9_.-]+$/.test(canonical) || !/^[A-Za-z0-9_.-]+$/.test(alias)
+            || !reference.contigs[alias] || !SHA256_PATTERN.test(reference.sequence_sha256?.[canonical] || "")) throw dataReleaseError("signal_reference_mismatch");
+        aliasLines.add(`${canonical}\t${alias}`);
+      }
+      const root = `genomes/experimental-only/${accession}/studies/PMID_${row.pmid}/sources/${row.source_id}/conditions/${id}/mean3/`;
+      const signals = ["plus", "minus"].map(strand => {
+        const declared = condition.signals.find(s => s.strand === strand);
+        const asset = assets.find(a => a.logical_path === `${root}signal.${strand}.bw` && a.asset_key === declared?.asset_key);
+        const fixed = registeredConditionAsset(asset);
+        if (!fixed || declared.path !== `v0.5.0/${asset.logical_path}` || declared.url !== fixed.url
+            || declared.sha256 !== fixed.sha256 || declared.byte_size !== fixed.byte_size) throw dataReleaseError("signal_pair_missing");
+        return { strand, url: fixed.url, fallback: assetUrl(request, asset.asset_key) };
+      });
+      const trackId = `bted_${row.source_id.toLowerCase()}_${id.toLowerCase()}_mean3_signal`;
+      const about = { ...endpoint.metadata.btedAbout, kind: "signal", record_count: "", evidence: "",
+        assay: condition.assay, conditions: condition.conditions, strand: "+ / −", coverage: "22 reference sequences",
+        reference_name: Object.keys(reference.aliases).join(", "),
+        raw_data_accessions: condition.samples.map(s => s.accession).join(", "),
+        raw_data_url: `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${condition.series_accession}`,
+        explanation: "Mean of 3 biological replicates; + strand above zero, − strand below." };
+      delete about.gff3_url;
+      groups.push({ type: "MultiQuantitativeTrack", trackId,
+        name: `PMID ${row.pmid} · 3′ RNA-seq · ${condition.label}`,
+        category: ["Experimental signal", `PMID ${row.pmid}`], assemblyNames: endpoint.assemblyNames,
+        adapter: { type: "MultiWiggleAdapter", subadapters: signals.map(s => ({ type: "BigWigAdapter", source: s.strand,
+          name: s.strand === "plus" ? "+ strand" : "− strand", color: s.strand === "plus" ? PLUS_STRAND_COLOR : MINUS_STRAND_COLOR,
+          bigWigLocation: { uri: s.url, locationType: "UriLocation" } })) },
+        metadata: { btedMirroredSignal: true, btedConditionSignal: true, condition_id: id, source_id: row.source_id,
+          signal_values: condition.units, btedAbout: about,
+          btedDownloads: signals.map(s => ({ kind: "bigwig", label: s.strand === "plus" ? "+ strand BigWig" : "− strand BigWig",
+            url: s.url, filename: `${row.source_id}.${id}.mean3.${s.strand}.bw` })) },
+        displays: [{ type: "MultiLinearWiggleDisplay", displayId: `${trackId}_display`, defaultRendering: "xyplot", autoscale: "global", scaleType: "log", height: 180 }] });
+    }
+    const assembly = config.assemblies.find(a => endpoint.assemblyNames.includes(a.name));
+    const previousAliases = assembly.refNameAliases?.adapter?.location?.uri;
+    const existing = previousAliases?.startsWith("data:text/plain,") ? decodeURIComponent(previousAliases.slice(16)).trim() : "";
+    const aliases = [...new Set([...existing.split("\n"), ...aliasLines].filter(Boolean))];
+    assembly.refNameAliases = { adapter: { type: "RefNameAliasAdapter", location: { uri: "data:text/plain," + encodeURIComponent(aliases.join("\n") + "\n"), locationType: "UriLocation" } } };
+    config.tracks = config.tracks.filter(t => !(t.metadata?.btedConditionSignal && t.metadata.source_id === row.source_id));
+    config.tracks.splice(config.tracks.indexOf(endpoint) + 1, 0, ...groups);
+    for (const view of config.defaultSession.views) {
+      const groupIds = new Set(groups.map(t => t.trackId));
+      view.tracks = view.tracks.filter(t => !groupIds.has(t.configuration));
+      const index = view.tracks.findIndex(t => t.configuration === endpoint.trackId);
+      if (index >= 0) view.tracks.splice(index + 1, 0, ...groups.map(t => ({ id: `${t.trackId}_view`, type: t.type, configuration: t.trackId,
+        displays: [{ id: `${t.trackId}_display_view`, type: "MultiLinearWiggleDisplay", configuration: t.displays[0].displayId, showSidebar: false }] })));
+    }
+  }
+  return config;
+}
+
+async function experimentalBrowserConfig(request, env, accession) {
+  const response = await env.ASSETS.fetch(new Request(new URL(`/jbrowse/assemblies/${accession}.config.json`, request.url)));
+  if (!response.ok) return response;
+  try {
+    return json(await applyConditionSignals(await response.json(), request, env, accession), 200, { "cache-control": "no-cache" });
+  } catch (error) { return dataReleaseErrorResponse(error); }
+}
+
 async function jbrowseConfig(request, env, release, accession, sourceId) {
   let dataManifest;
   try {
@@ -692,7 +786,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       signalTracks.set(source.source_id, {
         type: "MultiQuantitativeTrack",
         trackId: signalId,
-        name: sample ? `PMID ${track.pmid} · ${sample.assay} · ${sample.sample_id}` : `PMID ${track.pmid} · experimental signal`,
+        name: sample ? `PMID ${track.pmid} · ${sample.assay} · ${sample.conditions.split(';')[0].trim()} · ${sample.sample_id}` : `PMID ${track.pmid} · experimental signal`,
         adapter: { type: "MultiWiggleAdapter", subadapters: [
           { type: "BigWigAdapter", source: "plus", name: "+ strand", color: PLUS_STRAND_COLOR, bigWigLocation: { uri: plusUrl, locationType: "UriLocation" } },
           { type: "BigWigAdapter", source: "minus", name: "− strand", color: MINUS_STRAND_COLOR, bigWigLocation: { uri: minusUrl, locationType: "UriLocation" } },
@@ -832,13 +926,15 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     id: "bted_reference_track", type: "ReferenceSequenceTrack", configuration: `${assemblyName}_refseq`, minimized: false,
     displays: [{ id: "bted_reference_display", type: "LinearReferenceSequenceDisplay", configuration: `${assemblyName}_refseq-LinearReferenceSequenceDisplay`, showTranslation: true, heightPreConfig: 120 }],
   });
-  return json({
+  const config = {
     plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL(BTED_PLUGIN_PATH, request.url).href }],
     assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", name: "Reference sequence", trackId: `${assemblyName}_refseq`, adapter: { type: "IndexedFastaAdapter", fastaLocation: { uri: assetUrl(request, fasta.asset_key), locationType: "UriLocation" }, faiLocation: { uri: assetUrl(request, fai.asset_key), locationType: "UriLocation" } } } }],
     tracks: configTracks,
     defaultSession: { name: `BTED · ${accession}`, views: [{ id: "bted_linear_genome_view", type: "LinearGenomeView", name: assembly.organism_name || accession, offsetPx: initialStart / initialBpPerPx, bpPerPx: initialBpPerPx, displayedRegions: [{ refName: contigName, start: 0, end: length, reversed: false, assemblyName }], tracks: sessionTracks }] },
     metadata: { release_version: release.release_version, assembly_accession: accession, source_ids: publicTracks.map(({ source }) => source.source_id), browser_asset_origin: release.asset_origin_status },
-  });
+  };
+  try { return json(await applyConditionSignals(config, request, env, accession, publicTracks.map(p => p.track))); }
+  catch (error) { return dataReleaseErrorResponse(error); }
 }
 
 async function proxyAsset(request, env, release, assetKey) {
@@ -998,6 +1094,65 @@ const batterCatalogues = new WeakMap();
 const directoryPins = new WeakMap();
 const DIRECTORY_RANKS = ["phylum", "class", "order", "family", "genus", "species"];
 const DIRECTORY_SORT = { accession: "accession_key", organism: "organism_key", size: "size", endpoints: "endpoints", predictions: "predictions", training: "training" };
+const DIRECTORY_DATASETS = { experimental: "endpoints", prediction: "predictions", augmentation: "training" };
+
+function directoryConditions(version, criteria) {
+  const where = ["version = ?"], binds = [version];
+  for (const field of ["source", "genome_type", "annotation", ...DIRECTORY_RANKS]) if (criteria[field]) {
+    where.push(`"${field}" = ?`); binds.push(criteria[field]);
+  }
+  if (criteria.dataset) where.push(`${DIRECTORY_DATASETS[criteria.dataset]} > 0`);
+  if (criteria.q) {
+    const tokens = criteria.q.split(/[^\p{L}\p{N}_.-]+/u).filter(Boolean), trigrams = new Set();
+    for (const token of tokens) {
+      const chars = [...token];
+      for (let index = 0; index < chars.length - 2; index++) trigrams.add(chars.slice(index, index + 3).join(""));
+    }
+    where.push("id IN (SELECT rowid FROM hf_directory_search WHERE hf_directory_search MATCH ?)");
+    binds.push([...trigrams].map(token => `"${token.replaceAll('"', '""')}"`).join(" AND "));
+    for (const token of tokens) { where.push("instr(search_text, ?) > 0"); binds.push(token); }
+  }
+  return { condition: where.join(" AND "), binds };
+}
+
+async function directoryFacets(request, env, ctx, version, storageVersion, summary, criteria) {
+  const facets = {}, groups = new Map();
+  for (const field of ["source", "genome_type", "annotation", "dataset", ...DIRECTORY_RANKS]) {
+    const index = DIRECTORY_RANKS.indexOf(field);
+    if (index > 0 && DIRECTORY_RANKS.slice(0, index).some(parent => !criteria[parent])) continue;
+    // A menu offers alternatives to itself; a parent classification also ignores its descendants.
+    const scope = Object.fromEntries(Object.entries(criteria).filter(([key]) => key !== field &&
+      !(index >= 0 && DIRECTORY_RANKS.slice(index + 1).includes(key))));
+    if (!Object.keys(scope).length) {
+      facets[field] = field === "source" ? summary.sources : field === "phylum" ? summary.phyla.slice().sort((a, b) => summary.counts.phylum[b] - summary.counts.phylum[a])
+        : Object.entries(summary.counts[field] || {}).filter(([, count]) => count > 0).map(([value]) => value).sort();
+      continue;
+    }
+    if (field === "phylum") {
+      facets.phylum = await directoryCachedValue(request, env, ctx, version, "phylum-by-count-v1", scope, async () => {
+        const { condition, binds } = directoryConditions(storageVersion, scope);
+        const rows = await env.BTED_DB.prepare(`SELECT phylum,COUNT(*) AS n FROM hf_directory_genomes WHERE ${condition} AND phylum != '' GROUP BY phylum ORDER BY n DESC,phylum ASC`).bind(...binds).all();
+        return rows.results.map(row => row.phylum);
+      });
+      continue;
+    }
+    const key = JSON.stringify(scope);
+    if (!groups.has(key)) groups.set(key, { scope, fields: [] });
+    groups.get(key).fields.push(field);
+  }
+  await Promise.all([...groups.values()].map(async ({ scope, fields }) => {
+    const values = await directoryCachedValue(request, env, ctx, version, "facets-v2", { ...scope, fields: fields.join(",") }, async () => {
+      const { condition, binds } = directoryConditions(storageVersion, scope);
+      const expressions = fields.flatMap(field => field === "dataset"
+        ? Object.entries(DIRECTORY_DATASETS).map(([key, column]) => `MAX(${column} > 0) AS "${key}"`)
+        : [`json_group_array(DISTINCT "${field}") FILTER (WHERE "${field}" != '') AS "${field}"`]);
+      return env.BTED_DB.prepare(`SELECT ${expressions.join(",")} FROM hf_directory_genomes WHERE ${condition}`).bind(...binds).first();
+    });
+    for (const field of fields) facets[field] = field === "dataset"
+      ? Object.keys(DIRECTORY_DATASETS).filter(key => values[key]) : JSON.parse(values[field]).sort();
+  }));
+  return facets;
+}
 
 function directoryQuery(url) {
   const params = url.searchParams;
@@ -1060,25 +1215,11 @@ async function genomeDirectory(request, env, ctx) {
     const summary = JSON.parse(release.summary_json);
     if (query.source && !summary.sources.includes(query.source)) return json({ error: "invalid_directory_query" }, 400, { "cache-control": "no-store" });
     const storageVersion = summary.storage_version || query.v;
-    const where = ["version = ?"], binds = [storageVersion], criteria = {};
-    for (const field of ["source", "genome_type", "annotation", ...DIRECTORY_RANKS]) if (query[field]) {
-      where.push(`"${field}" = ?`); binds.push(query[field]); criteria[field] = query[field];
-    }
-    if (query.dataset) { where.push(`${({ experimental: "endpoints", prediction: "predictions", augmentation: "training" })[query.dataset]} > 0`); criteria.dataset = query.dataset; }
-    if (tokens.length) {
-      where.push("id IN (SELECT rowid FROM hf_directory_search WHERE hf_directory_search MATCH ?)");
-      const trigrams = new Set();
-      for (const token of tokens) {
-        const chars = [...token];
-        for (let index = 0; index < chars.length - 2; index++) trigrams.add(chars.slice(index, index + 3).join(""));
-      }
-      binds.push([...trigrams].map(token => `"${token.replaceAll('"', '""')}"`).join(" AND "));
-      for (const token of tokens) { where.push("instr(search_text, ?) > 0"); binds.push(token); }
-      criteria.q = query.q;
-    }
+    const criteria = Object.fromEntries(["source", "genome_type", "annotation", "dataset", ...DIRECTORY_RANKS, "q"]
+      .filter(field => field === "q" ? tokens.length : query[field]).map(field => [field, query[field]]));
+    const { condition, binds } = directoryConditions(storageVersion, criteria);
     const fields = Object.keys(criteria), knownCount = fields.length === 0 ? summary.total
       : fields.length === 1 && summary.counts[fields[0]] ? summary.counts[fields[0]][criteria[fields[0]]] ?? 0 : null;
-    const condition = where.join(" AND ");
     const total = knownCount ?? (await directoryCachedValue(request, env, ctx, query.v, "count", criteria, () =>
       env.BTED_DB.prepare(`SELECT COUNT(*) AS total FROM hf_directory_genomes WHERE ${condition}`).bind(...binds).first())).total;
     const page = Math.max(1, Math.min(query.page, Math.ceil(total / 25)));
@@ -1102,19 +1243,7 @@ async function genomeDirectory(request, env, ctx) {
       if (item.recovered_coverage) row.recoveredAnnotation = { coverage: item.recovered_coverage, matched_reference_contigs: item.recovered_matched, total_reference_contigs: item.recovered_total };
       return row;
     });
-    const facets = { phylum: summary.phyla };
-    const parents = {};
-    for (let index = 1; index < DIRECTORY_RANKS.length; index++) {
-      const parent = DIRECTORY_RANKS[index - 1], rank = DIRECTORY_RANKS[index];
-      if (!query[parent]) break;
-      parents[parent] = query[parent];
-      const prefix = Object.keys(parents).map(field => `"${field}" = ?`).join(" AND ");
-      facets[rank] = await directoryCachedValue(request, env, ctx, query.v, `facet:${rank}`, parents, async () => {
-        const result = await env.BTED_DB.prepare(`SELECT DISTINCT "${rank}" AS value FROM hf_directory_genomes WHERE version = ? AND ${prefix} AND "${rank}" != '' ORDER BY "${rank}"`)
-          .bind(storageVersion, ...Object.values(parents)).all();
-        return result.results.map(row => row.value);
-      });
-    }
+    const facets = await directoryFacets(request, env, ctx, query.v, storageVersion, summary, criteria);
     return json({ rows, total, page, page_size: 25, facets, sources: summary.sources }, 200,
       { "cache-control": "public, max-age=60", "x-bted-metadata-source": "d1" });
   } catch (error) {
@@ -1471,6 +1600,7 @@ async function batterApi(request, env, match) {
         if (!experimentalResponse.ok) throw new Error("experimental_config_unavailable");
         const verified = registry.revision === catalogue.revision ? registry.overlays?.[id] : null;
         config = combineGenomeTracks(config, await experimentalResponse.json(), verified, metadata);
+        await applyConditionSignals(config, request, env, id);
       }
       return json(config, 200, { "cache-control": "no-cache", "x-bted-metadata-source": env.BTED_METADATA_REVISION ? "d1" : "hf" });
     }
@@ -1635,6 +1765,7 @@ async function purgeUsage(env, time) {
 
 async function cachedPublicApi(request, ctx, load, env = {}) {
   const url = new URL(request.url);
+  const experimentalConfig = /^\/jbrowse\/assemblies\/GCF_\d+\.\d+\.config\.json$/.test(url.pathname);
   const directory = url.pathname === "/api/genome-directory";
   let directoryParams;
   if (directory) { try { directoryParams = directoryQuery(url).query; } catch { return load(); } }
@@ -1647,7 +1778,7 @@ async function cachedPublicApi(request, ctx, load, env = {}) {
   const pinnedCatalogue = fixedMetadata && catalogue && url.searchParams.get("v") === "1"
     && url.searchParams.get("revision") === env.BTED_METADATA_REVISION
     && url.searchParams.get("annotation") === (env.BTED_ANNOTATION_REVISION || "original");
-  const ttl = directory ? 604800 : fixedMetadata ? (catalogue ? 604800 : 86400) : url.pathname === "/api/usage" ? 60
+  const ttl = experimentalConfig ? 300 : directory ? 604800 : fixedMetadata ? (catalogue ? 604800 : 86400) : url.pathname === "/api/usage" ? 60
     : url.pathname === "/api/batter-catalogue" ? 300
     : /^\/api\/(stats|catalogue|sources|assemblies|endpoints)(\/[^/]+(\/jbrowse-config)?)?$/.test(url.pathname) ? 300 : 0;
   const cache = globalThis.caches?.default;
@@ -1658,9 +1789,9 @@ async function cachedPublicApi(request, ctx, load, env = {}) {
     for (const [key, value] of Object.entries(directoryParams)) if (value) keyUrl.searchParams.set(key, String(value));
   }
   if (fixedMetadata) keyUrl.search = "";
-  keyUrl.searchParams.set("__bted_cache", directory ? `directory-v1:${env.BTED_METADATA_REVISION}:${env.BTED_ANNOTATION_REVISION || "original"}` : catalogue
+  keyUrl.searchParams.set("__bted_cache", directory ? `directory-v3:${env.BTED_METADATA_REVISION}:${env.BTED_ANNOTATION_REVISION || "original"}` : catalogue
     ? `catalogue-v1:${CURRENT_RELEASE_VERSION}:${env.BTED_METADATA_REVISION || "hf"}:${env.BTED_ANNOTATION_REVISION || "original"}`
-    : `public-api-20261014-v4:${CURRENT_RELEASE_VERSION}:${env.BTED_METADATA_REVISION || "hf"}:${env.BTED_ANNOTATION_REVISION || "original"}:${env.BTED_RUNTIME_FIELDS || "legacy"}:${BTED_PLUGIN_PATH}`);
+    : `public-api-20261015-v9:${CURRENT_RELEASE_VERSION}:${env.BTED_METADATA_REVISION || "hf"}:${env.BTED_ANNOTATION_REVISION || "original"}:${env.BTED_RUNTIME_FIELDS || "legacy"}:${BTED_PLUGIN_PATH}`);
   keyUrl.searchParams.sort();
   const key = new Request(keyUrl);
   const cacheControl = `public, max-age=${pinnedCatalogue ? 31536000 : Math.min(ttl, 60)}, s-maxage=${ttl}${pinnedCatalogue ? ", immutable" : ""}`;
@@ -1698,6 +1829,8 @@ async function routeRequest(request, env, ctx) {
     if (!["GET", "HEAD"].includes(request.method)) return json({ error: "method_not_allowed" }, 405, { allow: "GET, HEAD" });
     if (url.pathname.startsWith("/downloads/v0.2.0/")) return retiredReleaseResponse("v0.2.0");
     if (!url.pathname.startsWith("/api/")) {
+      const experimentalConfig = /^\/jbrowse\/assemblies\/(GCF_\d+\.\d+)\.config\.json$/.exec(url.pathname);
+      if (experimentalConfig) return experimentalBrowserConfig(request, env, experimentalConfig[1]);
       let assetRequest = request;
       const genomePage = /^\/genomes\/([A-Za-z0-9_.-]+)(?:\.html)?$/.exec(url.pathname);
       if (genomePage && !["batter", "genome"].includes(genomePage[1])) {

@@ -25,6 +25,7 @@ class SignalTests(unittest.TestCase):
             apply_signal_tracks(config, sources)
             new = config['tracks'][1]
             self.assertEqual(new['metadata']['btedAbout']['sample_id'], sample['sample_id'])
+            self.assertEqual(new['name'], f"PMID {sample['pmid']} · {sample['assay']} · {sample['conditions'].split(';')[0].strip()} · {sample['sample_id']}")
             self.assertEqual(new['displays'][0]['autoscale'], 'global')
             self.assertEqual(new['displays'][0]['scaleType'], 'log')
             self.assertEqual(config['tracks'][0], endpoint)

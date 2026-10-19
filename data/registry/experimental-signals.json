@@ -27,7 +27,7 @@
         }
       ],
       "assay": "Rend-seq",
-      "conditions": "MOPS complete; pooled 25s fragments; no shadow",
+      "conditions": "MOPS complete medium; 37°C; harvested at OD590 = 0.3; RNA fragmentation: 25 s at 95°C; pooled fragments; shadow peaks removed",
       "coverage": "NC_000913.2"
     },
     {
@@ -54,7 +54,7 @@
         }
       ],
       "assay": "Rend-seq",
-      "conditions": "LB; pooled 25s fragments; no shadow",
+      "conditions": "LB medium; LB = lysogeny broth; 37°C; harvested at OD590 = 0.3; RNA fragmentation: 25 s at 95°C; pooled fragments; shadow peaks removed",
       "coverage": "NC_000964.3"
     },
     {
@@ -81,7 +81,7 @@
         }
       ],
       "assay": "Rend-seq",
-      "conditions": "PYE; pooled 25s fragments; no shadow",
+      "conditions": "PYE medium; PYE = peptone–yeast extract; 30°C; harvested at OD590 = 0.3; RNA fragmentation: 25 s at 95°C; pooled fragments; shadow peaks removed",
       "coverage": "CP001340.1"
     },
     {
@@ -108,7 +108,7 @@
         }
       ],
       "assay": "Rend-seq",
-      "conditions": "MOPS complete, 3% NaCl; pooled 25s fragments; no shadow",
+      "conditions": "MOPS complete medium + 3% NaCl; 3% NaCl added to the medium; 37°C; harvested at OD590 = 0.3; RNA fragmentation: 25 s at 95°C; pooled fragments; shadow peaks removed",
       "coverage": "Chromosome 1 only (CP009977.1)."
     }
   ]

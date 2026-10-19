@@ -64,7 +64,7 @@ def apply_signal_tracks(config, sources):
                      raw_data_url=f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={sample['sample_id']}")
         merged = {
             'type': 'MultiQuantitativeTrack', 'trackId': track_id,
-            'name': f"PMID {sample['pmid']} · {sample['assay']} · {sample['sample_id']}",
+            'name': f"PMID {sample['pmid']} · {sample['assay']} · {sample['conditions'].split(';')[0].strip()} · {sample['sample_id']}",
             'category': ['Experimental signal', f"PMID {sample['pmid']}"],
             'assemblyNames': endpoint['assemblyNames'],
             'adapter': {'type': 'MultiWiggleAdapter', 'subadapters': [

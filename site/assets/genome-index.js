@@ -41,7 +41,29 @@
 
   function initPaged() {
     const pages = new Map();
+    const menus = [...filters.map(([field, select]) => [field, select]), ...(dataType ? [["dataset", dataType]] : [])];
+    const labels = new Map(menus.map(([, select]) => [select, new Map(Array.from(select.options).map(option => [option.value, option.textContent]))]));
     let sequence = 0, controller, searchTimer;
+
+    function restoreMenu(select, value) {
+      if (!labels.get(select).has(value)) value = "";
+      if (value && !Array.from(select.options).some(option => option.value === value)) {
+        const option = document.createElement("option"); option.value = value; option.textContent = labels.get(select).get(value); select.append(option);
+      }
+      select.value = value;
+    }
+
+    function menuOptions(select, values, allLabel) {
+      const selected = select.value, names = labels.get(select);
+      const all = document.createElement("option"); all.value = ""; all.textContent = allLabel;
+      select.replaceChildren(all);
+      // Keep an explicit selection when a search has no matches, so its scope and URL stay intact.
+      const available = names ? [...names.keys()].filter(value => value && values.includes(value)) : values;
+      for (const value of new Set([...available, ...(selected ? [selected] : [])])) {
+        const option = document.createElement("option"); option.value = value; option.textContent = names?.get(value) || value; select.append(option);
+      }
+      select.value = selected;
+    }
 
     function readPagedUrl() {
       const params = new URLSearchParams(window.location.search);
@@ -54,11 +76,11 @@
         }
         select.value = value;
       }
-      if (dataType) dataType.value = validOption(dataType, params.get("dataset") || "");
+      if (dataType) restoreMenu(dataType, params.get("dataset") || "");
       filters.forEach(([param, select]) => {
         let value = params.get(param) || "";
         if (param === "annotation" && ["Incompatible", "Unavailable", "Not cataloged"].includes(value)) value = "Missing";
-        select.value = validOption(select, value);
+        restoreMenu(select, value);
       });
       sortField = sortFields.has(params.get("sort")) ? params.get("sort") : "endpoints";
       const order = params.get("direction") || params.get("order");
@@ -78,13 +100,13 @@
       previous.disabled = page === 0;
       next.disabled = (page + 1) * pageSize >= data.total;
       empty.hidden = data.total !== 0;
+      for (const [field, select] of menus) {
+        if (Array.isArray(data.facets[field])) menuOptions(select, data.facets[field], labels.get(select).get(""));
+      }
       for (const select of taxonomy) {
-        const values = data.facets[select.dataset.taxonomyRank] || [], selected = select.value;
-        const all = document.createElement("option"); all.value = ""; all.textContent = "All";
-        select.replaceChildren(all);
-        for (const value of values) { const option = document.createElement("option"); option.value = value; option.textContent = value; select.append(option); }
-        select.value = values.includes(selected) ? selected : "";
-        select.disabled = !data.facets[select.dataset.taxonomyRank];
+        const values = data.facets[select.dataset.taxonomyRank];
+        menuOptions(select, values || [], "All");
+        select.disabled = !values && !select.value;
       }
       sortButtons.forEach(button => button.closest("th")?.setAttribute("aria-sort", button.dataset.sort === sortField ? direction === "asc" ? "ascending" : "descending" : "none"));
       if (mobileSort) mobileSort.value = sortField;

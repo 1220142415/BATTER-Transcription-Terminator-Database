@@ -32,6 +32,66 @@ const run=()=>vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
 """
 
 class GenomeFiltersTests(unittest.TestCase):
+    def test_d1_linked_menus_keep_labels_restore_urls_and_clear_taxonomy_children(self):
+        data = self.run_js(r'''
+href='https://bted.example/genomes.html';
+form.dataset.genomePages='api/genome-directory?v=aaaaaaaaaaaaaaaaaaaaaaaa';
+const dataset=control(),sourceFilter=control(),typeFilter=control(),annotationFilter=control();
+const options=(select,pairs)=>{select.options=pairs.map(([value,textContent])=>({value,textContent}));};
+options(dataset,[['','All data'],['experimental','Experimental'],['prediction','Prediction'],['augmentation','Augmentation / Rfam']]);
+options(sourceFilter,[['','All sources'],['IMG','IMG'],['NCBI RefSeq','NCBI RefSeq']]);
+options(typeFilter,[['','All types'],['MAG','MAG · Metagenome-assembled'],['isolate','Isolate']]);
+options(annotationFilter,[['','All statuses'],['Available','Available'],['Missing','Missing']]);
+Object.assign(elements,{'[data-genome-dataset]':dataset,'[data-genome-source-filter]':sourceFilter,'[data-genome-type-filter]':typeFilter,'[data-genome-annotation-filter]':annotationFilter,'.genome-result-count':control(),'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control()});
+const requests=[];
+global.fetch=async url=>{
+ requests.push(url);const q=new URL(url).searchParams,source=q.get('source');
+ const img=source==='IMG',none=q.has('q');
+ const facets={source:['IMG','NCBI RefSeq'],genome_type:img?['MAG']:source?['isolate']:['MAG','isolate'],annotation:img?['Missing']:source?['Available']:['Available','Missing'],dataset:img?['prediction']:source?['experimental','prediction']:['experimental','prediction'],phylum:img?['P9']:source?['P1']:['P1','P9']};
+ if(q.get('phylum'))facets.class=img?['C9']:['C1'];
+ if(q.get('class'))facets.order=img?['O9']:['O1'];
+ if(none)for(const key of Object.keys(facets))facets[key]=[];
+ return {ok:true,json:async()=>({page:1,total:none?0:img?5:source?2:7,rows:[],facets})};
+};
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+const values=select=>select.options.map(option=>option.value);
+const select=async(control,value)=>{control.value=value;control.fire('change');await tick();};
+run();
+(async()=>{
+ await tick();await select(sourceFilter,'IMG');
+ const narrowed={types:values(typeFilter),annotations:values(annotationFilter),datasets:values(dataset),phyla:values(taxonomy[0]),labels:typeFilter.options.map(o=>o.textContent)};
+ await select(taxonomy[0],'P9');await select(taxonomy[1],'C9');
+ const parentUrl=href;
+ await select(taxonomy[0],'');
+ const parentCleared={classValue:taxonomy[1].value,classDisabled:taxonomy[1].disabled,orderValue:taxonomy[2].value,orderDisabled:taxonomy[2].disabled,url:href};
+ href='https://bted.example/genomes.html?source=NCBI%20RefSeq&genome_type=isolate&annotation=Available';listeners.popstate();await tick();
+ const restored={source:sourceFilter.value,type:typeFilter.value,annotation:annotationFilter.value,count:count.textContent,options:values(typeFilter)};
+ search.value='no matches';form.fire('submit');await tick();
+ const zero={count:count.textContent,source:sourceFilter.value,type:typeFilter.value,annotation:annotationFilter.value,href};
+ clear.fire('click');await tick();
+ const cleared={source:sourceFilter.value,type:typeFilter.value,annotation:annotationFilter.value,types:values(typeFilter),datasets:values(dataset),count:count.textContent,href};
+ process.stdout.write(JSON.stringify({narrowed,parentUrl,parentCleared,restored,zero,cleared,requests}));
+})();
+''')
+        self.assertEqual(data['narrowed'], {'types': ['', 'MAG'], 'annotations': ['', 'Missing'],
+                                           'datasets': ['', 'prediction'], 'phyla': ['', 'P9'],
+                                           'labels': ['All types', 'MAG · Metagenome-assembled']})
+        self.assertIn('class=C9', data['parentUrl'])
+        self.assertEqual(data['parentCleared']['classValue'], '')
+        self.assertTrue(data['parentCleared']['classDisabled'])
+        self.assertTrue(data['parentCleared']['orderDisabled'])
+        self.assertNotIn('class=', data['parentCleared']['url'])
+        self.assertEqual(data['restored'], {'source': 'NCBI RefSeq', 'type': 'isolate', 'annotation': 'Available',
+                                           'count': '2', 'options': ['', 'isolate']})
+        self.assertEqual(data['zero']['count'], '0')
+        self.assertEqual(data['zero']['source'], 'NCBI RefSeq')
+        self.assertEqual(data['zero']['type'], 'isolate')
+        self.assertEqual(data['zero']['annotation'], 'Available')
+        self.assertIn('q=no+matches', data['zero']['href'])
+        self.assertEqual(data['cleared'], {'source': '', 'type': '', 'annotation': '', 'types': ['', 'MAG', 'isolate'],
+                                          'datasets': ['', 'experimental', 'prediction'], 'count': '7',
+                                          'href': 'https://bted.example/genomes.html'})
+
     def test_d1_pages_fetch_only_current_page_and_reuse_visited_results(self):
         data = self.run_js(r'''
 href='https://bted.example/genomes.html';

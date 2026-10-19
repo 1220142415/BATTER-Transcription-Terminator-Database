@@ -128,7 +128,7 @@ def load_genome_taxonomy(path: Path, genomes: list[dict[str, object]]) -> dict[s
             raise SiteBuildError(f"Invalid or duplicate taxonomy assembly: {assembly!r}")
         taxonomy[assembly] = {
             field: row.get(field, "").strip()
-            for field in (*TAXONOMY_RANKS, "reference_strain", "taxid", "taxonomy_source", "taxonomy_url", "retrieved_on")
+            for field in (*TAXONOMY_RANKS, "reference_strain", "taxid", "taxonomy_source", "taxonomy_url", "retrieved_on", "gem_otu_id", "taxonomy_status", "taxonomy_note")
         }
     missing = sorted(str(genome["assembly"]) for genome in genomes if str(genome["assembly"]) not in taxonomy)
     if missing:
@@ -492,8 +492,11 @@ def genome_content(
     taxonomy_source = esc(taxonomy.get("taxonomy_source") or "Classification source not recorded")
     if taxonomy.get("taxonomy_url", "").startswith("https://www.ncbi.nlm.nih.gov/Taxonomy/"):
         taxonomy_source = f'<a href="{esc(taxonomy["taxonomy_url"])}" target="_blank" rel="noopener">{taxonomy_source} · TaxID {esc(taxonomy.get("taxid"))}</a>'
+    elif taxonomy.get("taxonomy_url") == "https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv":
+        taxonomy_source = f'<a href="{esc(taxonomy["taxonomy_url"])}" target="_blank" rel="noopener">{taxonomy_source}</a>'
+    taxonomy_note = f'<p class="muted">{esc(taxonomy["taxonomy_note"])}</p>' if taxonomy.get("taxonomy_note") else ""
     overview = f'''<section class="genome-overview" aria-labelledby="genome-overview-heading"><h2 id="genome-overview-heading">Genome overview</h2>
-<dl class="genome-facts">{overview_fields}</dl><a class="text-link" href="https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/" target="_blank" rel="noopener">NCBI assembly ↗</a><div class="genome-taxonomy"><div class="taxonomy-heading"><h3>Taxonomy</h3><span>{taxonomy_source}</span></div><dl class="taxonomy-lineage">{taxonomy_fields}</dl></div></section>'''
+<dl class="genome-facts">{overview_fields}</dl><a class="text-link" href="https://www.ncbi.nlm.nih.gov/datasets/genome/{quote(assembly)}/" target="_blank" rel="noopener">NCBI assembly ↗</a><div class="genome-taxonomy"><div class="taxonomy-heading"><h3>Taxonomy</h3><span>{taxonomy_source}</span></div>{taxonomy_note}<dl class="taxonomy-lineage">{taxonomy_fields}</dl></div></section>'''
     studies = _group_studies(published)
     total_records = sum(int(row["record_count_number"]) for row in published)
     metadata_url = get_asset_url(asset_map, str(genome["metadata_path"]))
