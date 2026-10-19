@@ -34,5 +34,16 @@ class ReleaseDocumentationTests(unittest.TestCase):
         self.assertNotIn("docs/releases/v0.3.0.md", readme)
 
 
+    def test_cloudflare_is_production_and_pages_deployment_is_opt_in(self) -> None:
+        pages = (ROOT / ".github/workflows/pages.yml").read_text(encoding="utf-8")
+        ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        self.assertIn("  workflow_dispatch:", pages)
+        self.assertNotIn("  push:", pages)
+        self.assertIn("  push:", ci)
+        self.assertIn("  pull_request:", ci)
+        self.assertIn("--mode pages", ci)
+        self.assertIn("--mode worker", ci)
+
+
 if __name__ == "__main__":
     unittest.main()

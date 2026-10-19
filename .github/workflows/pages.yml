@@ -1,9 +1,7 @@
 name: Deploy BTED Pages
 
+# Cloudflare is the production site; Pages is an optional, manually enabled mirror.
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       release_tag:
