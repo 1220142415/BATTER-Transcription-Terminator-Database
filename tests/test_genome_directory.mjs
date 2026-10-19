@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { readFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -9,9 +9,12 @@ const { default: worker } = await import(`data:text/javascript;base64,${Buffer.f
 const fixture = fileURLToPath(new URL('./genome_directory_sqlite.py', import.meta.url));
 import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../tmp/', import.meta.url));
+mkdirSync(root, { recursive: true });
 const dir = mkdtempSync(join(root, 'directory-test-'));
 const databasePath = join(dir, 'directory.sqlite');
-execFileSync('py', ['-3.13', fixture, databasePath, 'init']);
+const python = process.platform === 'win32' ? 'py' : 'python3';
+const pythonArgs = process.platform === 'win32' ? ['-3.13'] : [];
+execFileSync(python, [...pythonArgs, fixture, databasePath, 'init']);
 const queries = [];
 const env = {
   BTED_METADATA_REVISION: 'a'.repeat(40), BTED_ANNOTATION_REVISION: 'b'.repeat(40),
@@ -19,7 +22,7 @@ const env = {
   BTED_DB: { prepare: sql => ({ bind: (...binds) => {
     const execute = () => {
       queries.push({ sql, binds });
-      return JSON.parse(execFileSync('py', ['-3.13', fixture, databasePath, 'query'], { input: JSON.stringify({ sql, binds }), encoding: 'utf8' }));
+      return JSON.parse(execFileSync(python, [...pythonArgs, fixture, databasePath, 'query'], { input: JSON.stringify({ sql, binds }), encoding: 'utf8' }));
     };
     return { all: async () => ({ results: execute() }), first: async () => execute()[0] };
   } }) },

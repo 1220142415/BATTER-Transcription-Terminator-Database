@@ -1624,7 +1624,7 @@ def validate_v04_jbrowse_configs(
             track_id = str(track["trackId"])
             if track_id not in default_ids:
                 raise StageError(f"{assembly}: endpoint track is not shown by default: {track_id}")
-            if "Endpoint features" not in track.get("category", []):
+            if "Experimental 3′ ends" not in track.get("category", []):
                 raise StageError(f"{assembly}: endpoint track is not clearly categorized: {track_id}")
 
         for track in tracks:
