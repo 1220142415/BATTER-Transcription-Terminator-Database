@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
+import {runInNewContext} from 'node:vm';
 
-const code = readFileSync(new URL('../prototype/accession-range/src/worker.js', import.meta.url), 'utf8');
+const code = readFileSync(new URL('../worker/src/worker.js', import.meta.url), 'utf8');
 const { default: worker } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 const version = 'a'.repeat(24), storage = 'b'.repeat(24), revision = 'c'.repeat(40);
 const db = new DatabaseSync(':memory:');
-db.exec(readFileSync(new URL('../prototype/accession-range/migrations/0005_genome_directory.sql', import.meta.url), 'utf8'));
+db.exec(readFileSync(new URL('../database/migrations/0005_genome_directory.sql', import.meta.url), 'utf8'));
 db.exec('CREATE TABLE hf_genome_metadata(revision TEXT,genome_id TEXT,catalogue_row_json TEXT)');
 const entries = [
   ['IMG', 'MAG', 'Available', 'Z9', 'C1', 'O1', 'Alpha', 0, 5, 1],
@@ -62,10 +63,10 @@ test('source, dataset, annotation and taxonomy constrain each other using indexe
   assert.deepEqual(aggregates[0].binds, [storage, 'IMG']);
   const plan = db.prepare('EXPLAIN QUERY PLAN ' + aggregates[0].sql).all(...aggregates[0].binds);
   assert(plan.some(row => row.detail.includes('directory_source')));
-  assert.equal(queries.filter(q => q.sql.includes('GROUP BY phylum')).length, 1);
+  assert.equal(queries.filter(q => q.sql.includes('GROUP BY +phylum')).length, 1);
   await query({ source: 'IMG', sort: 'organism', direction: 'asc', page: '2' });
   assert.equal(queries.filter(q => q.sql.includes('json_group_array')).length, 1, 'sorting and pagination reuse facets');
-  assert.equal(queries.filter(q => q.sql.includes('GROUP BY phylum')).length, 1, 'pagination reuses phylum counts');
+  assert.equal(queries.filter(q => q.sql.includes('GROUP BY +phylum')).length, 1, 'pagination reuses phylum counts');
   const experimental = await query({ dataset: 'experimental' });
   assert.deepEqual(experimental.facets.source, ['NCBI RefSeq']);
   assert.deepEqual(experimental.facets.genome_type, ['isolate']);
@@ -112,6 +113,24 @@ test('phylum order follows counts within the current filter scope', async () => 
   assert.deepEqual(prediction.facets.phylum, ['P2', 'P3', 'Z9']);
   const selected = await query({ dataset: 'prediction', phylum: 'Z9', class: 'C1' });
   assert.deepEqual(selected.facets.phylum, prediction.facets.phylum, 'phylum alternatives ignore their own selection and descendants');
+});
+
+test('complete small D1 pages filter locally with the same linked facets, search and ordering', async () => {
+  const client=readFileSync(new URL('../site/assets/genome-index.js',import.meta.url),'utf8');
+  const fn=client.slice(client.indexOf('function filterExperimental('),client.indexOf('    function restoreMenu('));
+  const ranks=['phylum','class','order','family','genus','species'];
+  const initial=await query({});
+  for(const row of initial.rows) row.filterData=db.prepare('SELECT * FROM hf_directory_genomes WHERE version=? AND genome_id=?').get(storage,row.batter[0]);
+  for(const params of [{},{q:'beta'},{q:'!!!'},{source:'IMG'},{source:'GEM',dataset:'experimental'},
+    {phylum:'Z9',class:'C1'},{source:'IMG',annotation:'Available'},{sort:'organism',direction:'asc'},
+    {q:'alpha',sort:'predictions',direction:'desc'},{dataset:'prediction',phylum:'Z9'}]){
+    const scope={taxonomy:ranks.map(rank=>({dataset:{taxonomyRank:rank}})),sortField:params.sort||'endpoints',direction:params.direction||'desc'};
+    runInNewContext(fn+';globalThis.filter=filterExperimental;',scope);
+    const actual=JSON.parse(JSON.stringify(scope.filter(initial,new URL('https://test/?'+new URLSearchParams(params)))));
+    const expected=await query(params);
+    assert.deepEqual(actual.rows.map(r=>r.batter[0]),expected.rows.map(r=>r.batter[0]),JSON.stringify(params));
+    assert.deepEqual(actual.facets,expected.facets,JSON.stringify(params));assert.equal(actual.total,expected.total);
+  }
 });
 
 test.after(() => db.close());

@@ -16,7 +16,7 @@ import fs from 'node:fs';
 global.window = {location:{href:'https://bted.example/jbrowse/index.html'}};
 const source = fs.readFileSync(process.argv[1], 'utf8');
 const mod = await import(`data:text/javascript,${encodeURIComponent(source)}`);
-let replaceAbout, colorFunction, mirroredRenderer;
+let replaceAbout, extendElement, colorFunction, mirroredRenderer;
 class FeatureRendererType {
   constructor(settings){Object.assign(this,settings);}
   async getFeatures(){return new Map();}
@@ -27,18 +27,26 @@ const pluginManager = {
     if(name==='react')return {createElement(tag, props, ...children){return {tag:typeof tag==='string'?tag:'component',props,children};}};
     if(name==='@jbrowse/core/pluggableElementTypes')return {GlyphType:class {constructor(settings){Object.assign(this,settings);}}};
     if(name==='@jbrowse/core/configuration')return {readConfObject(config){return config;},getConf(config,key){return config[key];},ConfigurationSchema(){return {};}};
-    if(name==='@jbrowse/core/util')return {getContainingTrack(){return {};}};
+    if(name==='@jbrowse/core/util')return {getContainingTrack(display){return display.track || {};}};
     if(name==='@jbrowse/core/ui')return {Dialog(){return null;}};
     if(name==='@jbrowse/core/pluggableElementTypes/renderers/FeatureRendererType')return {default:FeatureRendererType};
     throw Error(name);
   },
-  addToExtensionPoint(name, callback){if(name==='Core-replaceAbout')replaceAbout=callback;},
+  addToExtensionPoint(name, callback){if(name==='Core-replaceAbout')replaceAbout=callback;if(name==='Core-extendPluggableElement')extendElement=callback;},
   addRendererType(factory){mirroredRenderer=factory(this);},
   addGlyphType(factory){factory(this);},
 };
 const plugin = new mod.default();
 plugin.install(pluginManager);
 plugin.configure(pluginManager);
+let displayViews;
+const signalDisplay={track:{metadata:{btedMirroredSignal:true}},autoscale:'global',trackMenuItems(){return [{label:'Score',subMenu:[{label:'Autoscale type',subMenu:[{label:'Global'},{label:'Local'}]}]}];}};
+extendElement({name:'MultiLinearWiggleDisplay',stateModel:{extend(fn){displayViews=fn(signalDisplay).views;return this;}}});
+if(displayViews.autoscaleType!=='local')throw Error('Saved global setting overrode current-window scaling');
+const scaleMenu=displayViews.trackMenuItems()[0].subMenu[0];
+if(scaleMenu.subMenu.length!==1 || scaleMenu.subMenu[0].label!=='Visible window')throw Error('Global scale menu remains exposed');
+signalDisplay.track.metadata.btedMirroredSignal=false;
+if(displayViews.autoscaleType!=='global')throw Error('Unrelated user track scale was changed');
 const original=()=>null;
 const about={kind:'endpoint',title:'Example paper',authors:'A; B',journal:'Test Journal',year:'2026',pmid:'12345678',source_id:'S1',assay:'Term-seq',record_count:17,evidence:'Paper-reported 3′ end',assembly:'GCF_TEST',license:'CC BY',gff3_url:'https://example.org/endpoints.gff3.gz',pubmed_url:'https://pubmed.ncbi.nlm.nih.gov/12345678/'};
 const component=replaceAbout(original,{config:{metadata:{btedAbout:about}}});
@@ -62,28 +70,39 @@ const rectangles=[];
 const ctx={fillStyle:'',clearRect(){},fillRect(x,y,w,h){rectangles.push({x,y,w,h,color:this.fillStyle});},beginPath(){},moveTo(){},lineTo(){},stroke(){},fillText(){}};
 const signal=(source,score,start)=>({get(key){return {source,score,start,end:start+1}[key];}});
 const maximum=mod.paintMirroredSignal(ctx,[signal('plus',10,20),signal('minus',5,20)],{start:0,end:100,reversed:false},1,100,180,10);
-// The same weak signal keeps its height with or without a strong neighbour.
+// Viewport statistics share one scale across both strands and all render blocks.
 const stable=[];
 const stableCtx={...ctx,fillRect(x,y,w,h){if(this.fillStyle==='#0f766e')stable.push(h);}};
 mod.paintMirroredSignal(stableCtx,[signal('plus',5,20),signal('minus',100,80)],{start:0,end:100},1,100,180,100);
-mod.paintMirroredSignal(stableCtx,[signal('plus',5,20)],{start:0,end:100},1,100,180,100);
-if(stable[0]!==stable[1] || Math.abs(stable[0]-3.8)>1e-9)throw Error('Signal scale changed across windows');
+mod.paintMirroredSignal(stableCtx,[signal('plus',5,20)],{start:0,end:100},1,100,180,5);
+if(Math.abs(stable[0]-3.8)>1e-9 || stable[1]!==76)throw Error('Signal did not rescale with the visible window');
 mod.paintMirroredSignal(stableCtx,[signal('plus',0,20)],{start:0,end:100},1,100,180,100);
 if(stable.length!==2)throw Error('Zero signal was painted');
-// Real low-window maxima remain visible under one shared file-global log scale.
+// A tenfold score difference must produce a tenfold height on the same linear scale.
+const linearBars=[];
+const linearCtx={...ctx,fillRect(x,y,w,h){if(this.fillStyle==='#0f766e'||this.fillStyle==='#be123c')linearBars.push(h);}};
+mod.paintMirroredSignal(linearCtx,[signal('plus',100,20),signal('minus',1000,30)],{start:0,end:100},1,100,180,1000,'linear');
+if(Math.abs(linearBars[1]/linearBars[0]-10)>1e-9)throw Error('Linear coverage heights lost their 1000:100 ratio');
+// Excluding a strong peak raises the weak-window bars; original scores remain intact.
 const logBars=[];
 const logCtx={...ctx,fillRect(x,y,w,h){if(this.fillStyle==='#0f766e'||this.fillStyle==='#be123c')logBars.push(h);}};
 const weak=signal('plus',572,20), minusWeak=signal('minus',12,20);
 mod.paintMirroredSignal(logCtx,[weak,minusWeak,signal('minus',367957,80)],{start:0,end:100},1,100,180,367957,'log');
-mod.paintMirroredSignal(logCtx,[weak,minusWeak],{start:0,end:100},1,100,180,367957,'log');
-if(logBars[0]<30 || logBars[1]<10 || logBars[2]!==76 || logBars[0]!==logBars[3] || logBars[1]!==logBars[4])throw Error('Log signal is invisible or changed across windows/strands');
+mod.paintMirroredSignal(logCtx,[weak,minusWeak],{start:0,end:100},1,100,180,572,'log');
+if(logBars[0]<30 || logBars[1]<10 || logBars[2]!==76 || logBars[3]!==76 || logBars[4]<=logBars[1])throw Error('Visible-window log scaling or shared strand scale failed');
 mod.paintMirroredSignal(logCtx,[signal('plus',0,20)],{start:0,end:100},1,100,180,367957,'log');
 if(logBars.length!==5 || weak.get('score')!==572)throw Error('Zero or original score changed');
 globalThis.OffscreenCanvas=class { getContext(){return {...ctx,getImageData(){return {data:[]};}};} };
 const rendered=await mirroredRenderer.render({regions:[{start:0,end:100}],bpPerPx:1,height:180,scaleOpts:{domain:[0,200],stats:{scoreMax:100}}});
-if(rendered.visibleMax!==100)throw Error('Renderer ignored the file-global maximum');
+if(rendered.visibleMax!==100)throw Error('Renderer ignored shared viewport statistics');
 const logRendered=await mirroredRenderer.render({regions:[{start:0,end:100}],bpPerPx:1,height:180,scaleOpts:{scaleType:'log',stats:{scoreMax:367957}}});
-if(logRendered.signalScale!=='log' || logRendered.visibleMax!==367957)throw Error('Renderer lost the global log scale');
+if(logRendered.signalScale!=='log' || logRendered.visibleMax!==367957)throw Error('Renderer lost the shared window log scale');
+const fractionalRendered=await mirroredRenderer.render({regions:[{start:0,end:100}],bpPerPx:1,height:180,scaleOpts:{stats:{scoreMax:0.5}}});
+if(fractionalRendered.visibleMax!==0.5)throw Error('Fractional window maximum was clamped to one');
+const localRendered=await mirroredRenderer.render({regions:[{start:0,end:100}],bpPerPx:1,height:180,scaleOpts:{scaleType:'log',stats:{scoreMax:572}}});
+if(localRendered.visibleMax!==572)throw Error('Renderer retained the previous window maximum');
+const emptyRendered=await mirroredRenderer.render({regions:[{start:0,end:100}],bpPerPx:1,height:180,scaleOpts:{stats:{scoreMax:0}}});
+if(emptyRendered.visibleMax!==1)throw Error('Empty window must retain a valid blank baseline');
 const scaledMaximum=mod.paintMirroredSignal(ctx,[signal('plus',10,20)],{start:0,end:100,reversed:false},1,100,180,20);
 mod.paintMirroredSignal(ctx,[signal('minus',5,20)],{start:0,end:100,reversed:true},1,100,180,20);
 process.stdout.write(JSON.stringify({colors:['+', '-', '?', 1, -1].map(x=>colorFunction({get(){return x;}})),hasConfigure:typeof plugin.configure==='function',renderer:mirroredRenderer?.name,maximum,scaledMaximum,bars:rectangles.filter(r=>r.color==='#0f766e'||r.color==='#be123c'),keepsOriginal:replaceAbout(original,{config:{metadata:{}}})===original,content:text,region,share,fitCalls,rejectsUnknown}));

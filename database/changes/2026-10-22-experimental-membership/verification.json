@@ -1,0 +1,54 @@
+{
+  "previous_version": "202610220000000000000005",
+  "version": "202610220000000000000006",
+  "excluded": [
+    "GCF_000005845.2"
+  ],
+  "summary": {
+    "total": 20,
+    "sources": [
+      "NCBI RefSeq"
+    ],
+    "phyla": [
+      "Actinomycetota",
+      "Bacillota",
+      "Cyanobacteriota",
+      "Pseudomonadota",
+      "Spirochaetota"
+    ],
+    "counts": {
+      "source": {
+        "NCBI RefSeq": 20
+      },
+      "genome_type": {
+        "unknown": 18,
+        "isolate": 2
+      },
+      "annotation": {
+        "Available": 20
+      },
+      "phylum": {
+        "": 1,
+        "Pseudomonadota": 5,
+        "Bacillota": 2,
+        "Spirochaetota": 1,
+        "Cyanobacteriota": 3,
+        "Actinomycetota": 8
+      },
+      "dataset": {
+        "experimental": 20,
+        "prediction": 20,
+        "augmentation": 0
+      }
+    },
+    "available": 20,
+    "feature_totals": {
+      "endpoints": 29460,
+      "predictions": 124740,
+      "training": 0
+    },
+    "taxonomy_system": "ncbi",
+    "taxonomy_version": "",
+    "reference_registry_version": "202610220000000000000005"
+  }
+}

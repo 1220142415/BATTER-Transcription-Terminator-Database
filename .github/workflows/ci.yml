@@ -51,7 +51,7 @@ jobs:
         run: python3 -m compileall -q scripts bted_pipeline
       - name: Check Worker and site JavaScript syntax
         run: |
-          node --check prototype/accession-range/src/worker.js
+          node --check worker/src/worker.js
           node --check site/assets/genome-index.js
           node --check site/assets/genome-page.js
           node --check jbrowse-plugin/dist/bted-track-plugin.js

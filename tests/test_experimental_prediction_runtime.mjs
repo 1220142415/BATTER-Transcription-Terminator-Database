@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
-const code = readFileSync(new URL('../prototype/accession-range/src/worker.js', import.meta.url), 'utf8') + '\nexport {experimentalPredictionTrack};';
+const code = readFileSync(new URL('../worker/src/worker.js', import.meta.url), 'utf8') + '\nexport {experimentalPredictionTrack};';
 const { default: worker, experimentalPredictionTrack } = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 const registry = JSON.parse(readFileSync(new URL('../data/registry/experimental-predictions.json', import.meta.url)));
 
@@ -32,8 +32,8 @@ test('experimental predictions require the exact reference and registered files 
 test('a new public directory version uses the current indexed rows and only accepts verified experimental prediction counts', async () => {
   const db = new DatabaseSync(':memory:');
   const version = 'c'.repeat(24), storage = 'a'.repeat(24), revision = 'b'.repeat(40), genome = 'GCF_000005845.2';
-  db.exec(readFileSync(new URL('../prototype/accession-range/migrations/0005_genome_directory.sql', import.meta.url), 'utf8'));
-  db.exec(readFileSync(new URL('../prototype/accession-range/migrations/0006_runtime_metadata.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../database/migrations/0005_genome_directory.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../database/migrations/0006_runtime_metadata.sql', import.meta.url), 'utf8'));
   db.prepare('INSERT INTO hf_runtime_release VALUES(1,?,?,?,?,?)').run(revision, 'ready', 42904, 0, 'd'.repeat(64));
   db.prepare('INSERT INTO hf_directory_releases VALUES(?,?,?,?,?)').run(storage, revision, 'original', '{}', 'loading');
   const summary = { total: 1, sources: ['NCBI RefSeq'], phyla: [], counts: {}, storage_version: storage, experimental_predictions: { [genome]: 4447 } };

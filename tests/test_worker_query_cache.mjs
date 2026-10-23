@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const source = readFileSync(new URL("../prototype/accession-range/src/worker.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../worker/src/worker.js", import.meta.url), "utf8");
 const { default: worker, currentRelease, publicAsset, cachedPublicApi, hfMetadataRelease, hfGenomeMetadata, batterCatalogueResponse } = await import(`data:text/javascript;base64,${Buffer.from(source + "\nexport { currentRelease, publicAsset, cachedPublicApi, hfMetadataRelease, hfGenomeMetadata, batterCatalogueResponse };").toString("base64")}`);
 
 function edgeCache() {

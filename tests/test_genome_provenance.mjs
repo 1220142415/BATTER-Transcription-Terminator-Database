@@ -52,7 +52,8 @@ test("genome provenance uses registered metadata and remains readable when the b
     assert.equal(select("[data-prediction-count]").textContent, otu ? "0" : "Not cataloged");
     assert.equal(select("[data-training-count]").textContent, otu ? "16" : "Not cataloged");
     assert.equal(select("[data-training-breakdown]").textContent, otu ? "OTU 11 · Rfam 5" : "");
-    assert.equal(panel.children.length, 2);
+    assert.equal(panel.children.length, 3);
+    assert.equal(panel.children[2].textContent, "Gene annotation: Missing.");
     assert.ok(!JSON.stringify(panel).includes(metadata.reference.source_sha256));
     assert.match(select("[data-browser-status]").textContent, /unavailable/);
   }

@@ -11,7 +11,7 @@ path = Path(sys.argv[1])
 database = sqlite3.connect(path)
 database.row_factory = sqlite3.Row
 if sys.argv[2] == 'init':
-    database.executescript((Path(__file__).resolve().parents[1] / 'prototype/accession-range/migrations/0005_genome_directory.sql').read_text())
+    database.executescript((Path(__file__).resolve().parents[1] / 'database/migrations/0005_genome_directory.sql').read_text())
     database.execute('CREATE TABLE hf_genome_metadata(revision TEXT, genome_id TEXT, catalogue_row_json TEXT, PRIMARY KEY(revision, genome_id)) WITHOUT ROWID')
     summary = dict(total=60, sources=['IMG'], phyla=['P1', 'P2'], available=31,
                    counts={'annotation': {'Available': 31, 'Missing': 29}, 'source': {'IMG': 60}, 'genome_type': {'MAG': 60},

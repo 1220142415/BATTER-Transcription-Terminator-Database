@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
-const source = readFileSync(new URL('../prototype/accession-range/src/worker.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../worker/src/worker.js', import.meta.url), 'utf8');
 const { default: worker, runtimeGenomeMetadata, runtimeCatalogueRow } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 const revision = 'a'.repeat(40), id = 'GCF_TEST.1';
 const row = { id: 1, genome_id: id, batch: '007', batch_rank: 1, otu_id: 'OTU-1', organism: 'Test bacterium', genome_type: 'MAG', source_collection: 'IMG', taxonomy: 'p__Test',
@@ -16,7 +16,7 @@ const files = Array.from({length:9}, (_, file_kind) => ({genome_key:1,file_kind,
 
 test('scalar schema reconstructs current metadata and file checksums without genome JSON, stored paths or correction history', async () => {
   const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(new URL('../prototype/accession-range/migrations/0006_runtime_metadata.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../database/migrations/0006_runtime_metadata.sql', import.meta.url), 'utf8'));
   db.prepare('INSERT INTO hf_runtime_release VALUES(1,?,?,?,?,?)').run(revision,'ready',42904,9,'f'.repeat(64));
   db.prepare(`INSERT INTO hf_runtime_genomes(${Object.keys(row).join(',')}) VALUES(${Object.keys(row).map(()=>'?').join(',')})`).run(...Object.values(row));
   for(const file of files) db.prepare('INSERT INTO hf_runtime_files VALUES(?,?,?,?)').run(...Object.values(file));

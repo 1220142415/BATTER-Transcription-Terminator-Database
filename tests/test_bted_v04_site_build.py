@@ -224,17 +224,21 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn("../css/style.css", genome)
             self.assertIn("../assets/genome-page.js", genome)
             self.assertIn("Study GFF3", genome)
-            self.assertIn('class="study-count"><strong>3</strong><span>experimental 3′-end records', genome)
+            self.assertIn('<strong>3</strong><span>experimental 3′-end records', genome)
             self.assertIn('href="https://doi.org/10.1128/msystems.01581-25"', genome)
-            self.assertIn('Read paper ↗', genome)
-            self.assertIn('PubMed ↗', genome)
+            self.assertIn('PMID 42148773 ↗', genome)
+            self.assertIn('class="study-citation"', genome)
+            self.assertIn('Jennifer A Cascino et al. · mSystems · 2026', genome)
+            self.assertNotIn('Read paper ↗', genome)
             self.assertIn('<h4>Dataset 1</h4><strong>2 3′-end records', genome)
             self.assertIn('<h4>Dataset 2</h4><strong>1 3′-end records', genome)
             self.assertNotIn('<h4>BTED_EXT_', genome)
-            self.assertIn('<summary>Study notes</summary>', genome)
+            self.assertNotIn('<summary>Study notes</summary>', genome)
+            self.assertIn('<dt>Evidence</dt><dd>Author-reported endpoint', genome)
             self.assertNotIn('<dt>Source ID</dt>', genome)
             self.assertNotIn('<dt>Redistribution</dt>', genome)
-            self.assertIn('<dt>Method</dt>', genome)
+            self.assertIn('<dt>3′-end assay</dt><dd>Rend-seq', genome)
+            self.assertNotIn('dRNA-seq', genome)
             self.assertEqual(genome.count('Raw data:'), 1)
             self.assertEqual(genome.count('class="genome-summary genome-counts"'), 1)
             self.assertIn("Gene associations TSV", genome)
@@ -260,6 +264,10 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertLess(genome.index('class="genome-studies"'), genome.index('data-download-genome-package'))
             self.assertIn('Download study ZIP', genome)
             self.assertIn('Source metadata</a>', genome)
+            self.assertIn('<a hidden data-package-file', genome)
+            self.assertIn('<div hidden data-study-package-files>', genome)
+            self.assertNotIn('class="study-downloads"', genome)
+            self.assertNotIn('class="genome-downloads"', genome)
             self.assertIn('NCBI assembly ↗', genome)
             self.assertIn('data-zip-path="GCF_000012525.1/metadata.tsv"', genome)
             self.assertIn('data-zip-path="GCF_000012525.1/studies/PMID_42148773/endpoints.gff3.gz"', genome)
@@ -293,10 +301,11 @@ class V04SiteBuildTests(unittest.TestCase):
             generic = (site / "genomes/genome.html").read_text(encoding="utf-8")
             self.assertNotIn('class="section-nav"', generic)
             self.assertIn('data-batter-taxonomy', generic)
+            self.assertIn('data-batter-downloads', generic)
             combined = (site / "genomes.html").read_text(encoding="utf-8")
             self.assertEqual(len(re.findall(r'<th[ >]', combined)), 7)
             self.assertEqual(len(re.findall(r'<td[ >]', combined)), 7)
-            self.assertIn('data-sort="endpoints" title="Sort by experimental 3′-end records">Transcript 3′-end data', combined)
+            self.assertIn('data-sort="endpoints" title="Sort by experimental 3′ ends">Experimental 3′ ends', combined)
             catalogue = json.loads((site / "assets/batter-browser.json").read_text(encoding="utf-8"))
             self.assertIn(f'data-genome-catalogue="api/batter-catalogue?revision={catalogue["revision"]}&amp;annotation=', combined)
             self.assertIn('&amp;v=1"', combined)
@@ -304,6 +313,80 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertEqual(next(row[12] for row in catalogue["genomes"] if row[0] == "2228664028"), "IMG")
             self.assertEqual(catalogue["reference_sizes"]["GCF_000012525.1"], [2742269, 2])
             self.assertIn('Genomes by phylum', (site / "index.html").read_text(encoding="utf-8"))
+            # A combined page must not reintroduce the computational file buttons.
+            with patch('build_batter_browser.read_browser_catalogue', return_value=(
+                {"revision": catalogue["revision"], "genomes": [["GCF_000012525.1", *([""] * 10), "p__Test"]]},
+                {"genomes": {}},
+            )), patch('build_genome_directory.apply_binding'):
+                build_batter_browser.build(site)
+            mixed = (site / "genomes/GCF_000012525.1.html").read_text(encoding="utf-8")
+            self.assertIn('data-batter-genome', mixed)
+            self.assertNotIn('data-batter-downloads', mixed)
+            self.assertNotIn('Prediction and augmentation / Rfam files', mixed)
+
+    def test_signal_context_links_samples_without_relabeling_endpoint_conditions(self) -> None:
+        contexts = {row['source_id']: row for row in build_v0_4_site.read_tsv(
+            ROOT / 'data/registry/source_context.tsv', ('source_id',))}
+        signals = build_v0_4_site.load_signals()[0]
+        for assembly, source_id, pmid in (
+            ('GCF_000022005.1', 'BATTER_S1_004', '29606352'),
+            ('GCF_000008685.2', 'BATTER_S1_021', '37402717'),
+        ):
+            with self.subTest(assembly=assembly):
+                metadata = f'genomes/{assembly}/metadata.tsv'
+                assets = {metadata: {'url': 'https://example.org/metadata.tsv'}}
+                for sample in signals:
+                    if sample['genome_id'] == assembly:
+                        assets.update({signal['path'].split('/', 1)[1]: {'url': 'https://example.org/signal.bw'} for signal in sample['signals']})
+                genome = {'assembly': assembly, 'metadata_path': metadata, 'metadata_rows': [{
+                    'source_id': source_id, 'pmid': pmid, 'assay': 'Endpoint assay',
+                    'record_count_number': 1, 'release_status': 'published',
+                    'evidence_class': 'author_called_endpoint',
+                }]}
+                html = build_v0_4_site.genome_content(genome, assets, {}, None, source_context=contexts)
+                expected_assay = contexts[source_id]['endpoint_assay']
+                self.assertIn(f'<dt>3′-end assay</dt><dd>{expected_assay}', html)
+                self.assertNotIn('<dd>Endpoint assay</dd>', html)
+                self.assertIn('class="source-signal"', html)
+                if source_id == 'BATTER_S1_004':
+                    self.assertIn('geo/query/acc.cgi?acc=GSM2971251', html)
+                    self.assertIn('PYE = peptone–yeast extract; 30°C', html)
+                    self.assertIn('<dt>Sample strain</dt><dd>ML76', html)
+                    self.assertIn('differs from browser reference NA1000 (CP001340.1)', html)
+                else:
+                    self.assertIn('Mid-logarithmic phase', html)
+                    self.assertIn('Temperature-shifted stationary phase', html)
+                    self.assertIn('Three replicates per phase (biological)', html)
+                    self.assertIn('3′ RNA-seq (modified from Term-seq)', html)
+                    self.assertIn('geo/query/acc.cgi?acc=GSM6914696', html)
+                    self.assertIn('geo/query/acc.cgi?acc=GSM6914701', html)
+                    self.assertNotIn('mean (n=3)', html)
+
+    def test_registered_endpoint_assays_exclude_companion_methods(self) -> None:
+        contexts = {row['source_id']: row for row in build_v0_4_site.read_tsv(
+            ROOT / 'data/registry/source_context.tsv', ('source_id', 'endpoint_assay', 'endpoint_assay_url'))}
+        self.assertEqual(len(contexts), 25)
+        for number in range(6, 20):
+            source_id = f'BATTER_S1_{number:03d}'
+            row = {'source_id': source_id, 'assay': 'Term-seq / dRNA-seq / SMRT-Cappable-seq'}
+            self.assertEqual(build_v0_4_site._endpoint_assay(row, contexts), 'Term-seq')
+            self.assertTrue(contexts[source_id]['endpoint_assay_url'].startswith('https://'))
+        self.assertEqual(contexts['BATTER_S1_002']['endpoint_assay'], 'Term-seq')
+        self.assertEqual(contexts['BATTER_S1_020']['endpoint_assay'], 'Nanopore native RNA-seq')
+        self.assertEqual(contexts['BATTER_S1_021']['endpoint_assay'], '3′ RNA-seq (modified from Term-seq)')
+        self.assertEqual(contexts['BATTER_S1_022']['endpoint_assay'], 'Term-seq')
+        # Direct callers without the display registry retain their original contract.
+        self.assertEqual(build_v0_4_site._endpoint_assay({'source_id': 'OTHER', 'assay': 'Rend-seq'}, {}), 'Rend-seq')
+
+    def test_worker_shell_never_embeds_release_metadata(self) -> None:
+        # Worker pages need only an identity and browser entry point, not a TSV.
+        html = build_v0_4_site.genome_content({'assembly': 'GCF_000009765.2'}, {}, {}, 'assemblies/test.config.json', d1_metadata=True)
+        self.assertIn('data-live-experimental', html)
+        self.assertIn('data-study-cards', html)
+        self.assertIn('data-retry-studies', html)
+        self.assertNotIn('data-package-file', html)
+        self.assertNotIn('Term-seq / dRNA-seq', html)
+        self.assertNotIn('huggingface.co', html)
 
     def test_genome_counts_distinguish_missing_data_from_zero_and_exclude_windows(self) -> None:
         empty = build_v0_4_site.genome_summary()

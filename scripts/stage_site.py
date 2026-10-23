@@ -78,6 +78,7 @@ def install_bted_plugin(package_root: Path) -> None:
     shutil.copyfile(BTED_PLUGIN_SOURCE, destination)
     if destination.stat().st_size > 100_000:
         raise StageError("BTED JBrowse plugin is unexpectedly large")
+    patch_sequence_details(package_root / "static/js")
     # JBrowse 4.3.0 hardcodes its sequence-letter threshold; keep its native
     # coordinates and translation, changing only visibility and DNA font size.
     js_root = package_root / "static/js"
@@ -100,6 +101,47 @@ def install_bted_plugin(package_root: Path) -> None:
         source = runtime.read_text(encoding="utf-8")
         if '8772:"2bc45db6"' in source:
             runtime.write_text(source.replace('8772:"2bc45db6"', f'8772:"{chunk_hash}"'), encoding="utf-8")
+
+
+def patch_sequence_details(js_root: Path) -> None:
+    """Port RAPPTOR's sequence fixes to the pinned JBrowse 4.3.0 chunks.
+
+    The sidebar already memoizes SimpleFeature upstream; the dialog does not.
+    CDS-only annotations need genomic modes, not exon/intron-specific modes.
+    Versioned filenames prevent reuse of an older browser-cached chunk.
+    """
+    patches = (
+        ("8948", "1785b730", {"hasCDS:d,hasExonOrCDS:u": "hasCDS:d,hasExon:u"}),
+        ("1578", "93965b43", {
+            "y=t.view?.assemblyNames?.[0],{sequence:k,error:R}":
+                "y=t.view?.assemblyNames?.[0],btedFeature=(0,n.useMemo)(()=>new g.A(l),[l]),{sequence:k,error:R}",
+            "feature:new g.A(l),upDownBp:w,forceLoad:S": "feature:btedFeature,upDownBp:w,forceLoad:S",
+        }),
+    )
+    for chunk, original_version, replacements in patches:
+        path = js_root / f"{chunk}.{original_version}.chunk.js"
+        source = path.read_text(encoding="utf-8")
+        for old, new in replacements.items():
+            if source.count(old) != 1:
+                raise StageError(f"JBrowse {chunk} sequence patch no longer matches")
+            source = source.replace(old, new)
+        # Modified chunks no longer match the upstream source maps.
+        source = re.sub(r"\n//# sourceMappingURL=.*", "", source)
+        path.with_name(f"{chunk}.bted-sequence-v1.chunk.js").write_text(source, encoding="utf-8")
+        path.unlink()
+        for runtime in js_root.glob("*.js"):
+            text = runtime.read_text(encoding="utf-8")
+            old = f'{chunk}:"{original_version}"'
+            if old in text:
+                runtime.write_text(text.replace(old, f'{chunk}:"bted-sequence-v1"'), encoding="utf-8")
+    runtimes = list(js_root.glob("main.*.js"))
+    if len(runtimes) != 1:
+        raise StageError("Expected one pinned JBrowse main runtime")
+    runtime = runtimes[0]
+    name = "main.bted-sequence-v1.js"
+    runtime.rename(runtime.with_name(name))
+    index = js_root.parent.parent / "index.html"
+    index.write_text(index.read_text(encoding="utf-8").replace(runtime.name, name), encoding="utf-8")
 
 
 class _LinkCollector(HTMLParser):
@@ -1354,7 +1396,7 @@ def _default_signal_tracks(
             },
             "displays": [{
                 "type": "MultiLinearWiggleDisplay", "displayId": f"{track_id}-MultiLinearWiggleDisplay",
-                "defaultRendering": "xyplot", "autoscale": "global", "scaleType": "log", "height": 180,
+                "defaultRendering": "xyplot", "autoscale": "local", "scaleType": "linear", "height": 180,
             }],
         }
         config["tracks"].append(merged)
@@ -1759,7 +1801,7 @@ def assemble_v04(
             }
             config["plugins"] = [{
                 "name": "BTEDTrackPlugin",
-                "esmUrl": "plugins/bted-track-plugin.js?v=39",
+                "esmUrl": "plugins/bted-track-plugin.js?v=41",
             }]
             config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         # The upstream package also contains v0.2 source configs with relative
@@ -1782,9 +1824,11 @@ def assemble_v04(
         if not v04_base_url:
             copy_v04_local_assets(temp_stage, assets)
         computational_genomes = json.loads((REPO_ROOT / "data/registry/batter-browser.json").read_text(encoding="utf-8"))["genomes"] if mode == "worker" else ()
-        build_v04_site(temp_stage, release_root, assets, browser_configs, track_ids, computational_genomes=computational_genomes)
+        build_v04_site(temp_stage, release_root, assets, browser_configs, track_ids, computational_genomes=computational_genomes, d1_metadata=mode == "worker")
         if mode == "worker":
             build_batter_browser(temp_stage)
+            from build_collections import build as build_collections
+            build_collections(temp_stage, release_root)
 
         file_count, total_bytes = copy_worker_shell(package_root, temp_stage / "jbrowse")
         run_validator("validate-site.py", temp_stage)

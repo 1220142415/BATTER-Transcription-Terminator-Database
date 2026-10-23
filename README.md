@@ -1,32 +1,64 @@
-# BTED
+# BTED — Bacterial Transcript 3′ End Database
 
-BTED 整理公开论文中的细菌转录本 3′ 端位置。每条记录保留研究来源、参考序列和原表线索，方便回查。3′ 端位置不等于已经单独验证功能的转录终止子。
+BTED provides bacterial RNA 3′-end records from published studies, BATTER model predictions, and available sequencing-signal tracks. Each dataset is linked to its publication, experimental method, conditions, and reference assembly.
 
-仓库当前发布数据为 **v0.4.0**：14 篇论文、25 份来源登记（其中 1 份只供核查）、21 个参考组装和 29,460 条端点记录。新版按基因组存放 GFF3 和可读的 `metadata.tsv`。Cascino 论文新增的 1,061 条明确端点与旧版 28,399 条记录分开核对过；尚待审核的候选位置没有混入。
+**[Browse BTED](https://bted.1052596411.workers.dev/)** · [Data and sources](docs/SOURCES.md) · [Build the website](docs/deployment.md) · [Report an issue](https://github.com/1220142415/BATTER-Transcription-Terminator-Database/issues)
 
-| 想了解什么 | 从这里开始 |
-|---|---|
-| 发布了哪些文件、怎样读和校验 | [v0.4.0 发布说明](docs/releases/v0.4.0.md) |
-| 每篇论文和来源的关键判断 | [来源说明](docs/SOURCES.md) |
-| 本地组装 Pages、Worker 与 JBrowse | [运行手册](docs/deployment.md) |
-| 添加或修订来源 | [贡献指南](CONTRIBUTING.md) |
-| 与 promoter 网站的功能差异和后续工作 | [功能对比](docs/PROMOTER_COMPARISON.md) |
+## Data collections
 
-正式文件位于 [`data/public/v0.4.0/`](data/public/v0.4.0/)；内部来源判断与旧版可校验归档分别位于 `data/registry/` 和 [`data/archive/`](data/archive/)。网页由构建脚本生成，`site/` 只保存样式和交互脚本。
+| Collection | Available data | Classification |
+|---|---|---|
+| [Experimental 3′ ends](https://bted.1052596411.workers.dev/experimental.html) | 20 reference assemblies; 29,460 experimental records and 124,740 predicted regions | NCBI Taxonomy; GTDB R207.0 available separately |
+| [GTDB predictions](https://bted.1052596411.workers.dev/gtdb.html) | BATTER-TPE predictions for 27,275 of 62,291 input genomes; partial release | GTDB R207.0 (2022) |
+| [GEM · Legacy](https://bted.1052596411.workers.dev/gem.html) | Earlier computational results for 42,904 genomes from GEM and other sources; retained without prediction updates | Original GEM-supplied classification; exact GTDB release unresolved |
 
-基因组目录支持按数据类型、基因组来源、基因组类型、注释状态和分类层级筛选，也可搜索研究标题或 PMID。JBrowse 用青绿和红色区分正负链；有双链实验信号的研究将两条 BigWig 显示为一条镜像轨道。基因组页可分享当前位置和轨道布局，轨道菜单可下载原文件或当前区段的端点 GFF3。
+Counts are reported separately for each collection. Genomes may occur in more than one collection. The experimental total counts source records, including records from different studies at the same position.
 
-本地检查：
+RNA 3′ ends can result from transcription termination or RNA processing. Experimental records and model predictions are therefore presented as separate evidence types. See [source-specific interpretation](docs/SOURCES.md) and the [BATTER study](https://doi.org/10.1186/s40168-026-02454-1).
 
-```bash
-python scripts/validate_bted_v0_4.py
+## Browse and download
+
+1. Select a collection and search by genome identifier or organism name.
+2. Filter by classification or data availability. Click a table heading to sort; click it again to reverse the order.
+3. Open a genome to inspect its reference, tracks, publications, and downloads.
+
+Experimental genome pages offer a study-data ZIP. Prediction and reference files have separate download links. BigWig tracks show the registered samples or conditions; each track scales to its visible window. Peak heights across separately scaled tracks are not directly comparable.
+
+Scientific files are hosted in the [Hugging Face dataset](https://huggingface.co/datasets/liurulong/terminator). The website uses fixed file revisions and D1 for current metadata. The [v0.4.0 file guide](docs/releases/v0.4.0.md) describes experimental GFF3, metadata and supplementary tables. The frozen package registers 21 references; the metadata-only S002 reference is excluded from the 20-member experimental collection.
+
+## Run and reproduce
+
+Requirements: Python 3.12+, Node.js 24, and the pinned inputs in the [build and deployment guide](docs/deployment.md). Run from the repository root:
+
+```sh
 python scripts/validate_repo_layout.py
 python scripts/check_markdown_links.py
 python -m unittest discover -s tests -p 'test*.py' -q
+node --test tests/*.mjs
 ```
 
-线上网站：[bted.1052596411.workers.dev](https://bted.1052596411.workers.dev/)。首页展示当前发布统计和 BATTER 引用，基因组目录位于 `genomes.html`，Usage 提供地区访问统计。
+The build guide covers the JBrowse application, scientific-file snapshots, plugin build, Cloudflare configuration, and recovery. A static preview alone does not provide the production D1 APIs.
 
-BATTER 论文：Jin, Y., Cui, J., Liu, R. et al. *Conserved 3′ stem-loop structures enable comprehensive analysis of bacterial transcription termination in metagenomes.* Microbiome 14, 222 (2026). [DOI](https://doi.org/10.1186/s40168-026-02454-1)。作者代码：[xu-research-lab/BATTER](https://github.com/xu-research-lab/BATTER)。引用于 2026-10-03 根据 Crossref 正式出版记录核对，未采用作者 README 中的旧预印本引用。
+## Repository guide
 
-当前工作目录统一命名为 `BTED`。基因组页在 Studies 标题旁提供实验研究 ZIP 和来源元数据，论文卡片保留单文件链接；NCBI 组装记录位于概览。重叠基因组的预测和训练文件默认折叠显示，纯计算基因组保留 Data files 区域。
+| Directory | Contents |
+|---|---|
+| `worker/` | Cloudflare Worker, D1 queries and file routes |
+| `site/` | Browser interactions and styles |
+| `jbrowse-plugin/` | Track glyphs, signal display and browser controls |
+| `scripts/` | Site builders, data preparation and validation |
+| `bted_pipeline/` | Experimental-data normalization and checks |
+| `database/` | Schema, ordered migrations and reviewed data changes |
+| `data/` | Frozen releases, source records and reference mappings |
+| `tests/` | Regression tests and small fixtures |
+| `docs/` | Data methods, architecture and operations |
+
+[Architecture](docs/ARCHITECTURE.md) · [Database](database/README.md) · [Script index](scripts/README.md) · [Contributing](CONTRIBUTING.md) · [Current deployment](docs/releases/current.md)
+
+## Citation and reuse
+
+For BATTER predictions, cite:
+
+Jin, Y., Cui, J., Liu, R. et al. **Conserved 3′ stem-loop structures enable comprehensive analysis of bacterial transcription termination in metagenomes.** *Microbiome* 14, 222 (2026). [doi:10.1186/s40168-026-02454-1](https://doi.org/10.1186/s40168-026-02454-1).
+
+For experimental data, also cite the original studies linked on each genome page and in the [source catalogue](docs/SOURCES.md). Record the collection, genome accession and downloaded file revision in your analysis. Third-party data retain their source-specific reuse terms. This repository does not yet declare a software license.

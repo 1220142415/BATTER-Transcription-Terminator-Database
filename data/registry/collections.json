@@ -1,0 +1,32 @@
+{
+  "gtdb": {
+    "version": "deffa4a7183f71a8b47b3c44",
+    "label": "GTDB predictions",
+    "taxonomy_label": "GTDB R207.0 (2022)",
+    "reference_revision": "7ed77270f02862da5722dad1d7836e3444e67dfd",
+    "total": 27275,
+    "source_genome_count": 62291,
+    "partial": true,
+    "description": "BATTER-TPE predictions for GTDB R207.0 genomes."
+  },
+  "experimental": {
+    "version": "202610220000000000000006",
+    "label": "Experimental 3′ ends",
+    "taxonomy_label": "NCBI Taxonomy",
+    "reference_revision": "9f81698a3cee64f4eaf90b90cd36d640f38d9315",
+    "total": 20,
+    "source_genome_count": 20,
+    "partial": false,
+    "description": "Study-reported RNA 3′ ends, model predictions and available sequencing-signal tracks."
+  },
+  "gem": {
+    "version": "202610220000000000000003",
+    "label": "GEM catalogue · Legacy",
+    "taxonomy_label": "GEM / GTDB (original; release not established)",
+    "reference_revision": "9f81698a3cee64f4eaf90b90cd36d640f38d9315",
+    "total": 42904,
+    "source_genome_count": 42904,
+    "partial": false,
+    "description": "Earlier predictions and augmentation data from GEM and other genome sources."
+  }
+}

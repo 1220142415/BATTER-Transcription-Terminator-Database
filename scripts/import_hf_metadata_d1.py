@@ -38,7 +38,7 @@ def build_sql(cache, release, catalogue, output):
     manifest_header = {key: value for key, value in release.items() if key != 'files'}
     values = [REVISION, release['release_version'], manifest_hash, compact(manifest_header), compact(header),
               len(published), len(rows), len(files), 'loading']
-    schema = (ROOT / 'prototype/accession-range/migrations/0004_hf_metadata.sql').read_text(encoding='utf-8')
+    schema = (ROOT / 'database/migrations/0004_hf_metadata.sql').read_text(encoding='utf-8')
     (output / '000-schema.sql').write_text(schema + '\nINSERT OR IGNORE INTO hf_metadata_releases VALUES (' + ','.join(map(sql_value, values)) + ');\n', encoding='utf-8', newline='\n')
 
     chunks, statements, size = [], [], 0

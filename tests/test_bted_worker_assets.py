@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-WORKER = REPO_ROOT / "prototype/accession-range/src/worker.js"
+WORKER = REPO_ROOT / "worker/src/worker.js"
 
 
 class WorkerAssetProxyTests(unittest.TestCase):
@@ -85,6 +85,9 @@ const browserSource = {{
   evidence_class: "author_called_endpoint",
   record_count: 1070,
   has_jbrowse: 1,
+  publication_pmid: "12345678",
+  assay_family: "Term-seq",
+  metadata_json: '{{}}',
   record_root: "genomes/GCF_000009045.1/studies/PMID_12345678/endpoints.gff3.gz",
 }};
 const studyGff = {{
@@ -126,7 +129,9 @@ const db = {{
     if (sql.includes("FROM release_versions")) return {{ bind(version) {{ return {{ first: async () => version === release.release_version ? release : null }}; }} }};
     if (sql.startsWith("SELECT * FROM assemblies WHERE")) return {{ bind() {{ return {{ first: async () => browserAssembly }}; }} }};
     if (sql.startsWith("SELECT * FROM tracks WHERE")) return {{ bind() {{ return {{ all: async () => ({{ results: browserTracks }}) }}; }} }};
-    if (sql.startsWith("SELECT * FROM sources WHERE")) return {{ bind() {{ return {{ first: async () => browserSource }}; }} }};
+    if (sql.startsWith("SELECT * FROM sources WHERE")) return {{ bind() {{ return {{ first: async () => browserSource, all: async () => ({{ results: [browserSource] }}) }}; }} }};
+    if (sql.includes("FROM publications")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ pmid: "12345678", paper_title: "Reviewed D1 title", citation_json: JSON.stringify({{authors: "A Researcher; B Researcher"}}) }}] }}) }}; }} }};
+    if (sql.includes("FROM source_accessions")) return {{ bind() {{ return {{ all: async () => ({{ results: [] }}) }}; }} }};
     if (sql.startsWith("SELECT contig_accession, length_bp")) return {{ bind() {{ return {{ first: async () => browserContigs.sort((a,b) => b.length_bp-a.length_bp || a.contig_accession.localeCompare(b.contig_accession))[0] }}; }} }};
     if (sql.startsWith("SELECT source_id, reference_name, COUNT(*)")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ source_id: "BATTER_S1_003", reference_name: "NC_000964.3", record_count: 1070 }}] }}) }}; }} }};
     if (sql.startsWith("SELECT biological_coordinate_1based FROM endpoints WHERE")) return {{ bind() {{ return {{ first: async () => ({{ biological_coordinate_1based: 19000 }}) }}; }} }};
@@ -315,7 +320,7 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(default_view["offsetPx"], 18499)
         self.assertEqual(config["defaultSession"]["name"], "BTED · GCF_000009045.1")
         self.assertEqual(config["plugins"][0]["name"], "BTEDTrackPlugin")
-        self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js?v=39")
+        self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js?v=41")
         endpoint_track = next(track for track in config["tracks"] if track["trackId"].startswith("source_"))
         expected_gff3 = "https://huggingface.co/datasets/liurulong/terminator/resolve/abcdefabcdefabcdefabcdefabcdefabcdefabcd/v0.4.0/genomes/GCF_000009045.1/studies/PMID_12345678/endpoints.gff3.gz"
         self.assertEqual(endpoint_track["adapter"]["type"], "Gff3Adapter")
@@ -324,6 +329,8 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(endpoint_track["metadata"]["source_ids"], ["BATTER_S1_003"])
         self.assertEqual(endpoint_track["metadata"]["btedContigCounts"], {"NC_000964.3": 1070})
         self.assertEqual(endpoint_track["metadata"]["btedAbout"]["authors"], "A Researcher; B Researcher")
+        self.assertEqual(endpoint_track["metadata"]["btedAbout"]["title"], "Reviewed D1 title")
+        self.assertEqual(endpoint_track["metadata"]["btedAbout"]["assay"], "Term-seq")
         self.assertNotIn("license", endpoint_track["metadata"]["btedAbout"])
         self.assertEqual(endpoint_track["metadata"]["btedDownloads"][0]["kind"], "endpoint")
         self.assertEqual(endpoint_track["displays"][0]["renderer"]["color1"], "jexl:btedStrandColor(feature)")
@@ -344,8 +351,8 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(reference_track["displays"][0]["renderer"]["color1"], "jexl:btedStrandColor(feature)")
         self.assertEqual(reference_track["displays"][0]["renderer"]["color2"], "jexl:btedStrandColor(feature)")
         self.assertEqual(endpoint_track["displays"][0]["height"], 140)
-        self.assertEqual(signal_track["displays"][0]["autoscale"], "global")
-        self.assertEqual(signal_track["displays"][0]["scaleType"], "log")
+        self.assertEqual(signal_track["displays"][0]["autoscale"], "local")
+        self.assertEqual(signal_track["displays"][0]["scaleType"], "linear")
 
     def test_sample_signal_follows_study_and_rejects_genome_mismatch(self):
         params = dict(request_url='https://preview.example.test', request_path='/api/assemblies/GCF_000009045.1/jbrowse-config')
@@ -383,7 +390,8 @@ let status = 200;
 const env = { ASSETS: { async fetch() { return new Response('unchanged', { status,
   headers: { 'cache-control': 'no-cache', etag: 'original' } }); } } };
 for (const path of ['/jbrowse/static/js/main.de203b0d.js', '/jbrowse/static/js/6514.48beaae4.chunk.js',
-  '/jbrowse/static/css/main.12345678.css', '/jbrowse/plugins/bted-track-plugin.js?v=39']) {
+  '/jbrowse/static/css/main.12345678.css', '/jbrowse/static/js/main.bted-sequence-v1.js',
+  '/jbrowse/static/js/8948.bted-sequence-v1.chunk.js', '/jbrowse/plugins/bted-track-plugin.js?v=41']) {
   const result = await staticAsset(new Request('https://bted.example' + path), env);
   assert.equal(result.headers.get('cache-control'), 'public, max-age=31536000, immutable');
   assert.equal(result.headers.get('etag'), 'original'); assert.equal(await result.text(), 'unchanged');

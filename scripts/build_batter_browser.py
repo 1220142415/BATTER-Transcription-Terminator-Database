@@ -5,7 +5,7 @@ from collections import Counter
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import quote
-from build_v0_4_site import browser_actions, esc, genome_summary, page, script_tag
+from build_v0_4_site import browser_actions, data_sort_header, esc, genome_summary, page, script_tag
 
 
 class GenomePhyla(HTMLParser):
@@ -53,10 +53,12 @@ def build(site_root):
     phyla.genomes = {}
     phyla.feed(html)
     home = site_root / "index.html"
-    home.write_text(home.read_text(encoding="utf-8").replace('<section class="home-reference"', phylum_content(data["genomes"], phyla.genomes) + '\n<section class="home-reference"', 1), encoding="utf-8")
+    home_text = home.read_text(encoding="utf-8")
+    chart = '<section class="home-phyla" data-live-phyla><h2>Genomes by phylum</h2><p role="status">Loading classification counts…</p></section>' if 'data-live-summary' in home_text else phylum_content(data["genomes"], phyla.genomes)
+    home.write_text(home_text.replace('<section class="home-reference"', chart + '\n<section class="home-reference"', 1), encoding="utf-8")
     selector = '''<label>Data type<select data-genome-dataset><option value="">All data</option><option value="experimental">Experimental</option><option value="prediction">Prediction</option><option value="augmentation">Augmentation / Rfam</option></select></label>'''
-    html = html.replace('<label class="mobile-sort">', selector + '<label class="mobile-sort">', 1)
-    html = html.replace('</select></label>\n    <button class="mobile-sort-direction"', '<option value="predictions">Predicted regions</option><option value="training">Augmentation / Rfam regions</option></select></label>\n    <button class="mobile-sort-direction"', 1)
+    html = html.replace('<div class="genome-refine-filters">', '<div class="genome-refine-filters">' + selector, 1)
+    html = html.replace(data_sort_header(("endpoints",)), data_sort_header(("endpoints", "predictions", "training")), 1)
     html = html.replace('data-genome-search-form>', 'data-genome-search-form inert>', 1)
     html = html.replace('<div class="genome-result-count" role="status">', '<p class="genome-load-status" data-genome-load-status role="status">Loading genomes…</p><div class="genome-result-count" role="status" hidden>', 1)
     html = html.replace('<tbody data-genome-results>', '<tbody data-genome-results hidden>', 1)
@@ -84,7 +86,7 @@ def build(site_root):
         if path.stem in ids:
             text = path.read_text(encoding="utf-8")
             text = text.replace('data-genome-page data-assembly=', 'data-batter-genome data-preserve-default-view="true" data-genome-page data-assembly=', 1)
-            section = '''<section class="genome-provenance" aria-label="Reference and coordinate provenance" data-batter-provenance hidden></section><details class="genome-computational-files"><summary>Prediction and augmentation / Rfam files</summary><div class="genome-download-actions" data-batter-downloads></div></details>'''
+            section = '''<section class="genome-provenance" aria-label="Reference and coordinate provenance" data-batter-provenance hidden></section>'''
             text = text.replace('<section class="genome-studies"', section + '<section class="genome-studies"', 1)
             text = text.replace(script_tag("../assets/genome-page.js"), script_tag("../assets/batter-browser.js"))
             path.write_text(text, encoding="utf-8")

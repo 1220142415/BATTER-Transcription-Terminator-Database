@@ -359,7 +359,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--generated-at-utc",
         default=None,
-        help="固定 provenance 时间（ISO-8601 UTC，例如 2026-08-21T00:00:00Z）",
+        help="Fixed provenance timestamp (ISO-8601 UTC, e.g. 2026-08-21T00:00:00Z)",
     )
     return parser
 

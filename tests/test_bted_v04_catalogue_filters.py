@@ -18,11 +18,11 @@ const rows=[row('GCF_A','Alpha',100,'P1','C1','O1','F1','Alpha',[source('A','Ter
 row('GCF_B','Beta',300,'P1','C2','O2','F2','Beta',[source('A','Term-seq','study a'),source('AUDIT','Review only','audit','no')]),
 row('GCF_C','Gamma',200,'P2','C3','O3','F3','Gamma',[source('B','Rend-seq','study b')])];
 rows.forEach(row=>Object.assign(row.dataset,{genomeSource:'NCBI RefSeq',genomeType:'unknown',genomeAnnotation:'Available'}));
-const search=control(),clear=control(),form=control(),count=control(),empty=control(),sortSelect=control(),direction=control();
+const search=control(),clear=control(),form=control(),count=control(),empty=control();
 const taxonomy=['phylum','class','order','family','genus'].map(rank=>{const select=control();select.dataset.taxonomyRank=rank;return select;});
 const tbody={children:[],querySelectorAll(){return rows;},append(node){this.children=this.children.filter(n=>n!==node);this.children.push(node);},replaceChildren(...nodes){this.children=[...nodes];}};
 const buttons=['accession','organism','size','endpoints','predictions','training'].map(value=>({dataset:{sort:value},listeners:{},addEventListener(type,fn){this.listeners[type]=fn;},click(){this.listeners.click();},closest(){return {setAttribute(){}};}}));
-const elements={'[data-genome-search-form]':form,'[data-genome-search]':search,'[data-genome-results]':tbody,'[data-visible-count]':count,'[data-result-range]':control(),'[data-empty]':empty,'[data-clear-filters]':clear,'[data-sort-select]':sortSelect,'[data-sort-direction]':direction};
+const elements={'[data-genome-search-form]':form,'[data-genome-search]':search,'[data-genome-results]':tbody,'[data-visible-count]':count,'[data-result-range]':control(),'[data-empty]':empty,'[data-clear-filters]':clear};
 global.document={createElement:()=>control(),querySelector:key=>elements[key]??null,querySelectorAll:key=>key==='[data-sort]'?buttons:key==='[data-taxonomy-rank]'?taxonomy:[]};
 let href='https://bted.example/genomes.html?taxon=phylum:P1&study=unused&assay=unused';const listeners={};
 global.window={location:{get href(){return href;},get search(){return new URL(href).search;}},history:{replaceState(_s,_t,url){href=String(url);}},addEventListener(type,fn){listeners[type]=fn;}};
@@ -198,7 +198,7 @@ run();
 const initial={visible:visible(),classes:taxonomy[1].options.map(o=>o.value),disabled:taxonomy.map(s=>s.disabled)};
 choose('class','C2');const narrowed={visible:visible(),orders:taxonomy[2].options.map(o=>o.value),disabled:taxonomy.map(s=>s.disabled),href};
 choose('order','O2');buttons.find(b=>b.dataset.sort==='endpoints').click();buttons.find(b=>b.dataset.sort==='endpoints').click();
-const shared=href;listeners.popstate();const restored={visible:visible(),order:taxonomy[2].value,direction:direction.textContent};
+const shared=href;listeners.popstate();const restored={visible:visible(),order:taxonomy[2].value,direction:buttons.find(b=>b.dataset.sortDirection)?.dataset.sortDirection==='asc'?'Ascending':'Descending'};
 choose('phylum','P2');const switched={visible:visible(),children:taxonomy.slice(1).map(s=>s.value)};
 clear.fire('click');const cleared={visible:visible(),disabled:taxonomy.map(s=>s.disabled),href};
 choose('genus','Beta');const blockedGenus={visible:visible(),selected:taxonomy[4].value};clear.fire('click');
@@ -251,7 +251,7 @@ global.fetch=async()=>({ok:true,json:async()=>({genomes:Array.from({length:30},(
   [String(i).padStart(3,'0'),'000',`OTU-${i}`,'Predicted','MAG',0,0,0,0,'unavailable',1000,'p__P1','IMG'])})});
 const ids=()=>tbody.children.map(r=>r.dataset.sortAccession||r.children[0].children[0].children[0].textContent);
 run();setImmediate(()=>{
-  const initial={ids:ids().slice(0,4),count:count.textContent,range:elements['[data-result-range]'].textContent,dataset:dataset.value,sort:sortSelect.value,direction:direction.textContent};
+  const initial={ids:ids().slice(0,4),count:count.textContent,range:elements['[data-result-range]'].textContent,dataset:dataset.value,sort:buttons.find(b=>b.dataset.sortDirection)?.dataset.sort,direction:buttons.find(b=>b.dataset.sortDirection)?.dataset.sortDirection==='asc'?'Ascending':'Descending'};
   buttons.find(b=>b.dataset.sort==='accession').click();const manual=ids().slice(0,3);listeners.popstate();const restored=ids().slice(0,3);
   clear.fire('click');const reset=ids().slice(0,3);
   choose('phylum','P1');choose('class','C1');choose('order','O1');listeners.popstate();const filtered=ids();

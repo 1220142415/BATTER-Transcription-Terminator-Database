@@ -1,0 +1,1 @@
+UPDATE bted_collections SET version='202610220000000000000004',description='Study-reported transcript 3′ ends, original publications and condition-specific coverage tracks.' WHERE collection='experimental' AND version='202610220000000000000005';

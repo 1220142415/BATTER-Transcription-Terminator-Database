@@ -26,12 +26,11 @@
   const rows = Array.from(tbody.querySelectorAll("[data-genome-row]"));
   if (dataType) rows.forEach(row => { row.node = row; });
   const sortButtons = Array.from(document.querySelectorAll("[data-sort]"));
-  const mobileSort = document.querySelector("[data-sort-select]");
-  const mobileDirection = document.querySelector("[data-sort-direction]");
   const sortFields = new Set(["accession", "organism", "size", "endpoints", ...(dataType ? ["predictions", "training"] : [])]);
   const numericFields = new Set(["size", "endpoints", "predictions", "training"]);
   const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
-  let sortField = "endpoints";
+  const defaultSort = form.dataset.defaultSort || "endpoints";
+  let sortField = defaultSort;
   let direction = "desc";
   let page = 0;
   const pageSize = 25;
@@ -39,14 +38,63 @@
   let sortedBy = "";
   if (form.dataset.genomePages) { initPaged(); return; }
 
+  function updateSortHeaders() {
+    sortButtons.forEach(button => {
+      button.dataset.sortDirection = button.dataset.sort === sortField ? direction : "";
+      button.closest("th")?.setAttribute("aria-sort", "none");
+    });
+    sortButtons.find(button => button.dataset.sort === sortField)?.closest("th")?.setAttribute("aria-sort", direction === "asc" ? "ascending" : "descending");
+  }
+
   function initPaged() {
     const pages = new Map();
     const menus = [...filters.map(([field, select]) => [field, select]), ...(dataType ? [["dataset", dataType]] : [])];
     const labels = new Map(menus.map(([, select]) => [select, new Map(Array.from(select.options).map(option => [option.value, option.textContent]))]));
-    let sequence = 0, controller, searchTimer;
+    let sequence = 0, controller, searchTimer, localCatalogue, localLoadedAt = 0, useLocal = true;
+
+    // The complete experimental collection fits on one D1 page. Reuse that
+    // response for interactive filters; never substitute a bundled snapshot.
+    function filterExperimental(data, url) {
+      const ranks = taxonomy.map(s => s.dataset.taxonomyRank);
+      const fields = ["source", "genome_type", "annotation", "dataset", ...ranks];
+      const selected = Object.fromEntries(fields.map(k => [k, url.searchParams.get(k) || ""]));
+      const q = (url.searchParams.get("q") || "").normalize("NFKC").toLowerCase().trim();
+      const tokens = q.split(/[^\p{L}\p{N}_.-]+/u).filter(Boolean);
+      const datasets = {experimental:"endpoints", prediction:"predictions", augmentation:"training"};
+      const matches = (row, omitted = []) => {
+        const r = row.filterData;
+        if (!tokens.every(t => r.search_text.includes(t))) return false;
+        return fields.every(k => omitted.includes(k) || !selected[k] || (k === "dataset" ? r[datasets[selected[k]]] > 0 : r[k] === selected[k]));
+      };
+      const facets = {};
+      for (const field of fields) {
+        const rank = ranks.indexOf(field);
+        if (rank > 0 && ranks.slice(0, rank).some(k => !selected[k])) continue;
+        const scope = data.rows.filter(r => matches(r, [field, ...(rank >= 0 ? ranks.slice(rank + 1) : [])]));
+        if (field === "dataset") {
+          facets[field] = Object.keys(datasets).filter(k => scope.some(r => r.filterData[datasets[k]] > 0));
+          if (!tokens.length && fields.every(k => k === field || !selected[k])) facets[field].sort();
+        }
+        else {
+          facets[field] = [...new Set(scope.map(r => r.filterData[field]).filter(Boolean))].sort();
+          if (field === "phylum") {
+            const counts = new Map();scope.forEach(r => counts.set(r.filterData.phylum, (counts.get(r.filterData.phylum) || 0) + 1));
+            facets[field].sort((a,b) => counts.get(b) - counts.get(a) || (a < b ? -1 : a > b ? 1 : 0));
+          }
+        }
+      }
+      const key = {accession:"accession_key",organism:"organism_key"}[sortField] || sortField;
+      const rows = data.rows.filter(r => matches(r)).sort((a,b) => {
+        const x=a.filterData[key], y=b.filterData[key];
+        if (key === "size" && (x == null) !== (y == null)) return Number(x == null)-Number(y == null);
+        const order=x < y ? -1 : x > y ? 1 : 0;
+        return (direction === "desc" ? -order : order) || (a.filterData.accession_key < b.filterData.accession_key ? -1 : 1);
+      });
+      return {...data, rows, total:rows.length, page:1, facets};
+    }
 
     function restoreMenu(select, value) {
-      if (!labels.get(select).has(value)) value = "";
+      if (value && !labels.get(select).has(value)) labels.get(select).set(value, value);
       if (value && !Array.from(select.options).some(option => option.value === value)) {
         const option = document.createElement("option"); option.value = value; option.textContent = labels.get(select).get(value); select.append(option);
       }
@@ -58,7 +106,7 @@
       const all = document.createElement("option"); all.value = ""; all.textContent = allLabel;
       select.replaceChildren(all);
       // Keep an explicit selection when a search has no matches, so its scope and URL stay intact.
-      const available = names ? [...names.keys()].filter(value => value && values.includes(value)) : values;
+      const available = values;
       for (const value of new Set([...available, ...(selected ? [selected] : [])])) {
         const option = document.createElement("option"); option.value = value; option.textContent = names?.get(value) || value; select.append(option);
       }
@@ -82,7 +130,7 @@
         if (param === "annotation" && ["Incompatible", "Unavailable", "Not cataloged"].includes(value)) value = "Missing";
         restoreMenu(select, value);
       });
-      sortField = sortFields.has(params.get("sort")) ? params.get("sort") : "endpoints";
+      sortField = sortFields.has(params.get("sort")) ? params.get("sort") : defaultSort;
       const order = params.get("direction") || params.get("order");
       direction = ["asc", "desc"].includes(order) ? order : params.has("sort") ? "asc" : "desc";
       page = Math.max(0, Math.min(1999, (Number(params.get("page")) || 1) - 1));
@@ -108,9 +156,9 @@
         menuOptions(select, values || [], "All");
         select.disabled = !values && !select.value;
       }
-      sortButtons.forEach(button => button.closest("th")?.setAttribute("aria-sort", button.dataset.sort === sortField ? direction === "asc" ? "ascending" : "descending" : "none"));
-      if (mobileSort) mobileSort.value = sortField;
-      if (mobileDirection) mobileDirection.textContent = direction === "asc" ? "Ascending" : "Descending";
+      updateSortHeaders();
+
+
       loadStatus.textContent = ""; retry.hidden = true;
     }
 
@@ -134,6 +182,22 @@
       previous.disabled = true; next.disabled = true;
       loadStatus.textContent = "Loading genomes…"; retry.hidden = true;
       try {
+        if (form.dataset.genomePrefix === "experimental" && useLocal) {
+          if (!localCatalogue || Date.now() - localLoadedAt >= 60000) {
+            const all = new URL(form.dataset.genomePages, window.location.href);
+            const response = await fetch(all, {signal:controller.signal});
+            if (!response.ok) throw new Error(response.status === 409 ? "version" : "unavailable");
+            const data = await response.json();
+            if (!Array.isArray(data.rows) || !Number.isInteger(data.total)) throw new Error("unavailable");
+            useLocal = data.total === data.rows.length && data.total <= pageSize;
+            if (useLocal) {
+              if (data.rows.some(r => !r.filterData)) throw new Error("unavailable");
+              localCatalogue=data; localLoadedAt=Date.now();
+            }
+          }
+          if (ticket !== sequence) return;
+          if (useLocal) { showPage(filterExperimental(localCatalogue, url)); return; }
+        }
         let data = pages.get(key);
         if (!data) {
           const response = await fetch(key, { signal: controller.signal });
@@ -158,7 +222,7 @@
       clearTimeout(searchTimer); sequence++; controller?.abort();
       if (reset) page = 0;
       updateUrl();
-      if (debounce) searchTimer = setTimeout(loadPage, 300); else loadPage();
+      if (debounce && !localCatalogue) searchTimer = setTimeout(loadPage, 300); else loadPage();
     }
     search.addEventListener("input", () => changePage(true, true));
     form.addEventListener("submit", event => { event.preventDefault(); changePage(); });
@@ -173,13 +237,11 @@
       direction = sortField === nextSort ? direction === "asc" ? "desc" : "asc" : "asc";
       sortField = nextSort; changePage();
     }));
-    mobileSort?.addEventListener("change", () => { if (sortFields.has(mobileSort.value)) { sortField = mobileSort.value; direction = "asc"; changePage(); } });
-    mobileDirection?.addEventListener("click", () => { direction = direction === "asc" ? "desc" : "asc"; changePage(); });
     clear?.addEventListener("click", () => {
       search.value = ""; taxonomy.forEach(select => { select.value = ""; });
       if (dataType) dataType.value = "";
       filters.forEach(([, select]) => { select.value = ""; });
-      sortField = "endpoints"; direction = "desc"; changePage();
+      sortField = defaultSort; direction = "desc"; changePage();
     });
     retry.addEventListener("click", () => changePage(false));
     window.addEventListener("popstate", () => { clearTimeout(searchTimer); readPagedUrl(); loadPage(); });
@@ -206,21 +268,21 @@
       select.value = validOption(select, value);
     });
     const explicitSort = sortFields.has(params.get("sort"));
-    sortField = explicitSort ? params.get("sort") : "endpoints";
+    sortField = explicitSort ? params.get("sort") : defaultSort;
     const order = params.get("direction") || params.get("order");
     direction = ["asc", "desc"].includes(order) ? order : explicitSort ? "asc" : "desc";
-    if (mobileSort) mobileSort.value = sortField;
+
   }
 
   function updateUrl() {
     const url = new URL(window.location.href);
-    ["q", "search", "query", "accession", "assembly", "taxon", "rank", "phylum", "class", "order", "family", "genus", "species", "study", "assay", "evidence", "signal", "sort", "dataset", "direction", "page", ...filters.map(([param]) => param)]
+    ["q", "search", "query", "accession", "assembly", "taxon", "rank", "phylum", "class", "order", "family", "genus", "species", "study", "assay", "evidence", "signal", "sort", "dataset", "direction", "page", "source", ...filters.map(([param]) => param)]
       .forEach((key) => url.searchParams.delete(key));
     if (search.value.trim()) url.searchParams.set("q", search.value.trim());
     taxonomy.forEach(select => { if (select.value) url.searchParams.set(select.dataset.taxonomyRank, select.value); });
     if (dataType?.value) url.searchParams.set("dataset", dataType.value);
     filters.forEach(([param, select]) => { if (select.value) url.searchParams.set(param, select.value); });
-    if (sortField !== "endpoints" || direction !== "desc") {
+    if (sortField !== defaultSort || direction !== "desc") {
       url.searchParams.set("sort", sortField);
       url.searchParams.set("direction", direction);
     }
@@ -301,13 +363,7 @@
       resultRange.textContent = `Showing ${start.toLocaleString("en-US")}–${end.toLocaleString("en-US")}`;
     }
     if (empty) empty.hidden = matched.length !== 0;
-    sortButtons.forEach((button) => {
-      const th = button.closest("th");
-      if (th) th.setAttribute("aria-sort", button.dataset.sort === sortField
-        ? (direction === "asc" ? "ascending" : "descending") : "none");
-    });
-    if (mobileSort) mobileSort.value = sortField;
-    if (mobileDirection) mobileDirection.textContent = direction === "asc" ? "Ascending" : "Descending";
+    updateSortHeaders();
   }
 
   function changed() {
@@ -333,16 +389,6 @@
     else { sortField = next; direction = "asc"; }
     changed();
   }));
-  mobileSort?.addEventListener("change", () => {
-    if (!sortFields.has(mobileSort.value)) return;
-    sortField = mobileSort.value;
-    direction = "asc";
-    changed();
-  });
-  mobileDirection?.addEventListener("click", () => {
-    direction = direction === "asc" ? "desc" : "asc";
-    changed();
-  });
   clear?.addEventListener("click", () => {
     search.value = "";
     taxonomy.forEach(select => { select.value = ""; });
@@ -361,7 +407,7 @@
   function genomeRow(row) {
     const record = row.batter;
     const tr = document.createElement("tr");
-    const href = `genomes/${encodeURIComponent(record[0])}`;
+    const href = `${form.dataset.genomePrefix || "genomes"}/${encodeURIComponent(record[0])}`;
     for (const label of ["Genome ID", "Genome source", "Organism", "Taxonomy", "Assembly size", "Transcript 3′-end data", "Annotation"]) {
       const td = document.createElement("td"); td.dataset.label = label;
       if (label === "Genome ID") {
@@ -372,10 +418,10 @@
         td.textContent = referenceSource(record[12]);
       } else if (label === "Organism") {
         const name = document.createElement("span"); name.className = "genome-organism"; name.textContent = record[3]; td.append(name);
-        const type = document.createElement("small"); type.textContent = record[4] === "MAG" ? "Metagenome-assembled" : record[4]; td.append(type);
+        const type = document.createElement("small"); type.textContent = ({ MAG: "Metagenome-assembled", SAG: "Single-cell amplified", isolate: "Isolate", environmental: "Environmental", unknown: "Type not recorded" })[record[4]] || record[4]; td.append(type);
       } else if (label === "Taxonomy") {
         const phylum = document.createElement("span"), genus = document.createElement("small");
-        phylum.textContent = row.dataset.taxonomyPhylum || "Unclassified"; genus.textContent = row.dataset.taxonomyGenus || "Genus not assigned"; td.append(phylum, genus);
+        phylum.textContent = row.dataset.taxonomyPhylum || (row.dataset.taxonomyStatus === "pending" ? "Pending verification" : "Unclassified"); genus.textContent = row.dataset.taxonomyGenus || (row.dataset.taxonomyStatus === "pending" ? "Assembly version unresolved" : "Genus not assigned"); td.append(phylum, genus);
       } else if (label === "Assembly size") {
         td.dataset.referenceSize = ""; referenceSize(td, row);
       } else if (label === "Transcript 3′-end data") {
@@ -386,7 +432,7 @@
           badge.className = `genome-evidence ${type}${Number(row.dataset[`sort${field[0].toUpperCase()}${field.slice(1)}`]) ? "" : " unavailable"}`;
           badge.title = title; number.textContent = Number(row.dataset[`sort${field[0].toUpperCase()}${field.slice(1)}`] || 0).toLocaleString("en-US"); badge.append(number, ` ${text}`); counts.append(badge);
         }
-        if (!counts.children.length) counts.textContent = "—";
+        if (!counts.children.length) counts.textContent = form.dataset.genomePrefix === "experimental" ? "No published 3′-end records" : "—";
         td.append(counts);
       } else {
         td.append(annotationBadge(record[9], row.recoveredAnnotation));

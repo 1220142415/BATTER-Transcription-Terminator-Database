@@ -42,7 +42,7 @@ class MetadataImportTests(unittest.TestCase):
             (snapshot / 'catalogues').mkdir(parents=True)
             (snapshot / 'release.json').write_text(json.dumps(release), encoding='utf-8')
             (snapshot / 'catalogues/genomes.json').write_text(json.dumps(published), encoding='utf-8')
-            schema = root / 'prototype/accession-range/migrations/0004_hf_metadata.sql'
+            schema = root / 'database/migrations/0004_hf_metadata.sql'
             schema.parent.mkdir(parents=True)
             schema.write_bytes((ROOT / schema.relative_to(root)).read_bytes())
             catalogue = dict(revision=revision, layout='genome-first', partial=False, genomes=[row], reference_sizes={'G1': [100, 1]})

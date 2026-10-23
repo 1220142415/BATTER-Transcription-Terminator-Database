@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { gzipSync } from "node:zlib";
 import test from "node:test";
 
-const source = readFileSync(new URL("../prototype/accession-range/src/worker.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../worker/src/worker.js", import.meta.url), "utf8");
 const { default: worker, combineGenomeTracks, tabixContigCounts, augmentationContigCounts, applyRecoveredAnnotation } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
 const catalogue = JSON.parse(readFileSync(new URL("../data/registry/batter-browser.json", import.meta.url)));
 const id = "GCF_000006605.1", revision = catalogue.revision;

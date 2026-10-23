@@ -15,7 +15,7 @@ from pathlib import Path, PurePosixPath
 from typing import Iterable
 from urllib.parse import quote
 from experimental_signals import load_signals
-from experimental_predictions import load_predictions, prediction_assets
+from experimental_predictions import load_predictions
 
 
 RELEASE_VERSION = "v0.4.0"
@@ -208,11 +208,13 @@ def evidence_label(value: str) -> str:
 
 
 SOURCE_PAGE_CAVEATS = {
-    "BATTER_S1_004": "Reference: CP001340.1.",
+    "BATTER_S1_004": "Sample strain ML76 differs from browser reference NA1000 (CP001340.1).",
     "BATTER_S1_006": "Multiple gene records may share a coordinate.",
     "BATTER_S1_007": "Some 3′ ends may result from RNA processing.",
     "BATTER_S1_008": "Gene associations are counted separately.",
     "BATTER_S1_009": "Predicted sites excluded.",
+    "BATTER_S1_012": "Sample strain M145 differs from browser reference A3(2).",
+    "BATTER_S1_014": "Sample strain NBRC 108819 differs from browser reference NRRL 18488.",
     "BATTER_S1_015": "Study records counted separately.",
     "BATTER_S1_016": "Species name differs from NCBI; reference sequence matches.",
     "BATTER_S1_017": "Study records counted separately.",
@@ -232,7 +234,7 @@ def raw_data_links(raw: str) -> str:
         if not accession or accession in seen:
             continue
         seen.add(accession)
-        if re.fullmatch(r"GSE\d+", accession):
+        if re.fullmatch(r"GS[EM]\d+", accession):
             url = f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={quote(accession)}"
         elif re.fullmatch(r"SR[APRX]\d+", accession):
             url = f"https://www.ncbi.nlm.nih.gov/sra/?term={quote(accession)}"
@@ -299,6 +301,18 @@ def _publication_link(pmid: str) -> str:
     return f"https://pubmed.ncbi.nlm.nih.gov/{quote(pmid)}/"
 
 
+def _publication_citation(publication: dict[str, str], pmid: str) -> str:
+    authors = publication.get("authors", "").split("; ")
+    author_label = authors[0] + (" et al." if len(authors) > 1 else "")
+    citation = " · ".join(esc(value) for value in (author_label, publication.get("journal"), publication.get("year")) if value)
+    pubmed = f'<a href="{esc(_publication_link(pmid))}" target="_blank" rel="noopener">PMID {esc(pmid)} ↗</a>'
+    return citation + " · " + pubmed if citation else pubmed
+
+
+def _endpoint_assay(row: dict[str, str], source_context: dict[str, dict[str, str]]) -> str:
+    return source_context.get(row["source_id"], {}).get("endpoint_assay") or row.get("assay", "")
+
+
 def _asset_exists(asset_map: dict[str, dict[str, object]], predicate) -> bool:
     return any(predicate(path, item) for path, item in asset_map.items())
 
@@ -310,7 +324,7 @@ def _search_blob(assembly: str, rows: list[dict[str, str]]) -> str:
     return " ".join(values).casefold()
 
 
-def home_content(genomes: list[dict[str, object]], computational_genomes=()) -> str:
+def home_content(genomes: list[dict[str, object]], computational_genomes=(), *, d1_metadata=False) -> str:
     rows = [row for genome in genomes for row in genome["metadata_rows"]]
     published = [row for row in rows if is_published_status(row.get("release_status")) and int(row["record_count_number"]) > 0]
     # Full assembly accessions match the genome directory; datasets can overlap.
@@ -322,8 +336,8 @@ def home_content(genomes: list[dict[str, object]], computational_genomes=()) -> 
                (experimental_count, "Genomes with experimental data"),
                (sum(int(row["record_count_number"]) for row in published), "Experimental 3′-end records"),
                (len({row["pmid"] for row in published}), "Source publications"))
-    summary = "".join(f'<div><strong>{count:,}</strong><span>{label}</span></div>' for count, label in metrics)
-    return f'''<main class="home-page">
+    summary = "".join(f'<div><strong>{"Loading…" if d1_metadata else f"{count:,}"}</strong><span>{label}</span></div>' for count, label in metrics)
+    return f'''<main class="home-page"{' data-live-summary' if d1_metadata else ''}>
 <section class="hero hero-compact"><div class="page-shell hero-inner"><div class="hero-copy"><h1>Bacterial transcript<br>3′-end database</h1><p>Experimental transcript 3′ ends, BATTER predictions and training regions.</p><div class="hero-actions"><a class="button primary" href="genomes.html">Browse genomes <span aria-hidden="true">→</span></a><a class="button" href="#batter-reference">BATTER paper</a></div></div>
 <figure class="hero-diagram"><div class="diagram-heading"><span class="eyebrow">Transcription termination</span></div><img src="assets/termination-motif.svg" width="520" height="310" alt="RNA stem-loop, U-rich tail and transcript 3′ end aligned with a schematic signal peak."><figcaption>Intrinsic termination (schematic).</figcaption></figure></div></section>
 <section class="page-shell home-summary" aria-label="Release statistics">{summary}</section>
@@ -355,7 +369,13 @@ def load_reference_sizes() -> dict[str, list[int]]:
     return reference_sizes
 
 
-def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[str, object]], taxonomy: dict[str, dict[str, str]]) -> str:
+def data_sort_header(fields):
+    labels = {"endpoints": "Experimental 3′ ends", "predictions": "Predicted regions", "training": "Augmentation / Rfam"}
+    buttons = ''.join(f'<button type="button" data-sort="{field}" title="Sort by {labels[field].lower()}">{labels[field]}</button>' for field in fields)
+    return f'<th aria-sort="none"><span>Transcript 3′-end data</span><div class="genome-data-sort">{buttons}</div></th>'
+
+
+def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[str, object]], taxonomy: dict[str, dict[str, str]], *, data_sorts=("endpoints",), source_filter=True) -> str:
     reference_sizes = load_reference_sizes()
     predictions = load_predictions()['genomes']
     count = len(genomes)
@@ -404,24 +424,22 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
 <section class="page-shell genome-results" id="genome-directory"><div class="page-heading"><div><h1>Genome catalog</h1></div><a class="text-link" href="methodology.html">Data notes <span aria-hidden="true">↗</span></a></div>
   <div class="genome-directory-panel"><form class="genome-filters-form" role="search" aria-label="Search and filter genomes" data-genome-search-form><div class="genome-filter-bar">
     <label class="genome-filter-search"><span>Search genomes</span><span class="genome-filter-search-field"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input type="search" placeholder="Genome ID or species" title="Also searches study titles and PMID" autocomplete="off" data-genome-search></span></label>
-    <label class="mobile-sort">Sort by<select data-sort-select><option value="accession">Genome ID</option><option value="organism">Organism</option><option value="size">Assembly size</option><option value="endpoints">Experimental 3′-end records</option></select></label>
-    <button class="mobile-sort-direction" type="button" data-sort-direction aria-label="Reverse sort direction">Ascending</button>
     <button class="genome-filter-reset" type="button" data-clear-filters aria-label="Clear filters" title="Clear filters"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7a9 9 0 1 1-1 9M4 3v5h5"/></svg></button>
   </div><div class="genome-refine-filters">
-    <label>Genome source<select data-genome-source-filter><option value="">All sources</option></select></label>
+    {'<label>Genome source<select data-genome-source-filter><option value="">All sources</option></select></label>' if source_filter else ''}
     <label>Genome type<select data-genome-type-filter><option value="">All types</option><option value="isolate">Isolate</option><option value="MAG">MAG · Metagenome-assembled</option><option value="SAG">SAG · Single-cell amplified</option><option value="unknown">Not cataloged</option></select></label>
     <label>Gene annotation<select data-genome-annotation-filter><option value="">All statuses</option><option value="Available">Available</option><option value="Missing">Missing</option></select></label>
   </div><fieldset class="genome-taxonomy-panel"><legend>Taxonomy</legend><div class="genome-taxonomy-fields">
     {''.join(f'<label>{rank.capitalize()}<select data-taxonomy-rank="{rank}"{" disabled" if rank != "phylum" else ""}><option value="">All</option></select></label>' for rank in TAXONOMY_RANKS)}
   </div></fieldset></form>
   <div class="genome-result-count" role="status"><span><span data-visible-count>{count:,}</span> genomes</span><span data-result-range></span></div>
-  <div class="genome-table-scroll"><table class="genome-directory-table"><thead><tr>
+  <div class="genome-table-scroll" tabindex="0" role="region" aria-label="Genome results"><table class="genome-directory-table"><thead><tr>
     <th aria-sort="ascending"><button type="button" data-sort="accession">Genome ID</button></th>
     <th>Genome source</th>
     <th aria-sort="none"><button type="button" data-sort="organism">Organism</button></th>
     <th>Taxonomy</th>
     <th aria-sort="none"><button type="button" data-sort="size">Assembly size</button></th>
-    <th aria-sort="none"><button type="button" data-sort="endpoints" title="Sort by experimental 3′-end records">Transcript 3′-end data</button></th>
+    {data_sort_header(data_sorts)}
     <th>Annotation</th>
   </tr></thead><tbody data-genome-results>{''.join(table_rows)}</tbody></table></div>
   <p class="search-empty" data-empty hidden>No matching genomes.</p></div>
@@ -472,8 +490,22 @@ def genome_content(
     source_context: dict[str, dict[str, str]] | None = None,
     publications: dict[str, dict[str, str]] | None = None,
     computational: list | None = None,
+    *, d1_metadata: bool = False,
 ) -> str:
     assembly = str(genome["assembly"])
+    if d1_metadata:
+        config = jbrowse_config or f"../api/assemblies/{quote(assembly)}/jbrowse-config"
+        return f'''<main class="page-shell genome-page" data-genome-page data-assembly="{esc(assembly)}" data-live-experimental>
+<p class="breadcrumbs"><a href="../genomes.html">Genomes</a><span>/</span><span>{esc(assembly)}</span></p>
+<section class="genome-title"><div><p class="eyebrow">Reference genome</p><h1 data-experimental-title>Loading genome…</h1><p class="assembly-id">{esc(assembly)}</p></div></section>
+{genome_summary(loading=True)}
+<section class="browser-panel" id="genome-browser" data-genome-browser style="--browser-frame-height:1050px">
+<div class="browser-panel-heading"><div class="browser-panel-title"><h2>Genome browser</h2>{browser_actions(f"../jbrowse/index.html?config={quote(config, safe='')}&bted_default=1")}</div></div>
+<p class="browser-share-status" data-browser-status role="status">Loading browser…</p><p class="browser-share-status" data-share-status role="status"></p><input class="browser-share-manual" data-share-manual readonly hidden aria-label="Share link">
+<iframe data-browser-frame data-config="{esc(config)}" title="{esc(assembly)} genome browser" loading="lazy" referrerpolicy="no-referrer"></iframe></section>
+<section class="genome-overview" data-experimental-overview aria-label="Genome overview"></section>
+<section class="genome-studies" id="genome-studies"><div class="section-heading"><h2>Studies</h2><div class="genome-download-actions"><button class="button" type="button" data-download-genome-package disabled>Download study ZIP</button><p class="package-status" data-package-status role="status"></p></div></div>
+<p data-study-load-status role="status" aria-live="polite">Loading study metadata…</p><button type="button" data-retry-studies hidden>Retry study metadata</button><div data-study-cards></div><div hidden data-study-package-files></div></section></main>'''
     rows: list[dict[str, str]] = genome["metadata_rows"]
     published = [row for row in rows if is_published_status(row.get("release_status"))]
     species = next((row.get("species", "") for row in rows if row.get("species")), "")
@@ -502,6 +534,7 @@ def genome_content(
     metadata_url = get_asset_url(asset_map, str(genome["metadata_path"]))
     samples = {s['source_id']: s for s in load_signals()[0]
                if s['genome_id'] == assembly and all(signal['path'].split('/', 1)[1] in asset_map for signal in s['signals'])}
+    derived_signals = json.loads((TAXONOMY_REGISTRY.parent / "s021-derived-signals.json").read_text(encoding="utf-8"))
     signal_sources = set(samples) | {
         row["source_id"] for row in published
         if _asset_exists(
@@ -516,14 +549,12 @@ def genome_content(
         publication = publications.get(pmid, {})
         title = publication.get("title") or next((row.get("title", "") for row in study_rows if row.get("title")), f"Study PMID {pmid}")
         paper_url = f'https://doi.org/{quote(publication["doi"], safe="/")}' if publication.get("doi", "").startswith("10.") else _publication_link(pmid)
-        paper_link = f'<a href="{esc(paper_url)}" target="_blank" rel="noopener">Read paper ↗</a>'
-        pubmed_link = f'<a href="{esc(_publication_link(pmid))}" target="_blank" rel="noopener">PubMed ↗</a>' if paper_url != _publication_link(pmid) else ''
         study_total = sum(int(row["record_count_number"]) for row in study_rows)
         common_fields = {}
         if len(study_rows) > 1:
             for label, values in (
-                ("Method", [row.get("assay", "") for row in study_rows]),
-                ("Strain", [source_context.get(row["source_id"], {}).get("sample_strain", "") for row in study_rows]),
+                ("3′-end assay", [_endpoint_assay(row, source_context) for row in study_rows]),
+                ("Sample strain", [source_context.get(row["source_id"], {}).get("sample_strain", "") for row in study_rows]),
             ):
                 if values[0] and len(set(values)) == 1:
                     common_fields[label] = values[0]
@@ -543,7 +574,7 @@ def genome_content(
             evidence = row.get("evidence_class", "")
             source_has_signal = source_id in signal_sources
             context = source_context.get(source_id, {})
-            context_fields = [("Method", row.get("assay")), ("Strain", context.get("sample_strain")), ("Genotype", context.get("genotype")), ("Conditions", context.get("conditions"))]
+            context_fields = [("3′-end assay", _endpoint_assay(row, source_context)), ("Sample strain", context.get("sample_strain")), ("Genotype", context.get("genotype")), ("Conditions", context.get("conditions")), ("Evidence", evidence_label(evidence))]
             replicate = context.get("replicate_label", "")
             if replicate:
                 context_fields.append(("Replicates", replicate + (f' ({context["replicate_type"]})' if context.get("replicate_type") else '')))
@@ -556,28 +587,26 @@ def genome_content(
             raw_link = f'<span class="source-raw">Raw data: {raw_data_links(raw_accessions)}</span>' if raw_accessions and not common_raw else ""
             caveat = SOURCE_PAGE_CAVEATS.get(source_id, "")
             caveat_html = f'<p class="source-caveat">{esc(caveat)}</p>' if caveat else ""
-            signal_html = '<span class="signal-present">Experimental signal</span>' if source_has_signal else ""
+            signal_html = '<p class="signal-present">BigWig signal available in the genome browser.</p>' if source_has_signal else ""
             if source_id in samples:
                 sample = samples[source_id]
-                signal_html = f'<span class="signal-present">{esc(sample["assay"])} · {esc(sample["sample_id"])}</span>'
+                signal_html = f'<div class="source-signal"><p>Displayed BigWig sample: {raw_data_links(sample["sample_id"])} · {esc(sample["assay"])}</p><p class="muted">{esc(sample["conditions"])}</p></div>'
                 if sample['sample_id'] == 'GSM2971249':
-                    signal_html += f'<span class="source-caveat">{esc(sample["coverage"])}</span>'
-            facts = f'<div><dt>Evidence</dt><dd>{esc(evidence_label(evidence))}</dd></div>'
+                    signal_html += f'<p class="source-caveat">Signal coverage: {esc(sample["coverage"])}</p>'
+            if derived_signals["genome_id"] == assembly and derived_signals["source_id"] == source_id:
+                signal_conditions = []
+                for condition in derived_signals["conditions"]:
+                    accessions = ";".join(sample["accession"] for sample in condition["samples"])
+                    signal_conditions.append(f'<div><p><strong>{esc(condition["label"])}</strong> · {raw_data_links(accessions)}</p><p class="muted">{esc(condition["conditions"])}</p></div>')
+                signal_html = f'<div class="source-signal"><p>Displayed BigWig conditions · {esc(derived_signals["conditions"][0]["assay"])}</p>' + ''.join(signal_conditions) + '</div>'
             source_heading = f'<div class="source-heading"><h4>Dataset {source_number}</h4><strong>{record_count:,} 3′-end records</strong></div>' if len(study_rows) > 1 else ''
             source_lines.append(f'''<div class="source-evidence" id="source-{esc(source_id)}" data-source-card="{esc(source_id)}">
   {source_heading}
   {context_html}{shared_note}
-  <p class="source-links">{raw_link}{signal_html}</p>
-  <details class="source-notes"><summary>Study notes</summary>{caveat_html}<dl>{facts}</dl></details>
+  {'<p class="source-links">' + raw_link + '</p>' if raw_link else ''}
+  {caveat_html}{signal_html}
 </div>''')
         supplementary: list[str] = []
-        for row in study_rows:
-            sample = samples.get(row['source_id'])
-            if sample:
-                for signal in sample['signals']:
-                    label = f"{sample['sample_id']} · {'+' if signal['strand'] == 'plus' else '−'} strand BigWig"
-                    url = get_asset_url(asset_map, signal['path'].split('/', 1)[1])
-                    supplementary.append(f'<a class="download-card" href="{site_href(url, 1)}">{esc(label)}</a>')
         seen_paths: set[str] = set()
         if gff3_path and gff3_url:
             seen_paths.add(gff3_path)
@@ -601,10 +630,10 @@ def genome_content(
         if not supplementary:
             downloads_html = ''
         else:
-            downloads_html = f'<div class="download-grid">{"".join(supplementary)}</div>'
+            downloads_html = f'<div hidden data-study-package-files>{"".join(supplementary)}</div>'
         source_cards.append(f'''<article class="study-card" id="study-{esc(pmid)}">
-  <header><div><p class="eyebrow">PMID {esc(pmid)}</p><h3><a href="{esc(paper_url)}" target="_blank" rel="noopener">{esc(title)}</a></h3><div class="study-links">{paper_link}{pubmed_link}</div></div><div class="study-count"><strong>{study_total:,}</strong><span>experimental 3′-end records</span></div></header>
-  {common_context}<div class="study-source-list">{''.join(source_lines)}</div>{study_raw}<div class="study-downloads">{downloads_html}</div>
+  <header><div><h3><a href="{esc(paper_url)}" target="_blank" rel="noopener">{esc(title)} ↗</a></h3><p class="study-citation">{_publication_citation(publication, pmid)}</p></div><div class="study-count" title="Source records for this genome; overlapping coordinates are not deduplicated."><strong>{study_total:,}</strong><span>experimental 3′-end records</span></div></header>
+  {common_context}<div class="study-source-list">{''.join(source_lines)}</div>{study_raw}{downloads_html}
 </article>''')
 
     all_source_rows = rows
@@ -613,7 +642,7 @@ def genome_content(
         publication = publications.get(pmid, {})
         title = publication.get("title") or next((row.get("title", "") for row in audit_rows if row.get("title")), f"Study PMID {pmid}")
         paper_url = f'https://doi.org/{quote(publication["doi"], safe="/")}' if publication.get("doi", "").startswith("10.") else _publication_link(pmid)
-        unpublished_cards.append(f'''<article class="study-card audit-card"><header><div><p class="eyebrow">PMID {esc(pmid)}</p><h3><a href="{esc(paper_url)}" target="_blank" rel="noopener">{esc(title)}</a></h3><div class="study-links"><a href="{esc(paper_url)}" target="_blank" rel="noopener">Read paper ↗</a></div></div><span class="badge badge-review">Metadata only</span></header></article>''')
+        unpublished_cards.append(f'''<article class="study-card audit-card"><header><div><h3><a href="{esc(paper_url)}" target="_blank" rel="noopener">{esc(title)} ↗</a></h3><p class="study-citation">{_publication_citation(publication, pmid)}</p></div><span class="badge badge-review">Metadata only</span></header></article>''')
 
     if jbrowse_config:
         frame_height = min(1050, 600 + 170 * len(published) + 190 * len(signal_sources))
@@ -626,24 +655,15 @@ def genome_content(
     else:
         browser_html = '<section class="browser-panel browser-unavailable"><h2>Genome browser unavailable</h2></section>'
 
-    metadata_link = f'<a class="button" data-package-file data-zip-path="{esc(assembly)}/metadata.tsv" href="{site_href(str(metadata_url), 1)}" title="Study sources, reference accessions, evidence and limitations (TSV)">Source metadata</a>'
+    metadata_link = f'<a hidden data-package-file data-zip-path="{esc(assembly)}/metadata.tsv" href="{site_href(str(metadata_url), 1)}">Source metadata</a>'
     zip_button = '<button class="button" type="button" data-download-genome-package title="Available experimental study files and source metadata for this genome">Download study ZIP</button>' if total_records else ''
     study_actions = f'<div class="genome-download-actions">{zip_button}{metadata_link}<p class="package-status" data-package-status role="status" aria-live="polite"></p></div>'
-    prediction_downloads = ''
-    if prediction:
-        links = []
-        for path, asset in prediction_assets({}).items():
-            if path.startswith(f'genomes/experimental-only/{assembly}/predictions/') and asset['asset_kind'] in ('bed', 'gff3'):
-                label = 'BED' if asset['asset_kind'] == 'bed' else 'GFF3'
-                links.append(f'<a class="button" href="{esc(asset["url"])}">{label}</a>')
-        prediction_downloads = '<section class="genome-downloads"><h2>Predicted regions</h2><div class="genome-download-actions">' + ''.join(links) + '</div></section>'
     content = f'''<main class="page-shell genome-page" data-genome-page data-assembly="{esc(assembly)}">
 <p class="breadcrumbs"><a href="../genomes.html">Genomes</a><span aria-hidden="true">/</span><span>{esc(assembly)}</span></p>
 <section class="genome-title"><div><p class="eyebrow">Reference genome</p><h1>{esc(species or assembly)}</h1><p class="assembly-id">{esc(assembly)}</p></div></section>
 {genome_summary(total_records if published else None, len(studies), computational, prediction_count=prediction["prediction_count"] if prediction else None)}
 {browser_html}
 {overview}
-{prediction_downloads}
 <section class="genome-studies" id="genome-studies"><div class="section-heading"><div><h2>Studies</h2></div>{study_actions}</div>{''.join(source_cards)}{''.join(unpublished_cards)}</section>
 </main>'''
     return content
@@ -666,19 +686,22 @@ def build_site(
     track_ids: dict[str, str],
     taxonomy_path: Path = TAXONOMY_REGISTRY,
     computational_genomes=(),
+    *, d1_metadata: bool = False,
 ) -> dict[str, object]:
     release, files = read_release(release_root)
     genomes = load_genomes(release_root, release, files)
     taxonomy = load_genome_taxonomy(taxonomy_path, genomes)
     source_context = {row["source_id"]: row for row in read_tsv(TAXONOMY_REGISTRY.parent / "source_context.tsv", ("source_id",))}
-    publications = {row["pmid"]: row for row in read_tsv(TAXONOMY_REGISTRY.parent / "publications.tsv", ("pmid", "title", "doi"))}
+    publications = {row["pmid"]: row for row in read_tsv(TAXONOMY_REGISTRY.parent / "study_citations.v0.4.0.tsv", ("pmid", "authors", "journal", "year"))}
+    for row in read_tsv(TAXONOMY_REGISTRY.parent / "publications.tsv", ("pmid", "title", "doi")):
+        publications.setdefault(row["pmid"], {}).update(row)
     computational_index = {row[0]: row for row in computational_genomes}
     for relative in files:
         if relative not in asset_map:
             raise SiteBuildError(f"Published release file is missing from the browser allowlist: {relative}")
 
     site_root.mkdir(parents=True, exist_ok=True)
-    _write(site_root / "index.html", page("Home", home_content(genomes, computational_genomes), current="home", scripts=("assets/home.js",)))
+    _write(site_root / "index.html", page("Home", home_content(genomes, computational_genomes, d1_metadata=d1_metadata), current="home", scripts=("assets/home.js",)))
     _write(site_root / "genomes.html", page("Genomes", index_content(genomes, asset_map, taxonomy), current="genomes", scripts=("assets/genome-index.js",)))
     genome_files = 0
     for genome in genomes:
@@ -688,9 +711,9 @@ def build_site(
             site_root / "genomes" / f"{assembly}.html",
             page(
                 f"{next((row.get('species', '') for row in genome['metadata_rows'] if row.get('species')), assembly)} · {assembly}",
-                genome_content(genome, asset_map, track_ids, config, taxonomy[assembly], source_context, publications, computational_index.get(assembly)),
+                genome_content(genome, asset_map, track_ids, config, taxonomy[assembly], source_context, publications, computational_index.get(assembly), d1_metadata=d1_metadata),
                 current="genomes",
-                scripts=("../assets/genome-page.js",),
+                scripts=(("../assets/study-metadata.js", "../assets/study-download.js", "../assets/genome-page.js") if d1_metadata else ("../assets/study-download.js", "../assets/genome-page.js")),
                 depth=1,
             ),
         )
@@ -737,9 +760,9 @@ location.replace(target.href);
     methodology = '''<main class="page-shell notes-page"><p class="breadcrumbs"><a href="index.html">Home</a><span aria-hidden="true">/</span><span>Data notes</span></p><div class="page-heading"><div><h1>Data notes</h1></div></div>
 <div class="notes-layout"><nav class="notes-nav" aria-label="On this page"><span class="eyebrow">Contents</span><a href="#organization">Data</a><a href="#evidence">Evidence and coordinates</a><a href="#files">File formats</a><a href="#browser-guide">Genome browser</a></nav><div class="notes-content">
 <section id="organization"><h2>Data</h2><p>BTED contains experimental transcript 3′ ends, BATTER predictions and training regions.</p></section>
-<section id="evidence"><h2>Evidence and coordinates</h2><p class="evidence-callout">A transcript 3′ end alone does not establish transcription termination.</p><dl class="evidence-guide"><div><dt>Experimental 3′-end records</dt><dd>Study-reported 3′ ends. Records from different studies are counted separately.</dd></div><div><dt>Predicted regions</dt><dd>BATTER predictions with interval coordinates.</dd></div><div><dt>Augmentation / Rfam regions</dt><dd>OTU augmentation and Rfam training regions. Counts exclude context windows.</dd></div></dl><p><strong>Genome ID</strong>: original genome identifier. <strong>GEM OTU</strong>: species-level cluster. <strong>Genome source</strong>: database or study. <strong>Sequence source</strong>: reference FASTA source.</p><p>Predictions use the corresponding reference assembly or OTU representative genome.</p><p>GFF3 coordinates are 1-based and inclusive. Tracks with different reference sequences use separate views.</p><p>Track counts cover the whole contig and both strands. Green: + strand. Red: − strand. Bars show regions; hollow flags mark 3′ boundaries. Solid flags mark experimental 3′ ends.</p></section>
-<section id="files"><h2>File formats</h2><div class="notes-table-scroll"><table class="notes-table"><thead><tr><th scope="col">File</th><th scope="col">Contents</th></tr></thead><tbody><tr><th scope="row"><code>metadata.tsv</code></th><td>Study, reference and evidence.</td></tr><tr><th scope="row"><code>endpoints.gff3.gz</code></th><td>Experimental 3′-end coordinates.</td></tr><tr><th scope="row">Supplementary TSV</th><td>Gene associations or condition observations.</td></tr><tr><th scope="row">Genome ZIP</th><td>Study files and metadata.</td></tr><tr><th scope="row">GFF3</th><td>Prediction, augmentation or gene annotation.</td></tr><tr><th scope="row">FASTA</th><td>Reference sequence.</td></tr><tr><th scope="row">BigWig</th><td>Experimental signal.</td></tr></tbody></table></div></section>
-<section id="browser-guide"><h2>Genome browser</h2><p><strong>Share view</strong>: copy the current view link. <strong>Open full browser</strong>: open JBrowse.</p><a class="button primary" href="genomes.html">Browse genomes <span aria-hidden="true">→</span></a></section>
+<section id="evidence"><h2>Evidence and coordinates</h2><p class="evidence-callout">RNA 3′ ends can reflect transcription termination or RNA processing. <a href="https://doi.org/10.1186/s40168-026-02454-1">BATTER study ↗</a></p><dl class="evidence-guide"><div><dt>Experimental 3′-end records</dt><dd>Study-reported 3′ ends. Records from different studies are counted separately.</dd></div><div><dt>Predicted regions</dt><dd>BATTER predictions with interval coordinates.</dd></div><div><dt>Augmentation / Rfam regions</dt><dd>OTU augmentation and Rfam training regions. Counts exclude context windows.</dd></div></dl><p><strong>Genome ID</strong>: original genome identifier. <strong>GEM OTU</strong>: species-level cluster. <strong>Genome source</strong>: database or study. <strong>Sequence source</strong>: reference FASTA source.</p><p>Predictions use the corresponding reference assembly or OTU representative genome.</p><p>GFF3 coordinates are 1-based and inclusive. Tracks with different reference sequences use separate views.</p><p>Track counts cover the whole contig and both strands. Green: + strand. Red: − strand. Bars show regions; hollow flags mark their strand-oriented 3′ boundaries. Solid flags mark experimental 3′ ends.</p></section>
+<section id="files"><h2>File formats</h2><div class="notes-table-scroll"><table class="notes-table"><thead><tr><th scope="col">File</th><th scope="col">Contents</th></tr></thead><tbody><tr><th scope="row"><code>metadata.tsv</code></th><td>Study, reference and evidence.</td></tr><tr><th scope="row"><code>endpoints.gff3.gz</code></th><td>Experimental 3′-end coordinates.</td></tr><tr><th scope="row">Supplementary TSV</th><td>Gene associations or condition observations.</td></tr><tr><th scope="row">Genome ZIP</th><td>Study files and metadata.</td></tr><tr><th scope="row">GFF3</th><td>Prediction, augmentation or gene annotation.</td></tr><tr><th scope="row">FASTA</th><td>Reference sequence.</td></tr><tr><th scope="row">BigWig</th><td>Sequencing signal for the labeled sample or condition.</td></tr></tbody></table></div></section>
+<section id="browser-guide"><h2>Genome browser</h2><p><strong>Share view</strong> copies the current location and public tracks. <strong>Open full browser</strong> opens JBrowse.</p><p>BigWig tracks scale to the visible window. Different tracks scale independently; compare their numeric values rather than peak heights.</p><a class="button primary" href="genomes.html">Browse genomes <span aria-hidden="true">→</span></a></section>
 </div></div></main>'''
     _write(site_root / "methodology.html", page("Data notes", methodology, current="notes"))
     usage = '''<main class="page-shell usage-page">

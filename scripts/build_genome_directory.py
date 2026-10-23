@@ -122,10 +122,12 @@ def build(site, output):
                          [('source', 'genomeSource'), ('genome_type', 'genomeType'), ('annotation', 'genomeAnnotation'), ('phylum', 'taxonomyPhylum')]}
     from experimental_predictions import load_predictions
     summary['experimental_predictions'] = {g: r['prediction_count'] for g, r in load_predictions()['genomes'].items()}
+    summary['feature_totals'] = {field: sum(int(row['dataset'][key]) for row in rows)
+                                for field, key in [('predictions', 'sortPredictions'), ('training', 'sortTraining')]}
     summary['counts']['dataset'] = {field: sum(int(r['dataset'][key]) > 0 for r in rows) for field, key in
                                    [('experimental', 'sortEndpoints'), ('prediction', 'sortPredictions'), ('augmentation', 'sortTraining')]}
     output.mkdir(parents=True, exist_ok=True)
-    schema = (ROOT / 'prototype/accession-range/migrations/0005_genome_directory.sql').read_text(encoding='utf-8')
+    schema = (ROOT / 'database/migrations/0005_genome_directory.sql').read_text(encoding='utf-8')
     sql_value = lambda value: 'NULL' if value is None else "'" + str(value).replace("'", "''") + "'"
     initial = schema + '\nINSERT OR IGNORE INTO hf_directory_releases VALUES (' + ','.join(map(sql_value, [version, revision, annotation, compact(summary), 'loading'])) + ');\n'
     (output / '000-schema.sql').write_text(initial, encoding='utf-8')

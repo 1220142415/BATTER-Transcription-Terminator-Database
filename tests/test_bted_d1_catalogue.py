@@ -81,7 +81,7 @@ class BtedD1CatalogueGeneratorTests(unittest.TestCase):
             "source_note": "test",
             "decision_note": "test",
             "known_limitations": "none",
-            "metadata_json": {"title": "Author's 3′ ends", "article_license": "CC BY 4.0", "future_field": "新增字段", "empty": ""},
+            "metadata_json": {"title": "Author's 3′ ends", "article_license": "CC BY 4.0", "future_field": "\u65b0\u589e\u5b57\u6bb5", "empty": ""},
         }])
         write_jsonl(root / "source_accessions.jsonl", [{
             "source_id_ref": "BATTER_S1_TEST",
@@ -189,7 +189,7 @@ class BtedD1CatalogueGeneratorTests(unittest.TestCase):
                 for path in sorted(output.glob("[0-9]*.sql")):
                     database.executescript(path.read_text(encoding="utf-8"))
                 metadata = json.loads(database.execute("SELECT metadata_json FROM sources").fetchone()[0])
-                self.assertEqual(metadata, {"title": "Author's 3′ ends", "article_license": "CC BY 4.0", "future_field": "新增字段", "empty": ""})
+                self.assertEqual(metadata, {"title": "Author's 3′ ends", "article_license": "CC BY 4.0", "future_field": "\u65b0\u589e\u5b57\u6bb5", "empty": ""})
                 self.assertEqual(database.execute("PRAGMA foreign_key_check").fetchall(), [])
 
     def test_static_source_tracks_keep_license_gate_without_bed_assets(self):

@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import test from 'node:test';
 
-const source = readFileSync(new URL('../prototype/accession-range/src/worker.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../worker/src/worker.js', import.meta.url), 'utf8');
 const { default: worker } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 const fixture = fileURLToPath(new URL('./genome_directory_sqlite.py', import.meta.url));
 import { fileURLToPath } from 'node:url';

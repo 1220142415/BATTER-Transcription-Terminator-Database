@@ -248,7 +248,7 @@ function signalValue(feature) {
 export function paintMirroredSignal(ctx, features, region, bpPerPx, width, height = MIRROR_HEIGHT, scaleMax, scaleType = 'linear') {
   const baseline = height / 2;
   const observed = [...features].filter((feature) => ['plus', 'minus'].includes(feature.get('source')));
-  if (!Number.isFinite(scaleMax) || scaleMax <= 0) throw new Error('Global signal scale is unavailable');
+  if (!Number.isFinite(scaleMax) || scaleMax <= 0) throw new Error('Visible-window signal scale is unavailable');
   const maximum = scaleMax;
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = '#f8fbfa';
@@ -606,7 +606,8 @@ export default class BTEDTrackPlugin {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (!ctx) throw new Error('BTED mirrored signal needs a 2D canvas');
-        const sharedMax = Math.max(1, args.scaleOpts?.stats?.scoreMax);
+        const scoreMax = args.scaleOpts?.stats?.scoreMax;
+        const sharedMax = scoreMax === 0 ? 1 : scoreMax;
         const visibleMax = paintMirroredSignal(ctx, features.values(), region, args.bpPerPx, width, height, sharedMax, args.scaleOpts?.scaleType);
         return { features, width, height, visibleMax, signalScale: args.scaleOpts?.scaleType, pixelData: ctx.getImageData(0, 0, width, height).data };
       }
@@ -676,7 +677,7 @@ export default class BTEDTrackPlugin {
         const originalMenu = self.trackMenuItems;
         return { views: {
           get autoscaleType() {
-            return isMirrored(self) ? 'global' : self.autoscale ?? getConf(self, 'autoscale');
+            return isMirrored(self) ? 'local' : self.autoscale ?? getConf(self, 'autoscale');
           },
           get rendererTypeName() {
             return isMirrored(self) ? MIRROR_RENDERER : native[self.rendererTypeNameSimple] || 'MultiXYPlotRenderer';
@@ -691,8 +692,8 @@ export default class BTEDTrackPlugin {
                   child.label === 'Scale type' ? { ...child, subMenu: child.subMenu.map(option => ({
                     ...option, label: option.label === 'Log scale' ? 'Log (1 + value)' : 'Linear',
                   })) } : {
-                    ...child, label: 'Scale to', subMenu: child.subMenu.filter(option => option.label === 'Global')
-                      .map(option => ({ ...option, label: 'Whole track' })),
+                    ...child, label: 'Scale to', subMenu: child.subMenu.filter(option => option.label === 'Local')
+                      .map(option => ({ ...option, label: 'Visible window' })),
                   }) } : item));
           },
         } };

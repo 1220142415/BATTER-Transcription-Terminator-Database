@@ -26,8 +26,8 @@ class SignalTests(unittest.TestCase):
             new = config['tracks'][1]
             self.assertEqual(new['metadata']['btedAbout']['sample_id'], sample['sample_id'])
             self.assertEqual(new['name'], f"PMID {sample['pmid']} · {sample['assay']} · {sample['conditions'].split(';')[0].strip()} · {sample['sample_id']}")
-            self.assertEqual(new['displays'][0]['autoscale'], 'global')
-            self.assertEqual(new['displays'][0]['scaleType'], 'log')
+            self.assertEqual(new['displays'][0]['scaleType'], 'linear')
+            self.assertEqual(new['displays'][0]['autoscale'], 'local')
             self.assertEqual(config['tracks'][0], endpoint)
             self.assertIn(legacy, config['tracks'])  # Preserve distinct existing coverage.
             visible = [t['configuration'] for t in config['defaultSession']['views'][0]['tracks']]

@@ -1,9 +1,9 @@
 PRAGMA foreign_keys = ON;
 
--- Cloudflare D1 preview projection of the verified canonical release.
+-- Cloudflare D1 experimental-data schema.
 -- Source annotations and gene rows remain outside D1: they are served as
 -- registered HF/metadata assets and the current catalogue UI does not query
--- gene records. This is not a PostgreSQL promotion or a new data release.
+-- gene records. Apply numbered migrations after this base schema as documented.
 
 CREATE TABLE IF NOT EXISTS release_versions (
   release_version TEXT PRIMARY KEY,

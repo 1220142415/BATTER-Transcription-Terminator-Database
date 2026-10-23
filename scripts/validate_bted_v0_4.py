@@ -702,7 +702,7 @@ def validate_release(root: Path = ROOT, *, release_dir: Path | None = None) -> d
         _fail("Internal Cascino selection/exclusion decision counts are incorrect")
     audit_docs = {item["original_path"]: item.get("utf8_text", "") for item in decision.get("audit_documents", [])}
     exclusion_text = audit_docs.get("data/external_source_draft/cascino_exclusion_report.txt", "")
-    if "最高置信度 1061" not in exclusion_text or "次级置信度 196" not in exclusion_text:
+    if "\u6700\u9ad8\u7f6e\u4fe1\u5ea6 1061" not in exclusion_text or "\u6b21\u7ea7\u7f6e\u4fe1\u5ea6 196" not in exclusion_text:
         _fail("Internal provenance does not preserve the Cascino exclusion count evidence")
     if decision.get("excluded_sources_are_not_public") is not True:
         _fail("Internal Cascino decision does not state that the 196 secondary rows are excluded")

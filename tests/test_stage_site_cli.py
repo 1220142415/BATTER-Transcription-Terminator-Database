@@ -3,6 +3,7 @@ import io
 import os
 import sys
 import unittest
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -11,6 +12,29 @@ import stage_site
 
 
 class StageSiteCliTests(unittest.TestCase):
+    def test_sequence_patch_updates_dialog_menu_and_cached_runtime(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            js = root / "static/js"
+            js.mkdir(parents=True)
+            (root / "index.html").write_text('<script src="static/js/main.12345678.js"></script>', encoding="utf-8")
+            (js / "main.12345678.js").write_text('8948:"1785b730",1578:"93965b43"', encoding="utf-8")
+            (js / "8948.1785b730.chunk.js").write_text('hasCDS:d,hasExonOrCDS:u', encoding="utf-8")
+            (js / "1578.93965b43.chunk.js").write_text(
+                'y=t.view?.assemblyNames?.[0],{sequence:k,error:R}=fetch({feature:new g.A(l),upDownBp:w,forceLoad:S})', encoding="utf-8")
+            stage_site.patch_sequence_details(js)
+            self.assertEqual((js / "8948.bted-sequence-v1.chunk.js").read_text(), 'hasCDS:d,hasExon:u')
+            dialog = (js / "1578.bted-sequence-v1.chunk.js").read_text()
+            self.assertIn('useMemo)(()=>new g.A(l),[l])', dialog)
+            self.assertIn('feature:btedFeature', dialog)
+            runtime = (js / "main.bted-sequence-v1.js").read_text()
+            self.assertIn('8948:"bted-sequence-v1",1578:"bted-sequence-v1"', runtime)
+            self.assertIn('main.bted-sequence-v1.js', (root / "index.html").read_text())
+            self.assertFalse((js / "main.12345678.js").exists())
+            (js / "8948.1785b730.chunk.js").write_text('changed upstream code')
+            with self.assertRaisesRegex(stage_site.StageError, "sequence patch no longer matches"):
+                stage_site.patch_sequence_details(js)
+
     def test_build_failure_is_actionable_locally_and_in_github(self):
         for github, expected in (("", "FAIL  missing package 100%\ncheck path"),
                                  ("true", "::error::missing package 100%25%0Acheck path")):

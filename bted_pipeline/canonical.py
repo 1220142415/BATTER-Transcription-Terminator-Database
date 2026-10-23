@@ -222,7 +222,7 @@ class CanonicalReleaseValidator:
                 fields = list(reader.fieldnames or [])
                 rows = list(reader)
         except (OSError, UnicodeError, csv.Error) as exc:
-            self._issue(f"无法读取 TSV: {exc}", source_id, path, 1)
+            self._issue(f"Cannot read TSV: {exc}", source_id, path, 1)
             return [], []
         return fields, rows
 
@@ -247,7 +247,7 @@ class CanonicalReleaseValidator:
     def _load_registry(self) -> None:
         path = self.repo_root / "data/registry/batter_s1_source_registry.tsv"
         if not path.is_file():
-            self._issue("缺少来源 registry", path=path, line=1)
+            self._issue("Missing source registry", path=path, line=1)
             return
         fields, rows = self._read_tsv(path)
         required = {
@@ -261,50 +261,50 @@ class CanonicalReleaseValidator:
         }
         missing = sorted(required - set(fields))
         if missing:
-            self._issue(f"registry 缺少字段: {', '.join(missing)}", path=path, line=1)
+            self._issue(f"Registry missing fields: {', '.join(missing)}", path=path, line=1)
         for number, row in enumerate(rows, start=2):
             source_id = row.get("source_id", "")
             if not SOURCE_ID_RE.fullmatch(source_id):
-                self._issue("registry source_id 格式错误", source_id or None, path, number)
+                self._issue("Invalid registry source_id", source_id or None, path, number)
             if source_id in self._registry_by_source:
-                self._issue("registry source_id 重复", source_id, path, number)
+                self._issue("Duplicate registry source_id", source_id, path, number)
             self._registry_by_source[source_id] = row
 
     def _load_release(self) -> bool:
         path = self.release_root / "release_manifest.json"
         if not path.is_file():
-            self._issue("缺少 release manifest", path=path, line=1)
+            self._issue("Missing release manifest", path=path, line=1)
             return False
         try:
             self._release = _json(path)
         except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
-            self._issue(f"release manifest 无法解析: {exc}", path=path, line=1)
+            self._issue(f"Cannot parse release manifest: {exc}", path=path, line=1)
             return False
         self.checksums[self._display(path)] = sha256_file(path)
         release_version = str(self._release.get("release_version", ""))
         if not release_version:
-            self._issue("release_version 缺失", path=path, line=1)
+            self._issue("Missing release_version", path=path, line=1)
         elif not RELEASE_VERSION_RE.fullmatch(release_version):
             self._issue(
-                "release_version 必须符合 vMAJOR.MINOR.PATCH",
+                "release_version must match vMAJOR.MINOR.PATCH",
                 path=path,
                 line=1,
             )
         sources = self._release.get("sources")
         if not isinstance(sources, dict) or not sources:
-            self._issue("release manifest 的 sources 必须为非空对象", path=path, line=1)
+            self._issue("Release manifest sources must be a nonempty object", path=path, line=1)
             return False
         return True
 
     def _load_registry_manifest(self, source_id: str) -> dict[str, Any] | None:
         path = self.repo_root / "data/registry/manifests" / f"{source_id}.json"
         if not path.is_file():
-            self._issue("缺少 registry audit manifest", source_id, path, 1)
+            self._issue("Missing registry audit manifest", source_id, path, 1)
             return None
         try:
             value = _json(path)
         except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
-            self._issue(f"registry audit manifest 无法解析: {exc}", source_id, path, 1)
+            self._issue(f"Cannot parse registry audit manifest: {exc}", source_id, path, 1)
             return None
         self.checksums[self._display(path)] = sha256_file(path)
         self._registry_manifests[source_id] = value
@@ -327,18 +327,18 @@ class CanonicalReleaseValidator:
         path = resolved.get("manifest.json", record_root / "manifest.json")
         if "manifest.json" not in resolved:
             self._issue(
-                "release entry 必须声明 canonical manifest.json",
+                "Release entry must declare canonical manifest.json",
                 source_id,
                 path,
                 1,
             )
         if not path.is_file():
-            self._issue("缺少 canonical record manifest.json", source_id, path, 1)
+            self._issue("Missing canonical record manifest.json", source_id, path, 1)
             return None, path
         try:
             value = _json(path)
         except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
-            self._issue(f"canonical record manifest 无法解析: {exc}", source_id, path, 1)
+            self._issue(f"Cannot parse canonical record manifest: {exc}", source_id, path, 1)
             return None, path
         self._source_manifests[source_id] = value
         return value, path
@@ -354,7 +354,7 @@ class CanonicalReleaseValidator:
         if source_manifest is None:
             return
         if source_manifest.get("source_id") != source_id:
-            self._issue("来源 manifest source_id 不一致", source_id, path, 1)
+            self._issue("Source manifest source_id mismatch", source_id, path, 1)
         identity_keys = (
             "pmid",
             "doi",
@@ -368,14 +368,14 @@ class CanonicalReleaseValidator:
             actual = str(source_manifest.get(key, ""))
             if not actual.strip():
                 self._issue(
-                    f"来源 manifest 缺少必需身份字段: {key}",
+                    f"Source manifest missing required identity field: {key}",
                     source_id,
                     path,
                     1,
                 )
             if expected and actual != expected:
                 self._issue(
-                    f"来源 manifest {key} 与 registry 不一致: {actual!r} != {expected!r}",
+                    f"Source manifest {key} differs from registry: {actual!r} != {expected!r}",
                     source_id,
                     path,
                     1,
@@ -384,14 +384,14 @@ class CanonicalReleaseValidator:
         manifest_version = str(source_manifest.get("release_version", ""))
         if not manifest_version:
             self._issue(
-                "来源 manifest 缺少必需身份字段: release_version",
+                "Source manifest missing required identity field: release_version",
                 source_id,
                 path,
                 1,
             )
         elif manifest_version != release_version:
             self._issue(
-                f"来源 manifest release_version 与根 release 不一致: {manifest_version!r} != {release_version!r}",
+                f"Source manifest release_version differs from root release: {manifest_version!r} != {release_version!r}",
                 source_id,
                 path,
                 1,
@@ -401,7 +401,7 @@ class CanonicalReleaseValidator:
             for key in ("release_status", "record_count", "evidence_class"):
                 if key in release_info and str(release_info[key]) != str(entry.get(key)):
                     self._issue(
-                        f"来源 manifest repository_release.{key} 与 release manifest 不一致",
+                        f"Source manifest repository_release.{key} differs from release manifest",
                         source_id,
                         path,
                         1,
@@ -409,7 +409,7 @@ class CanonicalReleaseValidator:
         for key in ("release_status", "record_count", "evidence_class"):
             if key in source_manifest and str(source_manifest[key]) != str(entry.get(key)):
                 self._issue(
-                    f"来源 manifest {key} 与 release manifest 不一致",
+                    f"Source manifest {key} differs from release manifest",
                     source_id,
                     path,
                     1,
@@ -418,7 +418,7 @@ class CanonicalReleaseValidator:
             source_manifest["source_annotations_status"]
         ) != str(entry.get("source_annotations_status", "")):
             self._issue(
-                "来源 manifest source_annotations_status 与 release manifest 不一致",
+                "Source manifest source_annotations_status differs from release manifest",
                 source_id,
                 path,
                 1,
@@ -446,7 +446,7 @@ class CanonicalReleaseValidator:
         ):
             if key in registry_manifest and str(registry_manifest.get(key)) != str(canonical.get(key, "")):
                 self._issue(
-                    f"registry audit manifest {key} 与 canonical manifest 不一致",
+                    f"registry audit manifest {key} differs from canonical manifest",
                     source_id,
                     path,
                     1,
@@ -463,7 +463,7 @@ class CanonicalReleaseValidator:
         expected_root = (self.release_root / "records" / source_id).resolve()
         if record_root != expected_root:
             self._issue(
-                "record_root 必须指向 release records/<source_id>，不能把 registry 或外部目录当作 canonical source",
+                "record_root must point to release records/<source_id>, not a registry or external directory",
                 source_id,
                 record_root,
                 1,
@@ -472,19 +472,19 @@ class CanonicalReleaseValidator:
         expected_sha256: dict[str, str] = {}
         files = entry.get("files", [])
         if not isinstance(files, list):
-            self._issue("release manifest files 必须为数组", source_id, self.release_root / "release_manifest.json", 1)
+            self._issue("release manifest files must be an array", source_id, self.release_root / "release_manifest.json", 1)
             return resolved
         for item in files:
             if not isinstance(item, dict) or not item.get("path"):
-                self._issue("release manifest 中存在无效文件项", source_id, self.release_root / "release_manifest.json", 1)
+                self._issue("release manifest contains an invalid file entry", source_id, self.release_root / "release_manifest.json", 1)
                 continue
             relative = str(item["path"])
             relative_path = Path(relative)
             if relative_path.is_absolute() or ".." in relative_path.parts:
-                self._issue("release manifest 文件路径必须位于 record_root 内", source_id, self.release_root / "release_manifest.json", 1)
+                self._issue("release manifest file path must be within record_root", source_id, self.release_root / "release_manifest.json", 1)
                 continue
             if relative in resolved:
-                self._issue("release manifest 文件路径重复", source_id, self.release_root / "release_manifest.json", 1)
+                self._issue("release manifest duplicate file path", source_id, self.release_root / "release_manifest.json", 1)
                 continue
             path = record_root / relative_path
             resolved[relative] = path
@@ -492,19 +492,19 @@ class CanonicalReleaseValidator:
             try:
                 path.resolve().relative_to(record_root)
             except ValueError:
-                self._issue("release manifest 文件不能通过 symlink 越出 record_root", source_id, path, 1)
+                self._issue("release manifest file symlink must not escape record_root", source_id, path, 1)
                 continue
             if not path.is_file():
-                self._issue(f"release manifest 声明的文件不存在: {relative}", source_id, path, 1)
+                self._issue(f"release manifest declared file does not exist: {relative}", source_id, path, 1)
                 continue
             actual = sha256_file(path)
             self.checksums[f"{source_id}/{relative}"] = actual
             expected = expected_sha256[relative]
             if not SHA256_RE.fullmatch(expected):
-                self._issue("声明文件缺少有效 64 位 SHA-256", source_id, path, 1)
+                self._issue("Declared file lacks a valid 64-character SHA-256", source_id, path, 1)
             elif actual != expected:
                 self._issue(
-                    f"SHA-256 不匹配: expected={expected}, actual={actual}",
+                    f"SHA-256 does not match: expected={expected}, actual={actual}",
                     source_id,
                     path,
                     1,
@@ -520,7 +520,7 @@ class CanonicalReleaseValidator:
         for required_name in sorted(required):
             if required_name not in resolved:
                 self._issue(
-                    f"release entry 未声明必要文件: {required_name}",
+                    f"release entry missing required file declaration: {required_name}",
                     source_id,
                     self.release_root / "release_manifest.json",
                     1,
@@ -607,7 +607,7 @@ class CanonicalReleaseValidator:
         try:
             lines = checksum_path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeError) as exc:
-            self._issue(f"SHA256SUMS.txt 无法读取: {exc}", source_id, checksum_path, 1)
+            self._issue(f"SHA256SUMS.txt cannot read: {exc}", source_id, checksum_path, 1)
             return set()
         for number, raw_line in enumerate(lines, start=1):
             line = raw_line.strip()
@@ -615,18 +615,18 @@ class CanonicalReleaseValidator:
                 continue
             parts = line.split(None, 1)
             if len(parts) != 2 or not SHA256_RE.fullmatch(parts[0]):
-                self._issue("SHA256SUMS.txt 行格式错误", source_id, checksum_path, number)
+                self._issue("SHA256SUMS.txt invalid row format", source_id, checksum_path, number)
                 continue
             digest, relative = parts
             if relative in entries:
-                self._issue("SHA256SUMS.txt 文件名重复", source_id, checksum_path, number)
+                self._issue("SHA256SUMS.txt duplicate filename", source_id, checksum_path, number)
             entries[relative] = digest
         declared_names = set(resolved)
         verified: set[str] = set()
         for relative, digest in entries.items():
             if relative not in declared_names:
                 self._issue(
-                    f"SHA256SUMS.txt 条目未在 release manifest 声明: {relative}",
+                    f"SHA256SUMS.txt entry not declared in release manifest: {relative}",
                     source_id,
                     checksum_path,
                     line=1,
@@ -638,7 +638,7 @@ class CanonicalReleaseValidator:
             actual = sha256_file(path)
             if actual != digest:
                 self._issue(
-                    f"SHA256SUMS 与实际文件不一致: {relative}",
+                    f"SHA256SUMS differs from file content: {relative}",
                     source_id,
                     path,
                     1,
@@ -646,7 +646,7 @@ class CanonicalReleaseValidator:
                 continue
             if expected_sha256.get(relative) != digest:
                 self._issue(
-                    f"SHA256SUMS 与 release manifest 声明不一致: {relative}",
+                    f"SHA256SUMS differs from release manifest declaration: {relative}",
                     source_id,
                     path,
                     1,
@@ -656,7 +656,7 @@ class CanonicalReleaseValidator:
         for relative in sorted(declared_names - {"SHA256SUMS.txt"}):
             if relative not in entries:
                 self._issue(
-                    f"release 文件未出现在 SHA256SUMS.txt: {relative}",
+                    f"Release file missing from SHA256SUMS.txt: {relative}",
                     source_id,
                     checksum_path,
                     1,
@@ -671,17 +671,17 @@ class CanonicalReleaseValidator:
         rows: list[dict[str, str]],
     ) -> None:
         if not bed_path.is_file():
-            self._issue("缺少 endpoints.bed", source_id, bed_path, 1)
+            self._issue("Missing endpoints.bed", source_id, bed_path, 1)
             return
         try:
             with bed_path.open(encoding="utf-8") as handle:
                 bed_rows = [line.rstrip("\n\r").split("\t") for line in handle if line.strip()]
         except (OSError, UnicodeError) as exc:
-            self._issue(f"BED 无法读取: {exc}", source_id, bed_path, 1)
+            self._issue(f"BED cannot read: {exc}", source_id, bed_path, 1)
             return
         if len(bed_rows) != len(rows):
             self._issue(
-                f"BED 行数 {len(bed_rows)} != endpoint 行数 {len(rows)}",
+                f"BED row count {len(bed_rows)} != endpoint row count {len(rows)}",
                 source_id,
                 bed_path,
                 1,
@@ -698,7 +698,7 @@ class CanonicalReleaseValidator:
             ]
             if bed != expected:
                 self._issue(
-                    f"BED6 与 endpoints.tsv 不一致: expected={expected!r}, observed={bed!r}",
+                    f"BED6 differs from endpoints.tsv: expected={expected!r}, observed={bed!r}",
                     source_id,
                     bed_path,
                     number,
@@ -718,7 +718,7 @@ class CanonicalReleaseValidator:
         fields, rows = self._read_tsv(endpoint_path, source_id)
         if fields != V02_ENDPOINT_COLUMNS:
             self._issue(
-                f"表头不是精确 24 列 schema: observed={fields!r}",
+                f"Header does not match the exact 24-column schema: observed={fields!r}",
                 source_id,
                 endpoint_path,
                 1,
@@ -728,10 +728,10 @@ class CanonicalReleaseValidator:
             expected_count = int(entry.get("record_count", -1))
         except (TypeError, ValueError):
             expected_count = -1
-            self._issue("release manifest record_count 必须为整数", source_id, self.release_root / "release_manifest.json", 1)
+            self._issue("release manifest record_count must be an integer", source_id, self.release_root / "release_manifest.json", 1)
         if len(rows) != expected_count:
             self._issue(
-                f"行数 {len(rows)} != release manifest record_count {expected_count}",
+                f"row count {len(rows)} != release manifest record_count {expected_count}",
                 source_id,
                 endpoint_path,
                 1,
@@ -747,37 +747,37 @@ class CanonicalReleaseValidator:
             sample_id = row.get("sample_id", "")
             source_ids.add(row_source)
             if row_source != source_id:
-                self._issue("source_id 与来源不一致", source_id, endpoint_path, number)
+                self._issue("source_id differs from source", source_id, endpoint_path, number)
             if not end_id or not end_id.startswith(f"BTED_{source_id}_"):
-                self._issue("end_id 缺失或未保留 source 标识", source_id, endpoint_path, number)
+                self._issue("end_id missing or does not retain source identity", source_id, endpoint_path, number)
             if end_id in endpoint_map:
-                self._issue("end_id 重复", source_id, endpoint_path, number)
+                self._issue("end_id duplicate", source_id, endpoint_path, number)
             endpoint_map[end_id] = row
             if not sample_id or sample_id == "NA":
-                self._issue("sample_id 缺失；必须保留来源/样本上下文", source_id, endpoint_path, number)
+                self._issue("Missing sample_id; source/sample context is required", source_id, endpoint_path, number)
             sample_ids.add(sample_id)
             evidence = row.get("evidence_class", "")
             if evidence not in PUBLIC_EVIDENCE:
-                self._issue(f"不允许的公开 evidence_class: {evidence!r}", source_id, endpoint_path, number)
+                self._issue(f"Disallowed public evidence_class: {evidence!r}", source_id, endpoint_path, number)
             if evidence != release_evidence:
                 self._issue(
-                    f"行 evidence_class 与 release manifest 不一致: {evidence!r} != {release_evidence!r}",
+                    f"Row evidence_class differs from release manifest: {evidence!r} != {release_evidence!r}",
                     source_id,
                     endpoint_path,
                     number,
                 )
             if row.get("strand") not in {"+", "-"}:
-                self._issue("strand 必须为 + 或 -", source_id, endpoint_path, number)
+                self._issue("strand must be + or -", source_id, endpoint_path, number)
             try:
                 position = int(row.get("biological_coordinate_1based", ""))
                 bed_start = int(row.get("bed_start_0based", ""))
                 bed_end = int(row.get("bed_end_0based", ""))
             except ValueError:
-                self._issue("坐标字段必须为整数", source_id, endpoint_path, number)
+                self._issue("Coordinate fields must be integers", source_id, endpoint_path, number)
                 continue
             if position < 1 or bed_start != position - 1 or bed_end != position:
                 self._issue(
-                    "1-based/BED 坐标转换错误；应为 start=position-1, end=position",
+                    "Invalid 1-based/BED conversion; expected start=position-1, end=position",
                     source_id,
                     endpoint_path,
                     number,
@@ -785,7 +785,7 @@ class CanonicalReleaseValidator:
             assembly = row.get("reference_assembly", "")
             contig = row.get("reference_name", "")
             if not assembly or assembly == "NA" or not contig or contig == "NA":
-                self._issue("reference_assembly/reference_name 缺失", source_id, endpoint_path, number)
+                self._issue("Missing reference_assembly/reference_name", source_id, endpoint_path, number)
             contig_key = (assembly, contig)
             self._contigs.add(contig_key)
             self._contig_source_ids.setdefault(contig_key, set()).add(source_id)
@@ -798,21 +798,21 @@ class CanonicalReleaseValidator:
             expected_doi = registry.get("doi", "")
             if expected_pmid and row.get("pmid") != expected_pmid:
                 self._issue(
-                    f"PMID 与 registry 不一致: {row.get('pmid')!r} != {expected_pmid!r}",
+                    f"PMID differs from registry: {row.get('pmid')!r} != {expected_pmid!r}",
                     source_id,
                     endpoint_path,
                     number,
                 )
             if expected_doi and row.get("doi") != expected_doi:
                 self._issue(
-                    f"DOI 与 registry 不一致: {row.get('doi')!r} != {expected_doi!r}",
+                    f"DOI differs from registry: {row.get('doi')!r} != {expected_doi!r}",
                     source_id,
                     endpoint_path,
                     number,
                 )
         self._source_endpoints[source_id] = endpoint_map
         if len(source_ids) > 1:
-            self._issue("endpoint 文件混入多个 source_id", source_id, endpoint_path, 1)
+            self._issue("Endpoint file contains multiple source_id values", source_id, endpoint_path, 1)
         if source_manifest is not None:
             manifest_count = source_manifest.get("repository_release", {}).get("record_count")
             if manifest_count is not None:
@@ -820,10 +820,10 @@ class CanonicalReleaseValidator:
                     manifest_count_int = int(manifest_count)
                 except (TypeError, ValueError):
                     manifest_count_int = -1
-                    self._issue("来源 manifest record_count 必须为整数", source_id, endpoint_path, 1)
+                    self._issue("Source manifest record_count must be an integer", source_id, endpoint_path, 1)
                 if manifest_count_int != len(rows):
                     self._issue(
-                        f"行数 {len(rows)} != 来源 manifest record_count {manifest_count}",
+                        f"row count {len(rows)} != Source manifest record_count {manifest_count}",
                         source_id,
                         endpoint_path,
                         1,
@@ -833,20 +833,20 @@ class CanonicalReleaseValidator:
     def _check_annotations(self, source_id: str, path: Path) -> None:
         fields, rows = self._read_tsv(path, source_id)
         if "end_id" not in fields:
-            self._issue("source_annotations.tsv 缺少 end_id 外键列", source_id, path, 1)
+            self._issue("source_annotations.tsv missing end_id foreign-key column", source_id, path, 1)
             return
         endpoint_map = self._source_endpoints.get(source_id, {})
         source_registry = self._registry_by_source.get(source_id, {})
         for number, row in enumerate(rows, start=2):
             end_id = row.get("end_id", "")
             if end_id not in endpoint_map:
-                self._issue(f"annotation end_id 无对应 endpoint: {end_id!r}", source_id, path, number)
+                self._issue(f"annotation end_id has no matching endpoint: {end_id!r}", source_id, path, number)
             if row.get("source_id") and row["source_id"] != source_id:
-                self._issue("annotation source_id 与来源不一致", source_id, path, number)
+                self._issue("annotation source_id differs from source", source_id, path, number)
             if row.get("pmid") and source_registry.get("pmid") and row["pmid"] != source_registry["pmid"]:
-                self._issue("annotation PMID 与 registry 不一致", source_id, path, number)
+                self._issue("annotation PMID differs from registry", source_id, path, number)
             if row.get("doi") and source_registry.get("doi") and row["doi"] != source_registry["doi"]:
-                self._issue("annotation DOI 与 registry 不一致", source_id, path, number)
+                self._issue("annotation DOI differs from registry", source_id, path, number)
         self._source_annotation_fields[source_id] = list(fields)
         self._source_annotation_rows[source_id] = rows
         self._source_annotations[source_id] = len(rows)
@@ -874,9 +874,9 @@ class CanonicalReleaseValidator:
         registry_set = set(self._registry_by_source)
         registry_path = self.repo_root / "data/registry/batter_s1_source_registry.tsv"
         for source_id in sorted(release_set - registry_set):
-            self._issue("release source 在 registry 中缺失", source_id, registry_path, 1)
+            self._issue("Release source missing from registry", source_id, registry_path, 1)
         for source_id in sorted(registry_set - release_set):
-            self._issue("registry source 未出现在 release manifest", source_id, registry_path, 1)
+            self._issue("Registry source missing from release manifest", source_id, registry_path, 1)
 
         # Canonical record manifests are the import truth.  The legacy
         # registry manifests are included as an audit source here so that a
@@ -912,7 +912,7 @@ class CanonicalReleaseValidator:
                 continue
             for source_id, kind, _ in members:
                 self._issue(
-                    f"相同 PMID {pmid} 的 registry/canonical DOI/title/year 不一致",
+                    f"Same PMID {pmid} has inconsistent registry/canonical DOI/title/year",
                     source_id,
                     self._record_manifest_path(source_id)
                     if kind == "canonical"
@@ -925,7 +925,7 @@ class CanonicalReleaseValidator:
                 continue
             for source_id, kind, _ in members:
                 self._issue(
-                    f"相同带版本 assembly {assembly} 的 species 不一致",
+                    f"Same versioned assembly {assembly} has inconsistent species",
                     source_id,
                     self._record_manifest_path(source_id)
                     if kind == "canonical"
@@ -1023,12 +1023,12 @@ class CanonicalReleaseValidator:
             assembly = str(row.get("assembly_accession", "")).strip()
             contig = str(row.get("contig_accession", "")).strip()
             if not assembly or assembly == "NA" or not contig or contig == "NA":
-                self._issue("reference contig registry assembly/contig 缺失", path=path, line=number)
+                self._issue("reference contig registry assembly/contig missing", path=path, line=number)
                 continue
             key = (assembly, contig)
             if key in seen:
                 self._issue(
-                    f"reference contig registry assembly/contig 重复: {assembly}/{contig}",
+                    f"reference contig registry duplicate assembly/contig: {assembly}/{contig}",
                     path=path,
                     line=number,
                 )
@@ -1037,7 +1037,7 @@ class CanonicalReleaseValidator:
             valid = True
             if str(row.get("release_version", "")) != release_version:
                 self._issue(
-                    f"reference contig registry release_version 与根 release 不一致: {row.get('release_version')!r} != {release_version!r}",
+                    f"reference contig registry release_version differs from root release: {row.get('release_version')!r} != {release_version!r}",
                     path=path,
                     line=number,
                 )
@@ -1047,7 +1047,7 @@ class CanonicalReleaseValidator:
                 max_position = int(str(row.get("max_endpoint_position_1based", "")))
             except (TypeError, ValueError):
                 self._issue(
-                    "reference contig registry length/max endpoint 必须为整数",
+                    "reference contig registry length/max endpoint must be an integer",
                     path=path,
                     line=number,
                 )
@@ -1055,18 +1055,18 @@ class CanonicalReleaseValidator:
                 length_bp = 0
                 max_position = 0
             if length_bp <= 0:
-                self._issue("reference contig registry length_bp 必须为正数", path=path, line=number)
+                self._issue("reference contig registry length_bp must be positive", path=path, line=number)
                 valid = False
             if max_position <= 0:
                 self._issue(
-                    "reference contig registry max_endpoint_position_1based 必须为正数",
+                    "reference contig registry max_endpoint_position_1based must be positive",
                     path=path,
                     line=number,
                 )
                 valid = False
             if length_bp > 0 and max_position > 0 and length_bp < max_position:
                 self._issue(
-                    f"reference contig length_bp 必须大于或等于 max endpoint position: {length_bp} < {max_position}",
+                    f"reference contig length_bp must be at least max endpoint position: {length_bp} < {max_position}",
                     path=path,
                     line=number,
                 )
@@ -1083,14 +1083,14 @@ class CanonicalReleaseValidator:
             else:
                 if max_position != actual_max:
                     self._issue(
-                        f"reference contig registry max endpoint 不匹配 canonical endpoints: {max_position} != {actual_max}",
+                        f"reference contig registry max endpoint does not match canonical endpoints: {max_position} != {actual_max}",
                         path=path,
                         line=number,
                     )
                     valid = False
                 if length_bp < actual_max:
                     self._issue(
-                        f"reference contig length_bp 不足以覆盖 canonical endpoint: {length_bp} < {actual_max}",
+                        f"reference contig length_bp does not cover canonical endpoint: {length_bp} < {actual_max}",
                         path=path,
                         line=number,
                     )
@@ -1101,28 +1101,28 @@ class CanonicalReleaseValidator:
             expected_support = self._contig_source_ids.get(key, set())
             if not support_values or any(not SOURCE_ID_RE.fullmatch(item) for item in support_values):
                 self._issue(
-                    "reference contig registry supporting_source_ids 格式错误",
+                    "reference contig registry supporting_source_ids invalid format",
                     path=path,
                     line=number,
                 )
                 valid = False
             if len(support_values) != len(support_set):
                 self._issue(
-                    "reference contig registry supporting_source_ids 不得重复",
+                    "reference contig registry supporting_source_ids must be unique",
                     path=path,
                     line=number,
                 )
                 valid = False
             if support_values != sorted(support_values):
                 self._issue(
-                    "reference contig registry supporting_source_ids 必须按 source_id 排序",
+                    "reference contig registry supporting_source_ids must be sorted by source_id",
                     path=path,
                     line=number,
                 )
                 valid = False
             if support_set != expected_support:
                 self._issue(
-                    f"reference contig registry supporting_source_ids 与 endpoint 来源不一致: {sorted(support_set)} != {sorted(expected_support)}",
+                    f"reference contig registry supporting_source_ids differs from endpoint sources: {sorted(support_set)} != {sorted(expected_support)}",
                     path=path,
                     line=number,
                 )
@@ -1137,7 +1137,7 @@ class CanonicalReleaseValidator:
                 value = str(row.get(field_name, "")).strip()
                 if not value or "/" in value or "\\" in value or value in {".", ".."}:
                     self._issue(
-                        f"reference contig registry {field_name} 无效",
+                        f"reference contig registry {field_name} invalid",
                         path=path,
                         line=number,
                     )
@@ -1149,7 +1149,7 @@ class CanonicalReleaseValidator:
                         timestamp = None
                     if timestamp is None or timestamp.tzinfo is None:
                         self._issue(
-                            "reference contig registry generated_at_utc 必须为带时区的 ISO-8601 时间",
+                            "reference contig registry generated_at_utc must be an ISO-8601 timestamp with timezone",
                             path=path,
                             line=number,
                         )
@@ -1158,7 +1158,7 @@ class CanonicalReleaseValidator:
                 value = str(row.get(field_name, "")).strip()
                 if not SHA256_RE.fullmatch(value):
                     self._issue(
-                        f"reference contig registry {field_name} 必须为 64 位小写 SHA-256",
+                        f"reference contig registry {field_name} must be a lowercase 64-character SHA-256",
                         path=path,
                         line=number,
                     )
@@ -1443,17 +1443,17 @@ class CanonicalReleaseValidator:
         release_summary = self._release.get("summary", {})
         if not isinstance(release_summary, dict):
             release_summary = {}
-            self._issue("release manifest summary 必须为对象", path=release_path, line=1)
+            self._issue("release manifest summary must be an object", path=release_path, line=1)
         public_count = 0
         audit_count = 0
         augmentation_true = 0
         augmentation_false = 0
         for source_id in source_ids:
             if not SOURCE_ID_RE.fullmatch(source_id):
-                self._issue("release manifest source_id 格式错误", source_id, release_path, 1)
+                self._issue("release manifest source_id invalid format", source_id, release_path, 1)
             entry = sources.get(source_id, {})
             if not isinstance(entry, dict):
-                self._issue("source entry 必须为对象", source_id, release_path, 1)
+                self._issue("source entry must be an object", source_id, release_path, 1)
                 continue
             if entry.get("release_status") in PUBLISHED_STATUSES:
                 public_count += 1
@@ -1461,7 +1461,7 @@ class CanonicalReleaseValidator:
                 audit_count += 1
             registry = self._registry_by_source.get(source_id)
             if registry is None:
-                self._issue("registry 中缺少 source", source_id, self.repo_root / "data/registry/batter_s1_source_registry.tsv", 1)
+                self._issue("Registry missing source", source_id, self.repo_root / "data/registry/batter_s1_source_registry.tsv", 1)
             else:
                 flag = registry.get("used_for_batter_augmentation", "")
                 if flag == "TRUE":
@@ -1469,7 +1469,7 @@ class CanonicalReleaseValidator:
                 elif flag == "FALSE":
                     augmentation_false += 1
                 else:
-                    self._issue(f"augmentation flag 必须为 TRUE/FALSE: {flag!r}", source_id, self.repo_root / "data/registry/batter_s1_source_registry.tsv", 1)
+                    self._issue(f"augmentation flag must be TRUE/FALSE: {flag!r}", source_id, self.repo_root / "data/registry/batter_s1_source_registry.tsv", 1)
             record_root = self._record_root(entry)
             resolved = self._check_declared_files(source_id, entry, record_root)
             source_manifest, source_manifest_path = self._load_canonical_manifest(source_id, entry, resolved)
@@ -1488,7 +1488,7 @@ class CanonicalReleaseValidator:
                 and "source_annotations.tsv" not in resolved
             ):
                 self._issue(
-                    "canonical manifest source_annotations_status=published 但 release entry 未声明 source_annotations.tsv",
+                    "canonical manifest source_annotations_status=published but release entry omits source_annotations.tsv",
                     source_id,
                     self.release_root / "release_manifest.json",
                     1,
@@ -1498,29 +1498,29 @@ class CanonicalReleaseValidator:
             status = entry.get("release_status")
             if status == "audit_only":
                 if entry.get("record_count") != 0:
-                    self._issue("audit_only 必须 record_count=0", source_id, release_path, 1)
+                    self._issue("audit_only requires record_count=0", source_id, release_path, 1)
                 if entry.get("has_jbrowse"):
-                    self._issue("audit_only 不得有 JBrowse", source_id, release_path, 1)
+                    self._issue("audit_only must not have JBrowse", source_id, release_path, 1)
                 if endpoint_path.is_file():
-                    self._issue("audit_only 不得存在 endpoints.tsv", source_id, endpoint_path, 1)
+                    self._issue("audit_only must not contain endpoints.tsv", source_id, endpoint_path, 1)
                 if any(record_root.glob("*jbrowse*")) or any(record_root.glob("*.config.json")):
-                    self._issue("audit_only 不得有 JBrowse 配置", source_id, record_root, 1)
+                    self._issue("audit_only must not have a JBrowse config", source_id, record_root, 1)
                 continue
             if status not in PUBLISHED_STATUSES:
-                self._issue(f"无法识别 release_status: {status!r}", source_id, release_path, 1)
+                self._issue(f"Unrecognized release_status: {status!r}", source_id, release_path, 1)
                 continue
             if not endpoint_path.is_file():
-                self._issue("published source 缺少 endpoints.tsv", source_id, endpoint_path, 1)
+                self._issue("Published source missing endpoints.tsv", source_id, endpoint_path, 1)
                 continue
             if not entry.get("has_jbrowse", False):
-                self._issue("published source 必须 has_jbrowse=true", source_id, release_path, 1)
+                self._issue("Published source requires has_jbrowse=true", source_id, release_path, 1)
             self._check_endpoints(source_id, entry, endpoint_path, bed_path, source_manifest)
             annotation_path = resolved.get("source_annotations.tsv", self._file_from_record(record_root, "source_annotations.tsv"))
             annotation_status = str(entry.get("source_annotations_status", ""))
             if annotation_path.is_file():
                 self._check_annotations(source_id, annotation_path)
             elif annotation_status == "published":
-                self._issue("source_annotations_status=published 但缺少 source_annotations.tsv", source_id, annotation_path, 1)
+                self._issue("source_annotations_status=published but source_annotations.tsv is missing", source_id, annotation_path, 1)
         actual_public_rows = sum(len(rows) for rows in self._source_rows.values())
         self._check_source_set_and_metadata(source_ids)
         # Resolve reference lengths only after all endpoint pairs and their
@@ -1537,7 +1537,7 @@ class CanonicalReleaseValidator:
             declared = release_summary.get(key)
             if declared != actual:
                 self._issue(
-                    f"release summary {key}={declared!r} 与实际 {actual!r} 不一致",
+                    f"release summary {key}={declared!r} differs from observed {actual!r} mismatch",
                     path=release_path,
                     line=1,
                 )

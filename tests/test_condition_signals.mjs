@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 const root = new URL('../', import.meta.url);
-const code = readFileSync(new URL('prototype/accession-range/src/worker.js', root), 'utf8')
+const code = readFileSync(new URL('worker/src/worker.js', root), 'utf8')
   + '\nexport { applyConditionSignals, registeredConditionAsset };';
 const { default: worker, applyConditionSignals, registeredConditionAsset } = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
 const registry = JSON.parse(readFileSync(new URL('data/registry/s021-derived-signals.json', root)));
@@ -18,7 +18,10 @@ function fixture() {
   const assets = registry.conditions.flatMap(c => c.signals.map(s => ({ asset_key:s.asset_key, logical_path:s.path.slice(7),
     origin_url:s.url, asset_kind:'bigwig', source_id:registry.source_id, assembly_accession:registry.genome_id,
     sha256:s.sha256, byte_size:s.byte_size, is_public:1 })));
-  const env = { BTED_DB: { prepare(sql) { return { bind() { return { all: async () => ({ results: sql.includes('FROM tracks') ? [row] : assets }) }; } }; } },
+  const env = { BTED_DB: { prepare(sql) { return { bind() { return { all: async () => ({ results: sql.includes('FROM tracks') ? [row]
+    : sql.includes('FROM publications') ? [{ pmid: registry.pmid, paper_title: 'Current D1 paper', citation_json: '{}' }]
+    : sql.includes('FROM sources') ? [{ source_id: registry.source_id, publication_pmid: registry.pmid, assay_family: '3′ RNA-seq (modified from Term-seq)', record_count: 1905, metadata_json: '{}' }]
+    : assets }) }; } }; } },
     ASSETS: { fetch: async () => new Response(JSON.stringify(config), { headers: { 'content-type':'application/json' } }) } };
   const request = new Request(`https://bted.test/jbrowse/assemblies/${registry.genome_id}.config.json`);
   return { config, row, assets, env, request };
@@ -42,7 +45,8 @@ test('existing browser URL loads two conditions from D1 with all 22 aliases and 
     assert.equal(signal.metadata.btedDownloads.length, 2);
     assert.deepEqual(signal.adapter.subadapters.map(s => s.source), ['plus', 'minus']);
     assert.ok(signal.adapter.subadapters.every(s => s.bigWigLocation.uri.includes('/' + registry.revision + '/')));
-    assert.equal(signal.displays[0].scaleType, 'log');
+    assert.equal(signal.displays[0].scaleType, 'linear');
+    assert.equal(signal.displays[0].autoscale, 'local');
   }
 });
 

@@ -1,0 +1,1 @@
+UPDATE bted_collections SET version='202610220000000000000002',taxonomy_system='',taxonomy_version='',taxonomy_label='GEM / GTDB (original); exact assembly matches only' WHERE collection='experimental';

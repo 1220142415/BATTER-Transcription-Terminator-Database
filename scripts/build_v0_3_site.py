@@ -24,7 +24,6 @@ REPOSITORY_URL = "https://github.com/seu-yolo/BATTER-Transcription-Terminator-Da
 SITE_ASSET_VERSION = "20260817-core-fields-v2"
 HF_DATA_BASE_URL = f"downloads/{RELEASE_VERSION}"
 SITE_COVERAGE_EN = "20 assemblies · 22 source datasets · 28,399 endpoint records"
-SITE_COVERAGE_ZH = "20 个参考组装 · 22 个来源数据集 · 28,399 条端点记录"
 
 EVIDENCE_LABELS = {
     "author_called_endpoint": "Author-called experimental endpoint",
@@ -37,8 +36,8 @@ def esc(value: object) -> str:
     return html.escape(str(value), quote=True)
 
 
-def bi(en: str, _future_translation: str = "") -> str:
-    """Emit English only while retaining a stable hook for future translations."""
+def bi(en: str) -> str:
+    """Render the existing labeled text span."""
     return f'<span class="i18n" data-i18n-key="{esc(en)}">{esc(en)}</span>'
 
 
@@ -80,16 +79,16 @@ def accession_links(accessions: object, fallback_url: str = "", compact: bool = 
 def nav(current: str, depth: int = 0) -> str:
     prefix = "../" * depth
     items = [
-        ("index", "index.html", "Home", "首页"),
-        ("sources", "sources.html", "Genomes", "基因组"),
-        ("catalog", "catalog.html", "Download", "下载"),
-        ("methodology", "methodology.html", "Data notes", "数据说明"),
-        ("browser", "browser.html", "JBrowse", "JBrowse"),
+        ("index", "index.html", "Home"),
+        ("sources", "sources.html", "Genomes"),
+        ("catalog", "catalog.html", "Download"),
+        ("methodology", "methodology.html", "Data notes"),
+        ("browser", "browser.html", "JBrowse"),
     ]
     links = "".join(
         f'<a href="{prefix}{path}"' + (' aria-current="page"' if key == current else "")
-        + f'>{bi(en, zh)}</a>'
-        for key, path, en, zh in items
+        + f'>{bi(en)}</a>'
+        for key, path, en in items
     )
     return f"""
 <header class="site-header"><div class="header-inner">
@@ -107,7 +106,7 @@ def page(
     extra_scripts: str = "",
 ) -> str:
     prefix = "../" * depth
-    coverage = bi(SITE_COVERAGE_EN, SITE_COVERAGE_ZH)
+    coverage = bi(SITE_COVERAGE_EN)
     coverage_attribute = ' data-browser-coverage' if current == "browser" else ""
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -126,8 +125,8 @@ def external_link(url: str, label: str) -> str:
 
 def status_badge(status: str) -> str:
     if status == "audit_only":
-        return f'<span class="badge badge-audit">{bi("Metadata only", "仅元数据")}</span>'
-    return f'<span class="badge badge-published">{bi("Data available", "数据可用")}</span>'
+        return f'<span class="badge badge-audit">{bi("Metadata only")}</span>'
+    return f'<span class="badge badge-published">{bi("Data available")}</span>'
 
 
 def jbrowse_config_url(assembly: str, source_id: str | None = None) -> str:
@@ -257,38 +256,38 @@ def record_page(record: dict[str, object], assembly_track_count: int) -> str:
     status = str(record["release_status"])
     assembly = str(record["assembly"])
     browser = (
-        f'<a class="button primary" href="{jbrowse_href(assembly, "../", source_id)}">{bi("Open source track", "打开来源 track")}</a>'
-        if record["has_jbrowse"] else f'<span class="button disabled">{bi("No endpoint track", "无端点 track")}</span>'
+        f'<a class="button primary" href="{jbrowse_href(assembly, "../", source_id)}">{bi("Open source track")}</a>'
+        if record["has_jbrowse"] else f'<span class="button disabled">{bi("No endpoint track")}</span>'
     )
     pmid = str(source["pmid"])
     study_id = f"PMID_{pmid}"
     gff3 = (
-        f'<a class="download-card featured" href="{study_download_url(pmid, "endpoints.gff3.gz", "../")}"><strong>{bi("Study GFF3", "研究 GFF3")}</strong><code>{study_id}/endpoints.gff3.gz</code></a>'
+        f'<a class="download-card featured" href="{study_download_url(pmid, "endpoints.gff3.gz", "../")}"><strong>{bi("Study GFF3")}</strong><code>{study_id}/endpoints.gff3.gz</code></a>'
         if int(record["record_count"]) > 0 and status != "audit_only" else ""
     )
     metadata = (
-        f'<a class="download-card" href="{study_download_url(pmid, "metadata.tsv", "../")}"><strong>{bi("Readable study metadata", "可读研究元数据")}</strong><code>metadata.tsv</code></a>'
-        f'<a class="download-card" href="{study_download_url(pmid, "metadata.json", "../")}"><strong>{bi("Full study metadata", "完整研究元数据")}</strong><code>metadata.json</code></a>'
+        f'<a class="download-card" href="{study_download_url(pmid, "metadata.tsv", "../")}"><strong>{bi("Readable study metadata")}</strong><code>metadata.tsv</code></a>'
+        f'<a class="download-card" href="{study_download_url(pmid, "metadata.json", "../")}"><strong>{bi("Full study metadata")}</strong><code>metadata.json</code></a>'
     )
     evidence = str(record["evidence_class"])
     raw_accessions = accession_links(source["raw_data_accessions"], str(manifest.get("raw_data_url", "")))
     browser_guide = browser_reading_guide([str(source["assay_family"])]) if record["has_jbrowse"] else ""
     content = f"""
 <main class="page-shell record-shell">
-  <nav class="breadcrumbs"><a href="../sources.html">{bi('Genomes', '基因组')}</a><span>/</span><a href="../assemblies/{esc(assembly)}.html">{esc(assembly)}</a><span>/</span><span>{source_id}</span></nav>
+  <nav class="breadcrumbs"><a href="../sources.html">{bi('Genomes')}</a><span>/</span><a href="../assemblies/{esc(assembly)}.html">{esc(assembly)}</a><span>/</span><span>{source_id}</span></nav>
   <div class="record-heading"><div><p class="eyebrow">{source_id}</p><h1><em>{esc(source['species'])}</em></h1><p class="record-title">{esc(source['paper_title'])} · <a href="../studies/PMID_{esc(pmid)}.html">Study package PMID {esc(pmid)}</a></p></div>{status_badge(status)}</div>
-  <section class="metric-grid"><div class="metric"><span>{bi('Records', '记录数')}</span><strong>{int(record['record_count']):,}</strong></div><div class="metric"><span>{bi('Evidence', '证据')}</span><strong>{esc(EVIDENCE_LABELS.get(evidence, evidence))}</strong></div><div class="metric"><span>{bi('Assembly accession', '参考组装')}</span><strong><a href="{assembly_accession_url(assembly)}" target="_blank" rel="noopener">{esc(assembly)}</a></strong></div><div class="metric"><span>{bi('Assay', '实验方法')}</span><strong>{esc(source['assay_family'])}</strong></div></section>
+  <section class="metric-grid"><div class="metric"><span>{bi('Records')}</span><strong>{int(record['record_count']):,}</strong></div><div class="metric"><span>{bi('Evidence')}</span><strong>{esc(EVIDENCE_LABELS.get(evidence, evidence))}</strong></div><div class="metric"><span>{bi('Assembly accession')}</span><strong><a href="{assembly_accession_url(assembly)}" target="_blank" rel="noopener">{esc(assembly)}</a></strong></div><div class="metric"><span>{bi('Assay')}</span><strong>{esc(source['assay_family'])}</strong></div></section>
   <div class="record-layout"><div class="record-main">
-    <section class="panel"><div class="panel-header"><h2>{bi('Source overview', '来源概况')}</h2>{browser}</div><dl class="data-list">
-      <dt>{bi('Dataset', '数据集')}</dt><dd>{esc(manifest.get('dataset_id', 'NA'))}</dd><dt>{bi('Publication year', '发表年份')}</dt><dd>{esc(source['published_year'])}</dd>
-      <dt>{bi('Evidence', '证据说明')}</dt><dd>{esc(EVIDENCE_LABELS.get(evidence, evidence))}</dd><dt>{bi('Tracks on this assembly', '该组装上的数据轨道')}</dt><dd>{assembly_track_count}</dd>
+    <section class="panel"><div class="panel-header"><h2>{bi('Source overview')}</h2>{browser}</div><dl class="data-list">
+      <dt>{bi('Dataset')}</dt><dd>{esc(manifest.get('dataset_id', 'NA'))}</dd><dt>{bi('Publication year')}</dt><dd>{esc(source['published_year'])}</dd>
+      <dt>{bi('Evidence')}</dt><dd>{esc(EVIDENCE_LABELS.get(evidence, evidence))}</dd><dt>{bi('Tracks on this assembly')}</dt><dd>{assembly_track_count}</dd>
     </dl></section>{browser_guide}
-    <section class="panel"><h2>{bi('Raw data accessions', '原始数据')}</h2><p class="section-note">Open the public repository record for each accession number.</p>{raw_accessions}</section>
-    <section class="panel"><h2>{bi('Study download', '研究数据下载')}</h2><p class="section-note">{bi('Files are grouped by PMID. Studies with endpoint records include a combined GFF3 that retains each source_id.', '文件按 PMID 归类。有端点记录的研究提供合并 GFF3，并在每条 feature 中保留 source_id。')}</p><div class="download-grid compact-downloads">{gff3}{metadata}</div></section>
-    <section class="panel"><h2>{bi('Data note', '数据说明')}</h2><p>{esc(manifest.get('known_limitations', source['blocker_or_note']))}</p><div class="evidence-note">{bi('A 3′ end record is not automatically a functionally proven terminator. Tracks from the same assembly remain separate evidence sources.', '3′ end 记录不自动等同于功能性终止子；同一组装上的不同 track 仍是独立证据来源。')}</div></section>
+    <section class="panel"><h2>{bi('Raw data accessions')}</h2><p class="section-note">Open the public repository record for each accession number.</p>{raw_accessions}</section>
+    <section class="panel"><h2>{bi('Study download')}</h2><p class="section-note">{bi('Files are grouped by PMID. Studies with endpoint records include a combined GFF3 that retains each source_id.')}</p><div class="download-grid compact-downloads">{gff3}{metadata}</div></section>
+    <section class="panel"><h2>{bi('Data note')}</h2><p>{esc(manifest.get('known_limitations', source['blocker_or_note']))}</p><div class="evidence-note">{bi('A 3′ end record is not automatically a functionally proven terminator. Tracks from the same assembly remain separate evidence sources.')}</div></section>
   </div><aside class="record-side">
-    <section class="panel compact"><h2>{bi('Publication', '依据文献')}</h2><ul class="link-list"><li>{external_link(str(manifest.get('pubmed_url', '')), f"PubMed {source['pmid']}")}</li><li>{external_link(str(manifest.get('doi_url', '')), f"DOI {source['doi']}")}</li><li>{external_link(str(manifest.get('pmc_url', '')), str(source.get('pmc', 'PMC')))}</li></ul></section>
-    <section class="panel compact"><h2>{bi('Identity', '标识')}</h2><dl class="mini-list"><dt>Source ID</dt><dd>{source_id}</dd><dt>Assembly</dt><dd><a href="{assembly_accession_url(assembly)}" target="_blank" rel="noopener">{esc(assembly)}</a></dd><dt>Version</dt><dd>v0.3.0</dd></dl></section>
+    <section class="panel compact"><h2>{bi('Publication')}</h2><ul class="link-list"><li>{external_link(str(manifest.get('pubmed_url', '')), f"PubMed {source['pmid']}")}</li><li>{external_link(str(manifest.get('doi_url', '')), f"DOI {source['doi']}")}</li><li>{external_link(str(manifest.get('pmc_url', '')), str(source.get('pmc', 'PMC')))}</li></ul></section>
+    <section class="panel compact"><h2>{bi('Identity')}</h2><dl class="mini-list"><dt>Source ID</dt><dd>{source_id}</dd><dt>Assembly</dt><dd><a href="{assembly_accession_url(assembly)}" target="_blank" rel="noopener">{esc(assembly)}</a></dd><dt>Version</dt><dd>v0.3.0</dd></dl></section>
   </aside></div>
 </main>"""
     return page(f"{source_id} · {source['species']}", "sources", content, depth=1)
@@ -333,7 +332,7 @@ def study_page(pmid: str, records: list[dict[str, object]], study_dir: Path) -> 
     )
     content = f"""
 <main class="page-shell record-shell">
-  <nav class="breadcrumbs"><a href="../catalog.html">{bi('Download', '下载')}</a><span>/</span><span>PMID_{esc(pmid)}</span></nav>
+  <nav class="breadcrumbs"><a href="../catalog.html">{bi('Download')}</a><span>/</span><span>PMID_{esc(pmid)}</span></nav>
   <div class="record-heading"><div><p class="eyebrow">Study package · PMID {esc(pmid)}</p><h1>{esc(title)}</h1><p class="record-title"><a href="https://pubmed.ncbi.nlm.nih.gov/{esc(pmid)}/" target="_blank" rel="noopener">Open PubMed record ↗</a></p></div></div>
   <section class="metric-grid"><div class="metric"><span>Source datasets</span><strong>{len(records)}</strong></div><div class="metric"><span>3′-end records</span><strong>{total:,}</strong></div><div class="metric"><span>Organisms / strains</span><strong>{len(species)}</strong></div><div class="metric"><span>Reference assemblies</span><strong>{len(assemblies)}</strong></div></section>
   <section class="panel"><h2>Download this study</h2><p class="section-note">Files for all source datasets linked to this PMID are grouped together. The GFF3 keeps source IDs so records remain attributable within the combined study file.</p><div class="download-grid compact-downloads">{download_cards}</div></section>
@@ -347,8 +346,8 @@ def assembly_page(assembly: str, records: list[dict[str, object]]) -> str:
     published = [record for record in records if record["release_status"] != "audit_only"]
     browser_config = assembly_browser_config(assembly, records)
     browser = (
-        f'<a class="button primary" href="{jbrowse_href(assembly, "../")}">{bi("Open genome browser", "打开基因组浏览器")}</a>'
-        if browser_config else f'<span class="button disabled">{bi("Browser unavailable", "浏览器不可用")}</span>'
+        f'<a class="button primary" href="{jbrowse_href(assembly, "../")}">{bi("Open genome browser")}</a>'
+        if browser_config else f'<span class="button disabled">{bi("Browser unavailable")}</span>'
     )
     browser_actions = f'<div class="assembly-actions">{browser}</div>'
     track_rows = []
@@ -358,7 +357,7 @@ def assembly_page(assembly: str, records: list[dict[str, object]]) -> str:
         track_rows.append(f"""<tr><td><a class="source-id" href="../records/{record['source_id']}.html">{record['source_id']}</a></td><td>{esc(source['published_year'])}<small>{external_link(str(manifest.get('pubmed_url', '')), f"PMID {source['pmid']}")}</small></td><td>{accession_links(source['raw_data_accessions'], str(manifest.get('raw_data_url', '')), compact=True)}</td><td>{esc(source['assay_family'])}</td><td>{esc(EVIDENCE_LABELS.get(str(record['evidence_class']), str(record['evidence_class'])))}</td><td class="number">{int(record['record_count']):,}</td></tr>""")
     has_endpoints = total > 0
     gff3 = (
-        f'<a class="download-card featured" href="{assembly_download_url(assembly, "endpoints.gff3", "../")}"><strong>{bi("GFF3 coordinates", "GFF3 坐标")}</strong><code>endpoints.gff3 · {total:,} records</code></a>'
+        f'<a class="download-card featured" href="{assembly_download_url(assembly, "endpoints.gff3", "../")}"><strong>{bi("GFF3 coordinates")}</strong><code>endpoints.gff3 · {total:,} records</code></a>'
         if published and has_endpoints else ""
     )
     organisms = sorted({str(record["source"]["species"]) for record in records})
@@ -368,12 +367,12 @@ def assembly_page(assembly: str, records: list[dict[str, object]]) -> str:
     )
     content = f"""
 <main class="page-shell record-shell">
-  <nav class="breadcrumbs"><a href="../sources.html">{bi('Genomes', '基因组')}</a><span>/</span><span>{esc(assembly)}</span></nav>
-  <div class="record-heading"><div><p class="eyebrow">{bi('Reference assembly', '参考组装')}</p><h1>{esc(assembly)}</h1><p class="record-title"><em>{esc(' / '.join(organisms))}</em></p><p><a href="{assembly_accession_url(assembly)}" target="_blank" rel="noopener">View assembly in NCBI Datasets</a></p></div>{status_badge('published' if published else 'audit_only')}</div>
-  <section class="metric-grid"><div class="metric"><span>{bi('Source tracks', '来源 track')}</span><strong>{len(records)}</strong></div><div class="metric"><span>{bi('Endpoint records', '端点记录')}</span><strong>{total:,}</strong></div><div class="metric"><span>{bi('Years', '年份')}</span><strong>{years[0] if len(years) == 1 else f'{years[0]}–{years[-1]}'}</strong></div><div class="metric"><span>{bi('Browser view', '浏览器视图')}</span><strong>{bi('Combined tracks' if len(records) > 1 else 'Single track', '多 track' if len(records) > 1 else '单 track')}</strong></div></section>
-  <section class="panel assembly-summary"><div><h2>{bi('Datasets on this genome', '该基因组上的数据集')}</h2><p>{bi('Sources with the exact same assembly accession are shown together. Each study remains a separate track.', '参考组装 accession 完全相同的来源在此集中展示；每项研究保留为独立轨道。')}</p></div>{browser_actions}</section>{browser_guide}
-  <section class="panel"><div class="table-wrap"><table class="source-table"><thead><tr><th>Track / Source</th><th>{bi('Year / paper', '年份 / 文献')}</th><th>Raw data accessions</th><th>{bi('Assay', '方法')}</th><th>{bi('Evidence', '证据')}</th><th>{bi('Records', '记录数')}</th></tr></thead><tbody>{''.join(track_rows)}</tbody></table></div></section>
-  <section class="panel"><h2>{bi('Download this genome', '下载该基因组数据')}</h2><p class="section-note">{bi('Download GFF3 endpoint features and source metadata. Records from different studies keep separate source IDs and original score attributes.', '下载 GFF3 端点 feature 和来源元数据。不同研究的记录保留各自来源 ID 和原始分数属性。')}</p><div class="download-grid compact-downloads">{gff3}<a class="download-card" href="{assembly_download_url(assembly, 'metadata.json', '../')}"><strong>{bi('Metadata', '元数据')}</strong><code>metadata.json</code></a></div></section>
+  <nav class="breadcrumbs"><a href="../sources.html">{bi('Genomes')}</a><span>/</span><span>{esc(assembly)}</span></nav>
+  <div class="record-heading"><div><p class="eyebrow">{bi('Reference assembly')}</p><h1>{esc(assembly)}</h1><p class="record-title"><em>{esc(' / '.join(organisms))}</em></p><p><a href="{assembly_accession_url(assembly)}" target="_blank" rel="noopener">View assembly in NCBI Datasets</a></p></div>{status_badge('published' if published else 'audit_only')}</div>
+  <section class="metric-grid"><div class="metric"><span>{bi('Source tracks')}</span><strong>{len(records)}</strong></div><div class="metric"><span>{bi('Endpoint records')}</span><strong>{total:,}</strong></div><div class="metric"><span>{bi('Years')}</span><strong>{years[0] if len(years) == 1 else f'{years[0]}–{years[-1]}'}</strong></div><div class="metric"><span>{bi('Browser view')}</span><strong>{bi('Combined tracks' if len(records) > 1 else 'Single track')}</strong></div></section>
+  <section class="panel assembly-summary"><div><h2>{bi('Datasets on this genome')}</h2><p>{bi('Sources with the exact same assembly accession are shown together. Each study remains a separate track.')}</p></div>{browser_actions}</section>{browser_guide}
+  <section class="panel"><div class="table-wrap"><table class="source-table"><thead><tr><th>Track / Source</th><th>{bi('Year / paper')}</th><th>Raw data accessions</th><th>{bi('Assay')}</th><th>{bi('Evidence')}</th><th>{bi('Records')}</th></tr></thead><tbody>{''.join(track_rows)}</tbody></table></div></section>
+  <section class="panel"><h2>{bi('Download this genome')}</h2><p class="section-note">{bi('Download GFF3 endpoint features and source metadata. Records from different studies keep separate source IDs and original score attributes.')}</p><div class="download-grid compact-downloads">{gff3}<a class="download-card" href="{assembly_download_url(assembly, 'metadata.json', '../')}"><strong>{bi('Metadata')}</strong><code>metadata.json</code></a></div></section>
 </main>"""
     return page(f"{assembly} · genome", "sources", content, depth=1)
 
@@ -385,9 +384,9 @@ def assembly_page(assembly: str, records: list[dict[str, object]]) -> str:
 JBROWSE_OVERLAYS = JBROWSE_CONFIG_ROOT
 
 TRACK_STATUS_LABELS = {
-    "signal_endpoints": ("Signal + endpoints", "信号 + 端点"),
-    "endpoints_only": ("Endpoints only", "仅端点"),
-    "metadata_only": ("Metadata only", "仅元数据"),
+    "signal_endpoints": "Signal + endpoints",
+    "endpoints_only": "Endpoints only",
+    "metadata_only": "Metadata only",
 }
 
 def source_has_signal_tracks(source_id: str) -> bool:
@@ -441,7 +440,7 @@ def build_assemblies_json(grouped: dict[str, list[dict[str, object]]]) -> dict[s
             source = record["source"]
             manifest = record["manifest"]
             status = track_status(record)
-            label_en, label_zh = TRACK_STATUS_LABELS[status]
+            label_en = TRACK_STATUS_LABELS[status]
             track_records.append({
                 "source_id": record["source_id"],
                 "name": f"{source['paper_title']} ({record['source_id']})",
@@ -469,7 +468,7 @@ def build_assemblies_json(grouped: dict[str, list[dict[str, object]]]) -> dict[s
                 ),
                 "track_status": status,
                 "track_status_label_en": label_en,
-                "track_status_label_zh": label_zh,
+                "track_status_label_zh": label_en,
                 "interpretation_note": str(manifest.get("known_limitations", source["blocker_or_note"])),
                 "interpretation_note_zh": "",
             })
@@ -519,7 +518,7 @@ def build_site(
 ) -> dict[str, object]:
     """Generate study, source, and assembly pages into a disposable site copy."""
     global SITE_ROOT, JBROWSE_CONFIG_ROOT, JBROWSE_OVERLAYS, HF_DATA_BASE_URL
-    global SITE_COVERAGE_EN, SITE_COVERAGE_ZH
+    global SITE_COVERAGE_EN
     SITE_ROOT = site_root.resolve()
     HF_DATA_BASE_URL = (
         validate_release_base_url(hf_data_base_url)
@@ -592,10 +591,6 @@ def build_site(
     SITE_COVERAGE_EN = (
         f"{len(grouped)} assemblies · {len(records)} source datasets · "
         f"{total_endpoint_records:,} endpoint records"
-    )
-    SITE_COVERAGE_ZH = (
-        f"{len(grouped)} 个参考组装 · {len(records)} 个来源数据集 · "
-        f"{total_endpoint_records:,} 条端点记录"
     )
     source_index = {str(record["source_id"]): record["source"] for record in records}
     record_index = {str(record["source_id"]): record for record in records}
@@ -733,9 +728,9 @@ def build_site(
     browser_track_total = sum(bool(record["has_jbrowse"]) for record in records)
     source_total = len(records)
     index_content = f"""
-<main><section class="hero"><div class="page-shell hero-inner"><p class="eyebrow">BTED v0.3.0</p><h1>{bi('Explore bacterial transcript 3′ ends by genome.', '按基因组浏览细菌转录 3′ 端数据。')}</h1><p>{bi('Download each paper as one PMID folder with its GFF3 and metadata. Genome views still keep each source dataset as a separate track.', '按 PMID 下载每篇研究的 GFF3 和元数据；基因组浏览器中各来源数据仍分别显示。')}</p><div class="hero-actions"><a class="button primary" href="sources.html">{bi('Browse genomes', '浏览基因组')}</a><a class="button" href="catalog.html">{bi('Download by study', '按研究下载')}</a></div></div></section>
-<section class="page-shell stat-strip"><div><strong>{len(grouped)}</strong><span>{bi('reference assemblies', '参考组装')}</span></div><div><strong>{source_total}</strong><span>{bi('source datasets', '来源数据集')}</span></div><div><strong>{endpoint_total:,}</strong><span>{bi('endpoint records', '端点记录')}</span></div><div><strong>{browser_track_total}</strong><span>{bi('browser-ready tracks', '可浏览轨道')}</span></div></section>
-<section class="page-shell feature-grid"><article><h2>{bi('Genome browser', '基因组浏览器')}</h2><p>{bi('Open a reference assembly to compare its independent source tracks in JBrowse.', '打开参考组装，在 JBrowse 中比较各个独立来源轨道。')}</p></article><article><h2>{bi('Study files', '研究文件')}</h2><p>{bi('Each PMID package groups endpoint features and metadata for its source datasets.', '每个 PMID 文件包汇总该研究来源数据的端点和元数据。')}</p></article><article><h2>{bi('Readable metadata', '可读元数据')}</h2><p>{bi('Open metadata.tsv in a spreadsheet, or use metadata.json for full provenance.', 'metadata.tsv 可用表格软件打开；metadata.json 保存完整来源信息。')}</p></article></section></main>"""
+<main><section class="hero"><div class="page-shell hero-inner"><p class="eyebrow">BTED v0.3.0</p><h1>{bi('Explore bacterial transcript 3′ ends by genome.')}</h1><p>{bi('Download each paper as one PMID folder with its GFF3 and metadata. Genome views still keep each source dataset as a separate track.')}</p><div class="hero-actions"><a class="button primary" href="sources.html">{bi('Browse genomes')}</a><a class="button" href="catalog.html">{bi('Download by study')}</a></div></div></section>
+<section class="page-shell stat-strip"><div><strong>{len(grouped)}</strong><span>{bi('reference assemblies')}</span></div><div><strong>{source_total}</strong><span>{bi('source datasets')}</span></div><div><strong>{endpoint_total:,}</strong><span>{bi('endpoint records')}</span></div><div><strong>{browser_track_total}</strong><span>{bi('browser-ready tracks')}</span></div></section>
+<section class="page-shell feature-grid"><article><h2>{bi('Genome browser')}</h2><p>{bi('Open a reference assembly to compare its independent source tracks in JBrowse.')}</p></article><article><h2>{bi('Study files')}</h2><p>{bi('Each PMID package groups endpoint features and metadata for its source datasets.')}</p></article><article><h2>{bi('Readable metadata')}</h2><p>{bi('Open metadata.tsv in a spreadsheet, or use metadata.json for full provenance.')}</p></article></section></main>"""
     (SITE_ROOT / "index.html").write_text(page("Home", "index", index_content), encoding="utf-8")
 
     species_values = sorted({species for item in catalog_assemblies for species in item["species"]})
@@ -777,11 +772,11 @@ def build_site(
           <td class="row-actions"><a class="row-action primary" href="{item['page_url']}">Details</a>{browser}</td>
         </tr>""")
     sources_content = f"""
-<main class="page-shell genome-directory"><div class="page-heading directory-heading"><div><p class="eyebrow">BTED v0.3.0</p><h1>{bi('Genome assemblies', '基因组目录')}</h1><p>{bi('Find an exact reference genome, inspect its independent experimental studies, or open all available tracks in one coordinate view.', '查找精确参考基因组，查看独立实验研究，或在统一坐标下打开所有可用轨道。')}</p></div></div>
+<main class="page-shell genome-directory"><div class="page-heading directory-heading"><div><p class="eyebrow">BTED v0.3.0</p><h1>{bi('Genome assemblies')}</h1><p>{bi('Find an exact reference genome, inspect its independent experimental studies, or open all available tracks in one coordinate view.')}</p></div></div>
 <section class="directory-stats" aria-label="Database coverage"><div><strong data-visible-count>{len(grouped)}</strong><span>reference assemblies shown</span></div><div><strong>{len(study_records)}</strong><span>study packages</span></div><div><strong>{source_total}</strong><span>source datasets</span></div><div><strong>{endpoint_total:,}</strong><span>endpoint records</span></div></section>
-<section class="filters genome-filters" aria-label="Filter genome assemblies"><label><span>{bi('Search', '搜索')}</span><input type="search" data-filter-search placeholder="Organism, strain, assembly or data accession"></label><label><span>{bi('Organism', '物种')}</span><select data-filter="species"><option value="">All organisms</option>{species_options}</select></label><label><span>{bi('Assay', '方法')}</span><select data-filter="assay"><option value="">All assays</option>{assay_options}</select></label><label><span>{bi('Evidence', '证据')}</span><select data-filter="evidence"><option value="">All evidence types</option>{evidence_options}</select></label></section>
-<section class="catalog-selection" aria-label="Selected genome downloads"><div><button type="button" class="text-button" data-select-visible>Select visible</button><button type="button" class="text-button" data-clear-all>Clear</button></div><p><strong data-selected-count>0</strong> genomes selected <span aria-hidden="true">·</span> <span data-selected-records>0</span> records</p><button type="button" class="button primary" data-download-selected disabled>{bi('Download selected ZIP', '下载所选 ZIP')}</button></section><p class="download-status catalog-download-status" data-download-status aria-live="polite"></p>
-<div class="table-wrap genome-table-wrap"><table class="source-table genome-table"><thead><tr><th class="select-cell"><span class="visually-hidden">Select</span></th><th>{bi('Genome', '基因组')}</th><th>{bi('Experimental data', '实验数据')}</th><th>{bi('Evidence', '证据')}</th><th>{bi('3′ ends', '3′ 端点')}</th><th>{bi('Access', '访问')}</th></tr></thead><tbody>{''.join(genome_rows)}</tbody></table></div><p class="empty-state" data-empty-state hidden>{bi('No genomes match the filters.', '没有符合筛选条件的基因组。')}</p>
+<section class="filters genome-filters" aria-label="Filter genome assemblies"><label><span>{bi('Search')}</span><input type="search" data-filter-search placeholder="Organism, strain, assembly or data accession"></label><label><span>{bi('Organism')}</span><select data-filter="species"><option value="">All organisms</option>{species_options}</select></label><label><span>{bi('Assay')}</span><select data-filter="assay"><option value="">All assays</option>{assay_options}</select></label><label><span>{bi('Evidence')}</span><select data-filter="evidence"><option value="">All evidence types</option>{evidence_options}</select></label></section>
+<section class="catalog-selection" aria-label="Selected genome downloads"><div><button type="button" class="text-button" data-select-visible>Select visible</button><button type="button" class="text-button" data-clear-all>Clear</button></div><p><strong data-selected-count>0</strong> genomes selected <span aria-hidden="true">·</span> <span data-selected-records>0</span> records</p><button type="button" class="button primary" data-download-selected disabled>{bi('Download selected ZIP')}</button></section><p class="download-status catalog-download-status" data-download-status aria-live="polite"></p>
+<div class="table-wrap genome-table-wrap"><table class="source-table genome-table"><thead><tr><th class="select-cell"><span class="visually-hidden">Select</span></th><th>{bi('Genome')}</th><th>{bi('Experimental data')}</th><th>{bi('Evidence')}</th><th>{bi('3′ ends')}</th><th>{bi('Access')}</th></tr></thead><tbody>{''.join(genome_rows)}</tbody></table></div><p class="empty-state" data-empty-state hidden>{bi('No genomes match the filters.')}</p>
 <p class="directory-footnote">One row represents one exact reference assembly. Studies sharing that assembly remain separate tracks in the genome view.</p></main>"""
     (SITE_ROOT / "sources.html").write_text(page("Genomes", "sources", sources_content), encoding="utf-8")
 
@@ -809,13 +804,13 @@ def build_site(
           <td class="study-download-links">{' · '.join(links)}</td></tr>""")
 
     catalog_content = f"""
-<main class="page-shell"><div class="page-heading"><div><p class="eyebrow">v0.3.0</p><h1>{bi('Download by study', '按研究下载')}</h1><p>{bi('The primary public package is one folder per PMID. Each folder contains a study GFF3, readable metadata.tsv and full metadata.json; study-specific supplementary tables stay with that study.', '规范数据按 PMID 分目录。每个目录包含研究 GFF3、便于阅读的 metadata.tsv 和完整 metadata.json；研究专属补充表也放在对应目录。')}</p></div></div>
-<section class="panel download-help"><h2>{bi('Shared release files', '共享发布文件')}</h2><div class="file-pair"><div><code>release.json</code><span>{bi('Release version, study package inventory and record counts.', '版本号、研究文件清单和记录数。')}</span></div><div><code>SHA256SUMS.txt</code><span>{bi('Checksums for the published release files.', '发布文件的校验值。')}</span></div></div><p><a class="button" href="{release_download_url('release.json')}">release.json</a> <a class="button" href="{release_download_url('SHA256SUMS.txt')}">SHA256SUMS.txt</a></p><p>{bi('GFF3 coordinates are 1-based single-base features. Source-specific IDs and annotation fields are retained in each feature. metadata.tsv is a readable summary; metadata.json carries full provenance.', 'GFF3 使用 1-based 单碱基坐标，并保留来源编号和注释字段。metadata.tsv 便于阅读；metadata.json 保存完整来源信息。')}</p></section>
-<section class="panel study-download-panel"><h2>{bi('Study packages', '研究文件包')}</h2><div class="table-wrap"><table class="source-table download-table"><thead><tr><th>PMID / source count</th><th>{bi('Publication / organisms', '论文 / 物种')}</th><th>{bi('Reference assembly', '参考组装')}</th><th>{bi('Records', '记录数')}</th><th>{bi('Files in study folder', '研究目录文件')}</th></tr></thead><tbody>{''.join(study_download_rows)}</tbody></table></div><p class="section-note">Each row links to one PMID package. A study with multiple source datasets keeps them together and preserves each <code>source_id</code>.</p></section>
+<main class="page-shell"><div class="page-heading"><div><p class="eyebrow">v0.3.0</p><h1>{bi('Download by study')}</h1><p>{bi('The primary public package is one folder per PMID. Each folder contains a study GFF3, readable metadata.tsv and full metadata.json; study-specific supplementary tables stay with that study.')}</p></div></div>
+<section class="panel download-help"><h2>{bi('Shared release files')}</h2><div class="file-pair"><div><code>release.json</code><span>{bi('Release version, study package inventory and record counts.')}</span></div><div><code>SHA256SUMS.txt</code><span>{bi('Checksums for the published release files.')}</span></div></div><p><a class="button" href="{release_download_url('release.json')}">release.json</a> <a class="button" href="{release_download_url('SHA256SUMS.txt')}">SHA256SUMS.txt</a></p><p>{bi('GFF3 coordinates are 1-based single-base features. Source-specific IDs and annotation fields are retained in each feature. metadata.tsv is a readable summary; metadata.json carries full provenance.')}</p></section>
+<section class="panel study-download-panel"><h2>{bi('Study packages')}</h2><div class="table-wrap"><table class="source-table download-table"><thead><tr><th>PMID / source count</th><th>{bi('Publication / organisms')}</th><th>{bi('Reference assembly')}</th><th>{bi('Records')}</th><th>{bi('Files in study folder')}</th></tr></thead><tbody>{''.join(study_download_rows)}</tbody></table></div><p class="section-note">Each row links to one PMID package. A study with multiple source datasets keeps them together and preserves each <code>source_id</code>.</p></section>
 </main>"""
     (SITE_ROOT / "catalog.html").write_text(page("Download", "catalog", catalog_content), encoding="utf-8")
 
-    methodology_content = f"""<main class="page-shell prose"><div class="page-heading"><div><p class="eyebrow">Data notes</p><h1>{bi('About BTED and its data', 'BTED 与数据说明')}</h1></div></div><section><h2>{bi('About this database', '数据库简介')}</h2><p>{bi('BTED makes public bacterial transcript 3′-end datasets easier to find, compare, download, and inspect in a genome browser.', 'BTED 让公开的细菌转录 3′ 端数据更容易查找、比较、下载和在基因组浏览器中查看。')}</p><p>{bi(f'The v0.3.0 release includes {source_total} source datasets across {len(grouped)} assemblies, with {endpoint_total:,} endpoint records. See the project repository for release documentation and source material.', f'v0.3.0 发布版包含 {source_total} 个来源数据集、覆盖 {len(grouped)} 个组装和 {endpoint_total:,} 条端点记录。发布说明和来源材料见项目仓库。')} <a href="{REPOSITORY_URL}">GitHub</a></p></section><section><h2>{bi('Assembly grouping', '按组装聚合')}</h2><p>{bi('Datasets are grouped only when the complete reference assembly accession is identical. Grouping changes the presentation, not source identity.', '只有完整参考组装 accession 一致时才聚合；聚合只改变展示方式，不改变来源身份。')}</p></section><section><h2>{bi('Independent tracks', '独立轨道')}</h2><p>{bi('A track represents one processed source. Agreement between tracks is useful for comparison but is not automatically a consensus or functional proof.', '一个轨道对应一个处理来源。不同轨道的一致性可用于比较，但不自动构成共识或功能证明。')}</p></section><section><h2>{bi('Interpreting records', '理解端点记录')}</h2><p>{bi('Observed signals, author-called endpoints and literature-curated records have different meanings. A transcript 3′-end record is not automatically a functionally proven terminator.', '实验信号、作者标注的端点和文献整理记录含义不同。转录本 3′ 端记录不自动等同于已验证的功能性终止子。')}</p></section><section><h2>{bi('Files', '文件')}</h2><p>{bi('GFF3 is the interoperable coordinate file; every endpoint is a 1-based single-base feature. The score column contains a dot, and original study-specific scores remain in attributes. Metadata records provenance, publications, accessions and limitations.', 'GFF3 是通用坐标文件；每个端点为 1-based 单碱基 feature。score 列为“.”，原始研究分数保留在属性中。元数据记录来源、文献、登录号和限制。')}</p></section></main>"""
+    methodology_content = f"""<main class="page-shell prose"><div class="page-heading"><div><p class="eyebrow">Data notes</p><h1>{bi('About BTED and its data')}</h1></div></div><section><h2>{bi('About this database')}</h2><p>{bi('BTED makes public bacterial transcript 3′-end datasets easier to find, compare, download, and inspect in a genome browser.')}</p><p>{bi(f'The v0.3.0 release includes {source_total} source datasets across {len(grouped)} assemblies, with {endpoint_total:,} endpoint records. See the project repository for release documentation and source material.')} <a href="{REPOSITORY_URL}">GitHub</a></p></section><section><h2>{bi('Assembly grouping')}</h2><p>{bi('Datasets are grouped only when the complete reference assembly accession is identical. Grouping changes the presentation, not source identity.')}</p></section><section><h2>{bi('Independent tracks')}</h2><p>{bi('A track represents one processed source. Agreement between tracks is useful for comparison but is not automatically a consensus or functional proof.')}</p></section><section><h2>{bi('Interpreting records')}</h2><p>{bi('Observed signals, author-called endpoints and literature-curated records have different meanings. A transcript 3′-end record is not automatically a functionally proven terminator.')}</p></section><section><h2>{bi('Files')}</h2><p>{bi('GFF3 is the interoperable coordinate file; every endpoint is a 1-based single-base feature. The score column contains a dot, and original study-specific scores remain in attributes. Metadata records provenance, publications, accessions and limitations.')}</p></section></main>"""
     (SITE_ROOT / "methodology.html").write_text(page("Data notes", "methodology", methodology_content), encoding="utf-8")
 
     (SITE_ROOT / "about.html").write_text(legacy_redirect_page("About", "methodology.html"), encoding="utf-8")

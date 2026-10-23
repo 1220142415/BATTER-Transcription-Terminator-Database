@@ -52,7 +52,7 @@ jobs:
           python3 scripts/validate_repo_layout.py
           python3 scripts/check_markdown_links.py
           python3 -m unittest discover -s tests -p 'test*.py' -q
-          node --check prototype/accession-range/src/worker.js
+          node --check worker/src/worker.js
           node --check site/assets/genome-index.js
           node --check site/assets/genome-page.js
           python3 scripts/prepare_v04_reference.py --output-root dist/v04-browser-objects

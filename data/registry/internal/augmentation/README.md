@@ -1,10 +1,8 @@
 # Internal BATTER augmentation assets
 
-Source: BATTER augmentation pipeline; dataset derived from Xu et al. 2026 (https://doi.org/10.1186/s40168-026-02454-5). The original page described this as C-layer evidence.
+Source: the BATTER study by Jin et al. (2026), [doi:10.1186/s40168-026-02454-1](https://doi.org/10.1186/s40168-026-02454-1). The paper reports an analysis of 42,905 representative bacterial genomes; the current BTED GEM collection contains 42,904 registered genomes.
 
-The pipeline starts with experimentally mapped Term-seq 3-prime ends, clusters them by sequence identity with cd-hit at 40%, searches 42,905 bacterial genomes in the GEMs catalog for homologs with hmmsearch (Pfam), and predicts stem-loop structures with CMfinder.
-
-These six files contain OTU-level summaries, cluster/family tables, and predicted structural or Rho-dependency summaries. They do not contain traceable per-instance genomic coordinates. The reported stem-loop instances are bioinformatic predictions homologous to experimentally observed 3-prime ends; they have not been experimentally confirmed. Do not publish the OTU summaries as genome features. Revisit browser GFF3 tracks only after obtaining traceable instance-level coordinates and generation provenance.
+These six files contain OTU-level summaries, cluster/family tables, and predicted structural or Rho-dependency summaries. They do not contain traceable per-instance genomic coordinates. The reported stem-loop instances are bioinformatic predictions homologous to experimentally observed 3-prime ends; they are retained as computational summaries. Publishing genomic features requires per-instance coordinates and generation provenance.
 
 Original filenames and SHA-256 (verified after byte-preserving copy):
 - combined-statistics.txt  47097103a15c0a2bf15163a4ac5008e12cbc01b796453afd23676dbcbed7940a

@@ -19,7 +19,7 @@ from experimental_predictions import load_predictions
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_PATH = REPO_ROOT / "prototype" / "accession-range" / "schema.sql"
+SCHEMA_PATH = REPO_ROOT / "database" / "schema.sql"
 
 
 def jsonl(path: Path) -> list[dict[str, Any]]:

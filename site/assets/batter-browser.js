@@ -17,7 +17,8 @@
     status.textContent = "Loading genome data…"; reload.disabled = true;
     try {
       if (!id || !/^[A-Za-z0-9_.-]{1,128}$/.test(id)) throw new Error("Genome ID required.");
-      const api = new URL(`../api/batter/${encodeURIComponent(id)}`, document.baseURI);
+      const collection = root.dataset.collection;
+      const api = new URL(collection ? `../api/collections/${collection}/${encodeURIComponent(id)}` : `../api/batter/${encodeURIComponent(id)}`, document.baseURI);
       const requestedRevision = new URLSearchParams(location.search).get("revision");
       if (requestedRevision) api.searchParams.set("revision", requestedRevision);
       const response = await fetch(api);
@@ -25,7 +26,7 @@
       if (!response.ok) throw new Error(response.status === 404 ? "Genome not found." : "Genome files unavailable.");
       const data = await response.json();
       const pageUrl = new URL(location.href); pageUrl.searchParams.set("revision", data.revision); history.replaceState(null, "", pageUrl);
-      const name = data.taxonomy.split(";").find(taxon => taxon.startsWith("s__"))?.slice(3) || id;
+      const name = data.organism || data.taxonomy.split(";").find(taxon => taxon.startsWith("s__"))?.slice(3) || id;
       document.title = `${name} · BTED`;
       if ($("[data-batter-title]")) $("[data-batter-title]").textContent = name;
       if ($("[data-batter-id]")) $("[data-batter-id]").textContent = name === id ? "" : id;
@@ -35,7 +36,7 @@
         const heading = document.createElement("h2"), facts = document.createElement("dl");
         heading.textContent = "Reference details";
         const source = ({ "NCBI-RefSeq": "NCBI RefSeq", "NCBI-MAG": "NCBI GenBank", "NCBI-SAG": "NCBI GenBank" })[data.source_collection] || data.source_collection || "Not cataloged";
-        for (const [label, value] of [["Genome ID", id], ["GEM OTU", data.otu_id], ["Genome source", source], ["Sequence source", data.reference.source], ["Genome type", data.genome_type], ["Reference length", `${format(data.reference.bases)} bp`], ["Contigs", format(data.reference.contigs)]]) {
+        for (const [label, value] of [["Genome ID", id], ["Collection", data.collection_label], ["GEM OTU", data.otu_id], ["Genome source", source], ["Sequence source", data.reference.source], ["Genome type", data.genome_type], ["Reference length", `${format(data.reference.bases)} bp`], ["Contigs", format(data.reference.contigs)]]) {
           if (!value) continue;
           const item = document.createElement("div"), term = document.createElement("dt"), description = document.createElement("dd");
           term.textContent = label; description.textContent = value; item.append(term, description); facts.append(item);
@@ -47,7 +48,7 @@
       if (taxonomy) {
         const header = document.createElement("div"), heading = document.createElement("h2"), source = document.createElement("span"), lineage = document.createElement("dl");
         header.className = "taxonomy-heading"; heading.textContent = "Taxonomy";
-        source.append(link("GEM / GTDB (original)", "https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv"));
+        source.append(link(data.taxonomy_label || "GEM / GTDB (original)", data.taxonomy_url || "https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv"));
         header.append(heading, source); lineage.className = "taxonomy-lineage";
         const ranks = Object.fromEntries((data.taxonomy || "").split(";").map(value => value.trim()).map(value => [value.slice(0, 1), value.slice(3)]));
         for (const [key, label] of [["p", "Phylum"], ["c", "Class"], ["o", "Order"], ["f", "Family"], ["g", "Genus"], ["s", "Species"]]) {
@@ -61,8 +62,8 @@
         const legend = document.createElement("div");
         legend.className = "browser-track-legend";
         legend.setAttribute("aria-label", "Track symbols");
-        legend.title = "Bar: region. Hollow flag: 3′ boundary. Solid flag: experimental 3′ end.";
-        for (const [kind, label] of [["plus", "+ strand"], ["minus", "− strand"], ["flag", "Hollow: region · Solid: experimental"]]) {
+        legend.title = collection ? "Bar: region. Hollow flag: interval 3′ boundary." : "Bar: region. Hollow flag: 3′ boundary. Solid flag: experimental 3′ end.";
+        for (const [kind, label] of [["plus", "+ strand"], ["minus", "− strand"], ["flag", collection ? "Hollow flag: interval 3′ boundary" : "Hollow: region · Solid: experimental"]]) {
           const item = document.createElement("span"), swatch = document.createElement("i");
           swatch.className = `track-swatch track-swatch-${kind}`;
           swatch.setAttribute("aria-hidden", "true");
@@ -79,21 +80,24 @@
         node.className = validCount(count) ? "" : "count-missing";
       }
       $("[data-training-breakdown]").textContent = hasTrainingCounts ? `OTU ${format(counts.otu_augmentation_span)} · Rfam ${format(counts.rfam_training_span)}` : "";
-      const downloads = $("[data-batter-downloads]"); downloads.replaceChildren();
-      for (const [file, label] of [["prediction.gff3.gz", "Predicted regions (GFF3)"], ["augmentation.gff3.gz", "Augmentation / Rfam regions (GFF3)"], ["reference.fa.gz", "Reference FASTA"], [data.annotation.recovered ? "genes.gff3" : "genes.gff3.gz", "Gene annotation"]]) {
-        if (!data.browser_files[file] || (file.startsWith("genes") && data.annotation.status !== "matched")) continue;
-        const node = link(label, data.browser_files[file].url); node.className = "button"; downloads.append(node);
+      const downloads = $("[data-batter-downloads]");
+      if (downloads) {
+        downloads.replaceChildren();
+        for (const [file, label] of [["prediction.gff3.gz", "Predicted regions (GFF3)"], ["prediction.bed.gz", "Predicted regions (BED)"], ["augmentation.gff3.gz", "Augmentation / Rfam regions (GFF3)"], ["reference.fa.gz", "Reference FASTA"], [data.annotation.recovered ? "genes.gff3" : "genes.gff3.gz", "Gene annotation"]]) {
+          if (!data.browser_files[file] || (file.startsWith("genes") && data.annotation.status !== "matched")) continue;
+          const node = link(label, data.browser_files[file].url); node.className = "button"; downloads.append(node);
+        }
+        const metadataLink = link("Genome metadata (JSON)", api.href); metadataLink.className = "button"; downloads.append(metadataLink);
       }
       if (data.annotation.coverage === "partial") {
         const note = document.createElement("p"); note.className = "muted";
         note.textContent = `Gene annotation: ${data.annotation.matched_reference_contigs} of ${data.annotation.total_reference_contigs} contigs.`;
-        downloads.append(note);
+        provenance.append(note);
       }
-      const metadataLink = link("Genome metadata (JSON)", api.href); metadataLink.className = "button"; downloads.append(metadataLink);
       if (data.annotation.status !== "matched") {
         const note = document.createElement("p"); note.className = "muted";
         note.textContent = "Gene annotation: Missing.";
-        downloads.append(note);
+        provenance.append(note);
       }
       const config = new URL(api); config.pathname += "/config"; config.searchParams.set("revision", data.revision);
       const configResponse = await fetch(config);
@@ -102,7 +106,7 @@
       if (browserConfig.metadata?.combined_reference_status === "separate_views") {
         const note = document.createElement("p"); note.className = "muted";
         note.textContent = "Different references; separate coordinate views.";
-        downloads.append(note);
+        provenance.append(note);
       }
       const frame = $("[data-browser-frame]");
       const trackHeight = browserConfig.defaultSession.views.reduce((height, view) => height + 230 + view.tracks.reduce((sum, track) => sum + (track.type === "ReferenceSequenceTrack" ? 120 : browserConfig.tracks.find(item => item.trackId === track.configuration)?.displays?.[0]?.height || 140), 0), 0);

@@ -21,7 +21,8 @@ ALLOWED_TOP_LEVEL = {
     "scripts",
     "site",
     "tests",
-    "prototype",
+    "worker",
+    "database",
 }
 REQUIRED_PATHS = {
     "README.md",
@@ -29,6 +30,14 @@ REQUIRED_PATHS = {
     "docs/releases/v0.4.0.md",
     "docs/SOURCES.md",
     "docs/deployment.md",
+    "docs/ARCHITECTURE.md",
+    "docs/COLLECTIONS.md",
+    "docs/releases/current.md",
+    "database/README.md",
+    "database/schema.sql",
+    "worker/src/worker.js",
+    "worker/wrangler.jsonc",
+    "scripts/README.md",
     "data/public/v0.4.0/genomes/GCF_000006765.1/studies/PMID_31594819/gene_associations.tsv.gz",
     "data/public/v0.4.0/genomes/GCF_000008685.2/studies/PMID_37402717/condition_observations.tsv.gz",
     "data/public/v0.4.0/release.json",
@@ -52,19 +61,6 @@ REQUIRED_PATHS = {
     "data/archive/BTED-external-intake-2026-08-10.tar.gz",
     "data/archive/BTED-external-intake-2026-08-10.tar.gz.sha256",
 }
-ALLOWED_DOC_FILES = {
-    "docs/D1_METADATA.md",
-    "docs/ANNOTATION_RECOVERY.md",
-    "docs/GENOME_METADATA.md",
-    "docs/HF_REFRESH_2026-10-07.md",
-    "docs/releases/v0.4.0.md",
-    "docs/PROMOTER_COMPARISON.md",
-    "docs/SOURCES.md",
-    "docs/UI_REVIEW.md",
-    "docs/USAGE_ANALYTICS.md",
-    "docs/browser-controls.md",
-    "docs/deployment.md",
-}
 REMOVED_ROOT_FILES = {
     "PROGRESS.md",
     "accession_list_verified.csv",
@@ -76,7 +72,7 @@ REMOVED_ROOT_FILES = {
 
 def tracked_files() -> list[str]:
     result = subprocess.run(
-        ["git", "-c", f"safe.directory={ROOT.as_posix()}", "ls-files", "-z"],
+        ["git", "-c", f"safe.directory={ROOT.as_posix()}", "ls-files", "--cached", "--others", "--exclude-standard", "-z"],
         cwd=ROOT,
         check=True,
         capture_output=True,
@@ -126,7 +122,7 @@ def main() -> int:
     extra_docs = sorted(
         path.relative_to(ROOT).as_posix()
         for path in (ROOT / "docs").rglob("*")
-        if path.is_file() and path.relative_to(ROOT).as_posix() not in ALLOWED_DOC_FILES
+        if path.is_file() and path.suffix != ".md"
     )
     if extra_docs:
         errors.append(f"extra files remain under docs/: {extra_docs}")
@@ -148,6 +144,7 @@ def main() -> int:
 
     retired = [
         path for path in (
+            "prototype", "scripts/run_accession_range_demo.py",
             "backend", "frontend", "docker-compose.yml", "requirements-v03.txt",
             ".dockerignore", ".env.example",
             "data/public/records", "data/public/v0.2.0", "site/jbrowse",

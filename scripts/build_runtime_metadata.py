@@ -36,7 +36,7 @@ def build(source, output):
     database.row_factory = sqlite3.Row
     database.execute('PRAGMA journal_mode=OFF')
     database.execute('PRAGMA synchronous=OFF')
-    schema = (ROOT / 'prototype/accession-range/migrations/0006_runtime_metadata.sql').read_text(encoding='utf-8')
+    schema = (ROOT / 'database/migrations/0006_runtime_metadata.sql').read_text(encoding='utf-8')
     initial = schema + f"\nINSERT OR IGNORE INTO hf_runtime_release VALUES(1,'{revision}','loading',0,0,'pending');\n"
     database.executescript(initial)
     (output / '000-schema.sql').write_text(initial, encoding='utf-8')

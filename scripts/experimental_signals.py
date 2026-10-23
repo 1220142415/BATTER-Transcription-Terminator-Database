@@ -74,7 +74,7 @@ def apply_signal_tracks(config, sources):
             'metadata': {'btedMirroredSignal': True, 'btedAbout': about, 'btedDownloads': [
                 {'kind': 'bigwig', 'label': '+ strand BigWig' if s['strand'] == 'plus' else '− strand BigWig',
                  'url': s['url'], 'filename': f"{sample['sample_id']}.signal.{s['strand']}.bw"} for s in sample['signals']]},
-            'displays': [{'type': 'MultiLinearWiggleDisplay', 'displayId': f'{track_id}-MultiLinearWiggleDisplay', 'defaultRendering': 'xyplot', 'autoscale': 'global', 'scaleType': 'log', 'height': 180}],
+            'displays': [{'type': 'MultiLinearWiggleDisplay', 'displayId': f'{track_id}-MultiLinearWiggleDisplay', 'defaultRendering': 'xyplot', 'autoscale': 'local', 'scaleType': 'linear', 'height': 180}],
         }
         old_ids = {t['trackId'] for t in old}
         tracks[:] = [t for t in tracks if t['trackId'] != track_id]

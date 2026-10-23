@@ -20,6 +20,8 @@ const files = {
   'https://bted.example/v0.4.0/genomes/GCF_TEST/metadata.tsv': 'source_id\tpmid\nS1\t123\n',
   'https://bted.example/v0.4.0/genomes/GCF_TEST/studies/PMID_123/endpoints.gff3.gz': 'GFF3-bytes',
 };
+const worker = process.argv[2] === 'worker';
+const assets = Object.keys(files).map((url, index) => ({url, ...(worker ? {fallback_url: `/api/assets/test-${index}`} : {})}));
 let clickHandler, archiveBlob, downloadName;
 const links = Object.keys(files).map((href, index) => ({
   href,
@@ -44,6 +46,13 @@ global.document = {baseURI: 'https://bted.example/genomes/GCF_TEST.html', body: 
   createElement() {return {dataset: {}, setAttribute() {}, querySelector() {return {attachShadow() {return {append() {}};}};}, click() {downloadName = this.download;}, remove() {}};},
 };
 global.fetch = async href => {
+  href = String(href);
+  if (href === 'https://bted.example/assets/data-release.json') return {ok: true, json: async () => ({assets})};
+  if (worker) {
+    const index = assets.findIndex(asset => `https://bted.example${asset.fallback_url}` === href);
+    if (index < 0) throw new Error(`Worker download bypassed same-origin proxy: ${href}`);
+    href = assets[index].url;
+  }
   if (!(href in files)) return {ok: false, status: 404};
   const value = Buffer.from(files[href]);
   return {ok: true, arrayBuffer: async () => value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength)};
@@ -61,8 +70,13 @@ vm.runInThisContext(fs.readFileSync(process.argv[1], 'utf8'));
 
 class GenomeZipTests(unittest.TestCase):
     def test_genome_zip_contains_only_gff3_and_readable_metadata(self) -> None:
+        for mode in ('worker', 'pages'):
+            with self.subTest(mode=mode):
+                self.check_zip(mode)
+
+    def check_zip(self, mode: str) -> None:
         result = subprocess.run(
-            ["node", "-e", HARNESS, str(ROOT / "site/assets/genome-page.js")],
+            ["node", "-e", HARNESS, str(ROOT / "site/assets/study-download.js"), mode],
             cwd=ROOT, capture_output=True, text=True, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)

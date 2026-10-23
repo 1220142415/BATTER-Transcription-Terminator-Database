@@ -1,17 +1,8 @@
 #!/usr/bin/env python3
-"""BTED 协作入库模板结构校验脚本（仅依赖 Python 标准库）。
+"""Validate the 26-column source and 24-column endpoint TSV templates.
 
-校验来源登记模板与端点标准模板的表头结构，任一检查失败即以退出码 1 结束：
-
-1. 文件存在、可读取，首行表头非空；
-2. 来源模板恰为 26 列，端点模板恰为 24 列；
-3. 无重复列名；
-4. 必备核心列均存在；
-5. 不出现模板规范之外的列名，且列顺序与规范一致。
-
-用法：
-    python3 scripts/validate_bted_templates.py
-    python3 scripts/validate_bted_templates.py 来源表.tsv 端点表.tsv
+Checks exact column names/order, required columns and duplicates.
+Usage: python scripts/validate_bted_templates.py [sources.tsv endpoints.tsv]
 """
 
 from __future__ import annotations
@@ -47,7 +38,7 @@ ENDPOINT_EXPECTED = [
     "note",
 ]
 
-# 登记与标准化流程中不可缺少的核心列（规范全集的子集）
+# Required intake and normalization fields (a subset of the full schema).
 SOURCE_REQUIRED = [
     "source_id", "dataset_id", "paper_title", "species", "strain",
     "assay", "primary_evidence_class", "processing_status",
@@ -63,47 +54,47 @@ ENDPOINT_REQUIRED = [
 
 
 def check_template(label: str, path: Path, expected: list[str], required: list[str]) -> list[str]:
-    """校验单个模板文件，返回问题列表（空列表表示通过）。"""
+    """Return template problems; an empty list means success."""
     problems: list[str] = []
 
     if not path.is_file():
-        return [f"{label}: 文件不存在: {path}"]
+        return [f"{label}: File not found: {path}"]
     try:
         first_line = path.read_text(encoding="utf-8").splitlines()[0]
     except (UnicodeDecodeError, IndexError):
-        return [f"{label}: 文件为空或不是有效的 UTF-8 文本: {path}"]
+        return [f"{label}: Empty file or invalid UTF-8: {path}"]
 
     header = first_line.split("\t")
     if len(header) == 1 and "," in first_line:
-        problems.append(f"{label}: 表头疑似使用逗号分隔，模板要求制表符（TSV）分隔")
+        problems.append(f"{label}: Header appears comma-separated; expected tab-separated values (TSV)")
 
-    # 1. 列数
+    # 1. Column count
     if len(header) != len(expected):
-        problems.append(f"{label}: 列数为 {len(header)}，应为 {len(expected)}")
+        problems.append(f"{label}: Column count is {len(header)}; expected {len(expected)}")
 
-    # 2. 重复列名
+    # 2. Duplicate column
     seen: set[str] = set()
     for col in header:
         if col in seen:
-            problems.append(f"{label}: 重复列名: {col}")
+            problems.append(f"{label}: Duplicate column: {col}")
         seen.add(col)
 
-    # 3. 必备核心列
+    # 3. Required columns
     for col in required:
         if col not in header:
-            problems.append(f"{label}: 缺少必备核心列: {col}")
+            problems.append(f"{label}: Missing required column: {col}")
 
-    # 4. 规范之外的列
+    # 4. Unexpected columns
     for col in header:
         if col not in expected:
-            problems.append(f"{label}: 规范之外的列名: {col!r}（请核对是否拼写错误）")
+            problems.append(f"{label}: Unexpected column: {col!r} (check spelling)")
 
-    # 5. 列顺序
-    if header != expected and not any("列数为" in p or "规范之外" in p for p in problems):
+    # 5. Column order
+    if header != expected and not any("Column count is" in p or "Unexpected column" in p for p in problems):
         for i, (got, want) in enumerate(zip(header, expected)):
             if got != want:
                 problems.append(
-                    f"{label}: 第 {i + 1} 列顺序不符: 实际为 {got!r}，应为 {want!r}"
+                    f"{label}: Column {i + 1} has {got!r}; expected {want!r}"
                 )
                 break
 
@@ -115,14 +106,14 @@ def main() -> int:
     endpoint_path = Path(sys.argv[2]) if len(sys.argv) > 2 else DEFAULT_ENDPOINT
 
     print("=" * 60)
-    print("BTED 协作入库模板结构校验")
-    print("检查项: 表头存在 / 列数 26·24 / 重复列名 / 必备核心列 / 规范列名与顺序")
+    print("BTED intake template validation")
+    print("Checks: header / 26 and 24 columns / duplicates / required columns / names and order")
     print("=" * 60)
 
     all_problems: list[str] = []
     for label, path, expected, required in [
-        ("来源登记模板", source_path, SOURCE_EXPECTED, SOURCE_REQUIRED),
-        ("端点标准模板", endpoint_path, ENDPOINT_EXPECTED, ENDPOINT_REQUIRED),
+        ("Source intake template", source_path, SOURCE_EXPECTED, SOURCE_REQUIRED),
+        ("Endpoint template", endpoint_path, ENDPOINT_EXPECTED, ENDPOINT_REQUIRED),
     ]:
         problems = check_template(label, path, expected, required)
         if problems:
@@ -130,13 +121,13 @@ def main() -> int:
                 print(f"FAIL  {p}")
             all_problems.extend(problems)
         else:
-            print(f"PASS  {label}: {path.relative_to(REPO_ROOT) if path.is_relative_to(REPO_ROOT) else path}（{len(expected)} 列）")
+            print(f"PASS  {label}: {path.relative_to(REPO_ROOT) if path.is_relative_to(REPO_ROOT) else path} ({len(expected)} columns)")
 
     print("=" * 60)
     if all_problems:
-        print(f"FAIL  共 {len(all_problems)} 个问题，请修正后重试。")
+        print(f"FAIL  {len(all_problems)} problems; correct them and retry.")
         return 1
-    print("PASS  两个模板全部检查通过。")
+    print("PASS  Both templates passed.")
     return 0
 
 

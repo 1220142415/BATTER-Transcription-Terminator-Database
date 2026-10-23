@@ -7,12 +7,12 @@
 my_document_check.txt
 pmid_records.xml
 
-# macOS 系统垃圾文件
+# macOS metadata
 .DS_Store
 __MACOSX/
 ._*
 
-# 本地数据与原始文件（只链接公共仓库，不进 git）
+# Local and raw data; link public repositories instead of committing files.
 data/local/
 raw/
 *.fastq
@@ -26,7 +26,7 @@ raw/
 *.bigWig
 *.bw
 
-# 缓存、临时目录与本地环境文件
+# Caches, temporary directories and local environments
 __pycache__/
 *.pyc
 .cache/
@@ -45,6 +45,9 @@ dist/
 **/.wrangler/
 .dev.vars*
 
-# 已退出当前版本的早期整目录副本和 read-starts 原始计数
-# 论文与来源判断见 docs/SOURCES.md，原始数据只保留公共 accession。
+# Retired directory copies and raw read-start counts
+# See docs/SOURCES.md for provenance; retain public accessions for raw data.
 docs/legacy/original-directories/
+
+# Root-level abandoned temporary directories (including Windows test failures).
+/tmp*/

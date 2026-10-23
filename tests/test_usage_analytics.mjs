@@ -3,12 +3,12 @@ import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
-const source = readFileSync(new URL("../prototype/accession-range/src/worker.js", import.meta.url), "utf8");
+const source = readFileSync(new URL("../worker/src/worker.js", import.meta.url), "utf8");
 const { default: worker, usageDay, shiftUsageDay } = await import(`data:text/javascript;base64,${Buffer.from(source + "\nexport { usageDay, shiftUsageDay };").toString("base64")}`);
 
 function environment() {
   const sqlite = new DatabaseSync(":memory:");
-  const schema = readFileSync(new URL("../prototype/accession-range/migrations/0003_usage_analytics.sql", import.meta.url), "utf8");
+  const schema = readFileSync(new URL("../database/migrations/0003_usage_analytics.sql", import.meta.url), "utf8");
   sqlite.exec(schema);
   sqlite.exec(schema); // Idempotent for an already deployed D1.
   return {

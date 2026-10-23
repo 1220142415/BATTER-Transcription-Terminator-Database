@@ -237,7 +237,7 @@ def _promote_bundle(legacy_bundle: Path, output: Path, repo_root: Path) -> dict[
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
-    validate = subparsers.add_parser("validate", help="校验 canonical release；不写数据库")
+    validate = subparsers.add_parser("validate", help="Validate the canonical release without database writes")
     validate.add_argument(
         "--release-root",
         default=V03_RELEASE,
@@ -263,7 +263,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     materialize = subparsers.add_parser(
         "materialize",
-        help="在不连接数据库的情况下生成确定性的 JSONL 写库前 staging bundle",
+        help="Generate a deterministic JSONL staging bundle without a database connection",
     )
     materialize.add_argument(
         "--release-root",
@@ -312,7 +312,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify = subparsers.add_parser(
         "verify-bundle",
-        help="只读验证 B1 JSONL bundle，不连接数据库",
+        help="Validate a B1 JSONL bundle without a database connection",
     )
     verify.add_argument(
         "--bundle-dir",
@@ -321,7 +321,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     materialize_v04 = subparsers.add_parser(
         "materialize-v04",
-        help="从 v0.4.0 genome GFF3 与内部来源清单生成 D1 staging bundle",
+        help="Generate a D1 staging bundle from v0.4.0 genome GFF3 and the internal source registry",
     )
     materialize_v04.add_argument(
         "--release-root", default="data/public/v0.4.0",
