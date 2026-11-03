@@ -62,7 +62,7 @@ class StageSiteCliTests(unittest.TestCase):
                       ["reference", endpoint["trackId"], *(t["trackId"] for t in signals)]]}]}}
         catalog = {"assemblies": {"GCF_TEST": {"config": "test.config.json"}}}
         with patch.object(stage_site, "_read_config", return_value=config), \
-                patch.object(stage_site, "signal_assets", return_value={}):
+                patch.object(stage_site, "signal_assets", return_value={f"signal-{i}": {} for i in range(8)}):
             stage_site.validate_v04_jbrowse_configs(Path("unused"), {}, catalog, 1)
             endpoint["category"] = ["Uncategorized"]
             with self.assertRaisesRegex(stage_site.StageError, "not clearly categorized"):

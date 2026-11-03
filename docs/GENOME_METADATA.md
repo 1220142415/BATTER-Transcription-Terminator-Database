@@ -11,15 +11,21 @@ The Cloudflare Worker uses D1 for live descriptions. Experimental HTML contains 
 | Experimental title, reference identity, taxonomy, paper, assay, samples, conditions and counts | `/api/assemblies/<accession>/page-metadata` |
 | Study ZIP file list | `downloads` in the same response, using registered asset keys |
 | Metadata inside the ZIP; existing metadata asset-key requests | `/api/assemblies/<accession>/metadata.tsv`; metadata requests under `/api/assets/<key>` also generate current D1 values |
-| Experimental and signal track descriptions | Existing `/jbrowse/assemblies/<accession>.config.json` and mixed `/api/batter/<genome>/config`, with D1 descriptions and conditions applied |
+| Experimental and signal track descriptions | D1-backed `/api/assemblies/<accession>/jbrowse-config`; the legacy `/jbrowse/assemblies/<accession>.config.json` URL uses the same builder when the production D1 revision is configured |
+| Public scientific-file registry used by the browser's registered fallback requests | `/assets/data-release.json`, generated from active public D1 asset registrations in production |
 | Collection cards and summaries | `/api/collections` |
-| Legacy home summary | `/api/site-summary` |
 | Collection directories and metadata | `/api/collections/<collection>/directory`, `/api/collections/<collection>/<genome>` |
-| Legacy directory and computational metadata | `/api/genome-directory`, `/api/batter-catalogue`, `/api/batter/<genome>` |
+| Computational metadata and shared detail links | `/api/batter-catalogue`, `/api/batter/<genome>` |
+
+The retired aggregate directory and home-summary APIs return HTTP 410; use the
+collection APIs above. `/genomes.html` redirects to GEM, while `/genomes/<id>`
+details and their scientific files remain supported.
 
 Page descriptions and home summaries have a 60-second edge cache; experimental browser configurations have a five-minute edge cache. Metadata TSV downloads use `no-store`. These are response caches of D1 queries, not a second editable data source.
 
-FASTA, GFF3, BigWig and scientific index files remain at pinned HF revisions. Static browser configuration retains validated coordinate systems, adapters and sequence-compatibility evidence; D1 supplies current study descriptions. The fixed asset manifest remains an integrity allowlist. Registry TSVs and the published snapshot are retained for evidence, migration and standalone Pages builds, not as production fallbacks. With `BTED_D1_ONLY=on`, missing D1 revision configuration fails rather than selecting the legacy HF catalogue path.
+FASTA, GFF3, BigWig and scientific index files remain at pinned HF revisions. Production JBrowse configuration, including experimental/computational combined views, is assembled from D1 assembly, track and asset registrations. Metadata and registered-file changes do not require regenerating per-assembly JSON. With `BTED_D1_ONLY=on`, active public D1 `assets` rows supply the file allowlist: each origin must use an immutable HF commit and match its registered logical path, size and checksum. Generated configs and `assets/data-release.json` remain build evidence and compatibility inputs for local previews and standalone Pages builds. They are not the production configuration source. Missing D1 revision configuration fails rather than selecting the legacy HF catalogue path.
+
+To maintain an existing experimental genome, update `assemblies` and `contigs` for reference identity and lengths, `tracks` for browser registrations and sample/condition metadata, `sources` and `publications` for descriptions, and `assets` for file URLs, versions, sizes and checksums. Keep related registrations consistent in the same reviewed database operation. Update the relevant collection directory records when membership or displayed totals change. D1 lookups cache for 60 seconds; browser configurations cache for five minutes, so changes can take about six minutes to appear. Scientific file contents still require publication at a fixed HF revision; uploading those bytes is separate from updating their D1 registration.
 
 ## Genome origin and taxonomy source
 
@@ -47,9 +53,9 @@ The following describes the retained historical mapping, not the current default
 
 `data/registry/genome_taxonomy.tsv` uses the original GEM catalogue's GTDB-based taxonomy for experimental references, aligned on 2026-10-15. Sixteen of the 21 complete assembly accessions occur in GEM's `genome_to_otu.tsv`; their six ranks are copied from the corresponding `otu_taxonomy.tsv` row. `gem_otu_id` and `taxonomy_status` record the mapping. GEM membership here supplies taxonomy only; it does not add a computational dataset or change reference sequences.
 
-Five references have no exact assembly match: `GCF_000005845.1`, `GCF_003932715.1`, `GCF_005519465.1`, `GCF_015710995.1` and `GCF_018282115.1`. Their historical GEM ranks are unassigned; the current NCBI default is recorded separately. A different assembly version or similar organism name is not accepted as a match. Filling these entries requires a verified historical mapping or sequence classification against a confirmed matching GTDB release; the GEM release number has not been established.
+Five references have no exact assembly match: `GCF_000005845.1`, `GCF_003932715.1`, `GCF_005519465.1`, `GCF_015710995.1` and `GCF_018282115.1`. Their historical GEM ranks are unassigned; the current NCBI default is recorded separately. A different assembly version or similar organism name is not accepted as a match. Filling these entries requires a verified historical mapping or a separately recorded sequence classification; the retained GEM mapping is not inferred from another assembly.
 
-Reference strain and NCBI TaxID remain identity metadata, separate from the historical GEM mapping. The original 2026-10-05 NCBI lineages are preserved in `outputs/BTED-publication-2026-10-22/retained-evidence/gem-taxonomy-2026-10-15/genome_taxonomy.before.tsv`. The `GCF_000005845.1` NCBI assembly report was empty; its TaxID 511145 records the explicitly named *E. coli* K-12 MG1655 organism and does not establish equivalence with another assembly version.
+Reference strain and NCBI TaxID remain identity metadata, separate from the historical GEM mapping. The original 2026-10-05 NCBI lineages are preserved in `BTED/_workspace/outputs/BTED-publication-2026-10-22/retained-evidence/gem-taxonomy-2026-10-15/genome_taxonomy.before.tsv`. The `GCF_000005845.1` NCBI assembly report was empty; its TaxID 511145 records the explicitly named *E. coli* K-12 MG1655 organism and does not establish equivalence with another assembly version.
 
 GEM assigns `GCF_000739105.1` (reference *Streptomyces lividans* TK24) to an OTU classified as *Streptomyces coelicolor*. The source classification is retained without renaming the study organism or strain. The GEM classification for `GCF_000005845.2` has no species assignment; that rank stays empty.
 
@@ -57,22 +63,26 @@ Reference lengths and contig counts in production come from D1 `contigs`, preser
 
 ## Computational references
 
-GEM computational pages retain the GEM catalogue's GTDB lineage and link to the [original taxonomy table](https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv), with the exact release explicitly unknown. The official table was downloaded again on 2026-10-15 and matched the archived copy; its HTTP last-modified date is 2020-09-24. Missing ranks display `Not assigned`. The independent GTDB prediction collection uses R207.0; experimental defaults use NCBI, as described above.
+GEM computational pages retain the GEM catalogue's GTDB lineage and link to the [original taxonomy table](https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv), labelled `GTDB R89 (GEM)`. Missing ranks display `Not assigned`. The independent GTDB prediction collection uses R207.0; experimental defaults use NCBI, as described above.
+
+Direct comparison on 2026-10-23 identified the R89 framework: all 45,599 GEM OTU classification paths occur in the official bacterial and archaeal R89 tables, compared with 22,547 in R86 and 33,755 in R95. GEM supplies OTU-level annotations, which remain unchanged; the version association comes from this comparison rather than an explicit version statement in the paper. The [R89 release notes](https://data.gtdb.ecogenomic.org/releases/release89/89.0/RELEASE_NOTES) identify the reference release. Reproducible comparison results and accession-level exceptions are retained in workspace `BTED/_workspace/outputs/BTED-GEM-version-check-2026-10-23/`.
+
+The official GEM table was downloaded again on 2026-10-15 and matched the archived copy; its HTTP last-modified date is 2020-09-24.
 
 Legacy overlapping experimental/computational pages retain a separate computational reference panel. GEM OTU, input FASTA and source checksum identify the computational input; the study overview uses the explicit experimental classification. Sharing an accession does not establish that the sequence or coordinate system is identical.
 
 ## Study context
 
-The top summary separates experimental 3′-end records, predicted regions and augmentation / Rfam regions. Missing catalogue entries display `Not cataloged`; a registered count of zero remains `0`. Augmentation counts include OTU and Rfam spans, exclude their context windows, and retain the component counts. Experimental counts sum source records and can include overlapping sites.
+The top summary separates experimental 3′-end records, predicted regions and augmentation / Rfam regions. Unavailable catalogue entries display `Not available`; a registered count of zero remains `0`. Augmentation counts include OTU and Rfam spans, exclude their context windows, and retain the component counts. Experimental counts sum source records and can include overlapping sites.
 
-Each study card shows the paper title, first author, journal, year and PubMed link, followed by the 3′-end assay, sample strain, genotype, verified conditions, replicates, evidence type and raw-data accession links. `3′-end assay` identifies the sequencing method behind the collected RNA 3′ ends, not all methods in the paper. Counts sum records for that paper and genome, with per-dataset counts when the paper has multiple source records; overlapping coordinates are not deduplicated. Interpretation notes, including RNA processing, shared sequencing data and known sample/reference strain differences, remain visible. Internal source IDs and licences are not displayed as card fields.
+Each study card shows the paper title, first author, journal, year and PubMed link, followed by the 3′-end assay, sample strain, genotype, verified conditions, replicates and raw-data accession links. `3′-end assay` identifies the sequencing method behind the collected RNA 3′ ends, not all methods in the paper. Counts sum records for that paper and genome, with per-dataset counts when the paper has multiple source records; overlapping coordinates are not deduplicated. Interpretation notes, including RNA processing, shared sequencing data and known sample/reference strain differences, remain visible. Internal source IDs, evidence classes and licences are not displayed as card fields.
 
 D1 `publications` supplies production titles, DOIs, authors, journal and year. The offline registry `data/registry/publications.tsv` contains 14 paper titles and DOIs from the audited `corrected-metadata/experimental-metadata.corrected.tsv`; repeated PMID entries were checked for agreement. The historical citation import also used `study_citations.v0.4.0.tsv`. Titles link to the paper DOI.
 
-Experimental and combined pages use one study-download action, `Download study ZIP`, rather than individual study-file or source-metadata buttons. The ZIP retains its experimental GFF3 and related scientific TSV files, but generates `metadata.tsv` from current D1 records. It does not add reference, prediction or BigWig files. Pure computational pages retain their data-file downloads. Scientific file registration is unchanged.
+Experimental and combined pages use one study-download action, `Download study files`, rather than individual study-file or source-metadata buttons. The archive retains its experimental GFF3 and related scientific TSV files, but generates `metadata.tsv` from current D1 records. It does not add reference, prediction or BigWig files. Pure computational pages retain their data-file downloads. Scientific file registration is unchanged.
 
 The independent experimental collection additionally displays its existing model
-predictions with separate counts and download links under `Model predictions`.
+predictions with separate counts and download links under `Predicted regions`.
 The study ZIP remains experimental-only. Eighteen experimental members use D1-registered
 BATTER-TPE assets; two reuse sequence-verified computational overlays. Their
 prediction count and download cover the computational reference, whose contig
@@ -82,7 +92,7 @@ Where a verified browser signal is registered, a separate BigWig block identifie
 
 D1 `sources.metadata_json` supplies sample strain, genotype, conditions, replicate description and shared-data relationships to source cards. Previously reviewed missing fields were added from `data/registry/source_context.tsv` on 2026-10-19, with guarded update and rollback SQL. Blank fields mean no verified value has been supplied. Reference strain and sample strain remain separate fields.
 
-Production assay labels use D1 `sources.assay_family`. The offline registry's `endpoint_assay` and `endpoint_assay_url` were reviewed against retained article text on 2026-10-19. Term-seq-only collections no longer display companion dRNA-seq, TSS-seq, ordinary RNA-seq or ribosome profiling. S020 uses Nanopore native RNA-seq; S021 uses 3′ RNA-seq (modified from Term-seq). S002 is restricted to Term-seq by the user-confirmed collection scope and remains metadata-only. S022's Term-seq label is supported by the abstract; its detailed supplementary-data review remains separate. Field-level excerpts are retained in the workspace `outputs/BTED-study-ui-2026-10-19/endpoint-assay-evidence.json`. The D1 connection reuses the already-corrected assay values without another assay migration.
+Production assay labels use D1 `sources.assay_family`. The offline registry's `endpoint_assay` and `endpoint_assay_url` were reviewed against retained article text on 2026-10-19. Term-seq-only collections no longer display companion dRNA-seq, TSS-seq, ordinary RNA-seq or ribosome profiling. S020 uses Nanopore native RNA-seq; S021 uses 3′ RNA-seq (modified from Term-seq). S002 is restricted to Term-seq by the user-confirmed collection scope and remains metadata-only. S022's Term-seq label is supported by the abstract; its detailed supplementary-data review remains separate. Field-level excerpts are retained in the workspace `BTED/_workspace/outputs/BTED-study-ui-2026-10-19/endpoint-assay-evidence.json`. The D1 connection reuses the already-corrected assay values without another assay migration.
 
 The registry is a selected extract of `corrected-metadata/experimental-metadata.corrected.tsv` in the companion evidence directory. That file and `metadata-changes.tsv` record the field-level evidence. Before changing a value, check its cited paper or accession and retain the supporting response in the evidence directory.
 

@@ -5,11 +5,27 @@ have their own filters, records, details, browser configurations and downloads.
 An accession appearing in two collections has two independent URLs; it is not merged.
 Existing `/genomes/*` shared links retain their original contract.
 
+In **Experimental 3′ ends**, the **Sequencing technology** column shows the
+distinct endpoint assays from each genome's published sources. A genome can have
+multiple tags. Choose a technology to include every genome carrying that tag;
+taxonomy, data-type, annotation and search filters continue to apply. Shared URLs
+retain the selection as `assay=Term-seq` (or another registered assay).
+Tags use reviewed D1 `sources.assay_family` values with positive published record
+counts; audit-only sources, companion assays and prediction methods do not add tags.
+The directory API returns `sequencingTechnologies`, `filterData.assay` and
+`facets.assay`; `assay` is an exact tag filter. Experimental directory responses
+and linked facets refresh after 60 seconds, independently of coordinate releases.
+
+The old aggregate `/genomes.html` now redirects to GEM without losing its query.
+Its directory and home-summary APIs are retired; no second aggregate directory
+is retained for rollback. Production keeps only active releases and actual online
+dependencies, including the audit-only reference registry described below.
+
 | Collection | Scientific input | Classification |
 |---|---|---|
 | GTDB predictions | BATTER-TPE intervals; pinned, partial HF snapshot | GTDB R207.0 (2022) |
 | Experimental 3′ ends | Study-reported endpoints, registered signals and existing model predictions | NCBI Taxonomy verified by exact assembly version and TaxID; GTDB R207.0 supplementary |
-| GEM catalogue · Legacy | Existing multi-source computational catalogue; no prediction updates | Original GEM / GTDB classification; exact release not established |
+| GEM | BATTER predictions and augmentation/Rfam regions from multiple genome sources | GTDB R89 (GEM) |
 
 The initial GTDB snapshot is `deffa4a7183f71a8b47b3c44`, commit
 `7ed77270f02862da5722dad1d7836e3444e67dfd`: 27,275 published genomes from
@@ -51,7 +67,7 @@ published endpoint records.
 
 GCF_000009765.2 predictions cover the computational chromosome plus an additional
 plasmid; experimental endpoints cover the matched chromosome. Counts and download
-scope remain explicit. Augmentation/Rfam remains in GEM Legacy. No inference or
+scope remain explicit. Augmentation/Rfam remains in GEM. No inference or
 coordinate conversion was performed by this directory correction.
 
 Query caching and D1 costs are described in [D1 metadata](D1_METADATA.md).
@@ -74,8 +90,9 @@ Changing defaults requires a new directory release and refreshed summaries/searc
 Systems are `ncbi`, `gtdb` and `gem_original`. NCBI records have TaxID, retrieval
 timestamp, exact matched assembly, official assembly/Taxonomy links and evidence.
 Their taxonomy version is empty: a retrieval date is not a release number.
-GTDB records name `R207.0`; original GEM records keep an empty version because its
-exact GTDB release is not established. `verified` identifies a checked exact match;
+GTDB records name `R207.0`; GEM-supplied OTU classification is based on the GTDB R89 framework, identified by direct taxonomy-table comparison (see [metadata methods](GENOME_METADATA.md#computational-references)). Existing
+`gem_original` records retain their empty version key for compatibility; the
+collection and classification labels identify R89. `verified` identifies a checked exact match;
 `retained` preserves a published mapping without asserting fresh classification;
 `unmatched` means no exact accession-version match; `pending` means the assembly
 identity could not be resolved. Unmatched/pending records have empty ranks.
@@ -96,7 +113,7 @@ assembly report and stays pending (not borrowed from `.2`). GTDB R207.0 matches
 19 exact accessions, with two unmatched; original GEM retains 16 matches and five
 unmatched. Evidence and guarded release migration are prepared with
 `scripts/prepare_taxonomy_d1.py` and stored in the workspace
-`outputs/BTED-taxonomy-2026-10-22/`. Historical directory releases remain available
+`BTED/_workspace/outputs/BTED-taxonomy-2026-10-22/`. Historical directory releases remain available
 in D1 for recovery; no scientific data tables are rewritten.
 
 Prepare with `scripts/prepare_collections_d1.py` using the pinned current pointer,

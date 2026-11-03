@@ -1,10 +1,10 @@
 # Genome browser
 
-BTED embeds JBrowse 4.3.0. **Open full browser** opens its standalone interface.
+BTED embeds JBrowse 4.3.0. **Open JBrowse** opens its standalone interface.
 
 ## Navigation and tracks
 
-Use the coordinate box to select a contig or interval. **Tracks** opens the track list; **Import tracks** adds local or remote files against a matching reference. Indexed formats require their matching index. Local files stay in the browser and may need reselection after reload; remote files require accessible URLs and CORS support.
+Use the coordinate box to select a contig or interval. In the standalone browser, **Tracks** opens the track list and **Import tracks** adds local or remote files against a matching reference. Indexed formats require their matching index. Local files stay in the browser and may need reselection after reload; remote files require accessible URLs and CORS support.
 
 Click a feature for its attributes and sequence in the **Feature details** panel. **Share view** preserves the location, scale, orientation and registered public tracks. It warns when user-added tracks are omitted.
 
@@ -19,7 +19,7 @@ Click a feature for its attributes and sequence in the **Feature details** panel
 
 Interval boundaries are displayed from the published GFF3, not resolved to a new single-base endpoint. Feature details retain the original coordinates and score. GFF3 coordinates are 1-based and inclusive.
 
-Track-header counts cover the current contig and both strands, independent of zoom or display filters. Augmentation counts exclude sequence context windows. Missing counts are shown as unavailable, not zero. Multi-contig views do not show a single-contig total.
+Track-header counts cover the current contig and both strands, independent of zoom or display filters. **Augmented regions** groups OTU-derived and Rfam-derived regions, separately from experimental 3′-end records. Counts exclude **Sequence context windows**. The track information retains the method citation under Source data. Missing counts are shown as unavailable, not zero. Multi-contig views do not show a single-contig total.
 
 ## BigWig signal
 

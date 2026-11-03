@@ -30,13 +30,14 @@
       document.title = `${name} · BTED`;
       if ($("[data-batter-title]")) $("[data-batter-title]").textContent = name;
       if ($("[data-batter-id]")) $("[data-batter-id]").textContent = name === id ? "" : id;
-      if ($("[data-batter-reference]")) $("[data-batter-reference]").textContent = `Sequence source: ${data.reference.source}. ${format(data.reference.contigs)} contigs · ${format(data.reference.bases)} bp.`;
+      if ($("[data-batter-reference]")) $("[data-batter-reference]").textContent = `Reference sequence: ${data.reference.source}. ${format(data.reference.contigs)} contigs · ${format(data.reference.bases)} bp.`;
       const provenance = $("[data-batter-provenance]");
       if (provenance) {
         const heading = document.createElement("h2"), facts = document.createElement("dl");
         heading.textContent = "Reference details";
-        const source = ({ "NCBI-RefSeq": "NCBI RefSeq", "NCBI-MAG": "NCBI GenBank", "NCBI-SAG": "NCBI GenBank" })[data.source_collection] || data.source_collection || "Not cataloged";
-        for (const [label, value] of [["Genome ID", id], ["Collection", data.collection_label], ["GEM OTU", data.otu_id], ["Genome source", source], ["Sequence source", data.reference.source], ["Genome type", data.genome_type], ["Reference length", `${format(data.reference.bases)} bp`], ["Contigs", format(data.reference.contigs)]]) {
+        const source = ({ "NCBI-RefSeq": "NCBI RefSeq", "NCBI-MAG": "NCBI GenBank", "NCBI-SAG": "NCBI GenBank" })[data.source_collection] || data.source_collection || "Not recorded";
+        const genomeType = ({ MAG: "Metagenome-assembled", SAG: "Single-cell amplified", isolate: "Isolate", environmental: "Environmental", unknown: "Type not recorded" })[data.genome_type] || data.genome_type;
+        for (const [label, value] of [["Genome ID", id], ["Collection", data.collection_label], ["GEM OTU", data.otu_id], ["Genome source", source], ["Reference sequence", data.reference.source], ["Genome type", genomeType], ["Genome size", `${format(data.reference.bases)} bp`], ["Contigs", format(data.reference.contigs)]]) {
           if (!value) continue;
           const item = document.createElement("div"), term = document.createElement("dt"), description = document.createElement("dd");
           term.textContent = label; description.textContent = value; item.append(term, description); facts.append(item);
@@ -48,7 +49,7 @@
       if (taxonomy) {
         const header = document.createElement("div"), heading = document.createElement("h2"), source = document.createElement("span"), lineage = document.createElement("dl");
         header.className = "taxonomy-heading"; heading.textContent = "Taxonomy";
-        source.append(link(data.taxonomy_label || "GEM / GTDB (original)", data.taxonomy_url || "https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv"));
+        source.append(link(data.taxonomy_label || "GTDB R89 (GEM)", data.taxonomy_url || "https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv"));
         header.append(heading, source); lineage.className = "taxonomy-lineage";
         const ranks = Object.fromEntries((data.taxonomy || "").split(";").map(value => value.trim()).map(value => [value.slice(0, 1), value.slice(3)]));
         for (const [key, label] of [["p", "Phylum"], ["c", "Class"], ["o", "Order"], ["f", "Family"], ["g", "Genus"], ["s", "Species"]]) {
@@ -76,28 +77,18 @@
       const training = hasTrainingCounts ? counts.otu_augmentation_span + counts.rfam_training_span : null;
       for (const [selector, count] of [["[data-prediction-count]", counts.tes_prediction], ["[data-training-count]", training]]) {
         const node = $(selector);
-        node.textContent = validCount(count) ? format(count) : "Not cataloged";
+        node.textContent = validCount(count) ? format(count) : "Not available";
         node.className = validCount(count) ? "" : "count-missing";
       }
       $("[data-training-breakdown]").textContent = hasTrainingCounts ? `OTU ${format(counts.otu_augmentation_span)} · Rfam ${format(counts.rfam_training_span)}` : "";
       const downloads = $("[data-batter-downloads]");
       if (downloads) {
         downloads.replaceChildren();
-        for (const [file, label] of [["prediction.gff3.gz", "Predicted regions (GFF3)"], ["prediction.bed.gz", "Predicted regions (BED)"], ["augmentation.gff3.gz", "Augmentation / Rfam regions (GFF3)"], ["reference.fa.gz", "Reference FASTA"], [data.annotation.recovered ? "genes.gff3" : "genes.gff3.gz", "Gene annotation"]]) {
+        for (const [file, label] of [["prediction.gff3.gz", "Predicted regions (GFF3)"], ["prediction.bed.gz", "Predicted regions (BED)"], ["augmentation.gff3.gz", "Augmented regions (GFF3)"], ["reference.fa.gz", "Reference FASTA"], [data.annotation.recovered ? "genes.gff3" : "genes.gff3.gz", "Gene annotation"]]) {
           if (!data.browser_files[file] || (file.startsWith("genes") && data.annotation.status !== "matched")) continue;
           const node = link(label, data.browser_files[file].url); node.className = "button"; downloads.append(node);
         }
         const metadataLink = link("Genome metadata (JSON)", api.href); metadataLink.className = "button"; downloads.append(metadataLink);
-      }
-      if (data.annotation.coverage === "partial") {
-        const note = document.createElement("p"); note.className = "muted";
-        note.textContent = `Gene annotation: ${data.annotation.matched_reference_contigs} of ${data.annotation.total_reference_contigs} contigs.`;
-        provenance.append(note);
-      }
-      if (data.annotation.status !== "matched") {
-        const note = document.createElement("p"); note.className = "muted";
-        note.textContent = "Gene annotation: Missing.";
-        provenance.append(note);
       }
       const config = new URL(api); config.pathname += "/config"; config.searchParams.set("revision", data.revision);
       const configResponse = await fetch(config);

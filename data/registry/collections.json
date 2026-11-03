@@ -10,23 +10,23 @@
     "description": "BATTER-TPE predictions for GTDB R207.0 genomes."
   },
   "experimental": {
-    "version": "202610220000000000000006",
+    "version": "202610310000000000000005",
     "label": "Experimental 3′ ends",
     "taxonomy_label": "NCBI Taxonomy",
     "reference_revision": "9f81698a3cee64f4eaf90b90cd36d640f38d9315",
-    "total": 20,
-    "source_genome_count": 20,
+    "total": 29,
+    "source_genome_count": 29,
     "partial": false,
-    "description": "Study-reported RNA 3′ ends, model predictions and available sequencing-signal tracks."
+    "description": "Study-reported transcript 3′ ends, predicted regions and signal tracks."
   },
   "gem": {
-    "version": "202610220000000000000003",
-    "label": "GEM catalogue · Legacy",
-    "taxonomy_label": "GEM / GTDB (original; release not established)",
+    "version": "765f663d12e49b06721ca001",
+    "label": "GEM",
+    "taxonomy_label": "GTDB R89 (GEM)",
     "reference_revision": "9f81698a3cee64f4eaf90b90cd36d640f38d9315",
     "total": 42904,
     "source_genome_count": 42904,
     "partial": false,
-    "description": "Earlier predictions and augmentation data from GEM and other genome sources."
+    "description": "Predicted and augmented regions from GEM and other genome sources."
   }
 }

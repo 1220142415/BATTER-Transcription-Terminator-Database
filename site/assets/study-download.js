@@ -72,7 +72,7 @@
   packageButton.addEventListener("click", async () => {
     const links = Array.from(root.querySelectorAll("[data-package-file][data-zip-path]"));
     packageButton.disabled = true;
-    if (packageStatus) packageStatus.textContent = "Preparing ZIP…";
+    if (packageStatus) packageStatus.textContent = "Preparing study files…";
     try {
       const siteRoot = new URL("../", document.baseURI);
       let assets = [];
@@ -93,14 +93,14 @@
       const objectUrl = URL.createObjectURL(blob);
       const download = document.createElement("a");
       download.href = objectUrl;
-      download.download = `BTED-v0.4.0-${assembly}.zip`;
+      download.download = `BTED-${root.dataset.releaseVersion || "v0.4.0"}-${assembly}.zip`;
       document.body.append(download);
       download.click();
       download.remove();
       window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
-      if (packageStatus) packageStatus.textContent = `ZIP ready: ${files.length} GFF3 and TSV files.`;
+      if (packageStatus) packageStatus.textContent = `Study files ready: ${files.length} GFF3 and TSV files.`;
     } catch (error) {
-      if (packageStatus) packageStatus.textContent = "ZIP download failed. Check your connection and retry.";
+      if (packageStatus) packageStatus.textContent = "Study download failed. Check your connection and retry.";
       console.error(error);
     } finally {
       packageButton.disabled = false;

@@ -18,6 +18,8 @@ class WorkerAssetProxyTests(unittest.TestCase):
         fetch_mode: str = "success",
         data_release_manifest_mode: str = "valid",
         signal_sample_mode: str = "none",
+        metadata_revision: str | None = None,
+        d1_only: bool = False,
     ) -> dict[str, object]:
         worker_path = json.dumps(str(WORKER))
         request_url_js = json.dumps(request_url)
@@ -26,6 +28,8 @@ class WorkerAssetProxyTests(unittest.TestCase):
         fetch_mode_js = json.dumps(fetch_mode)
         data_release_manifest_mode_js = json.dumps(data_release_manifest_mode)
         signal_sample_mode_js = json.dumps(signal_sample_mode)
+        metadata_revision_js = json.dumps(metadata_revision)
+        d1_only_js = json.dumps(d1_only)
         script = f"""
 import {{ readFileSync }} from "node:fs";
 
@@ -136,7 +140,7 @@ const db = {{
     if (sql.startsWith("SELECT source_id, reference_name, COUNT(*)")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ source_id: "BATTER_S1_003", reference_name: "NC_000964.3", record_count: 1070 }}] }}) }}; }} }};
     if (sql.startsWith("SELECT biological_coordinate_1based FROM endpoints WHERE")) return {{ bind() {{ return {{ first: async () => ({{ biological_coordinate_1based: 19000 }}) }}; }} }};
     if (sql.startsWith("SELECT reference_name, biological_coordinate_1based")) return {{ bind() {{ return {{ first: async () => ({{ reference_name: "NC_000964.3", biological_coordinate_1based: 19000 }}) }}; }} }};
-    if (sql.includes("FROM assets")) return {{ bind(...params) {{ return {{ first: async () => params[0] === asset.asset_key && params[1] === asset.release_version ? asset : null, all: async () => ({{ results: params[1] === browserAssembly.accession ? browserAssets : params[1] === browserSource.source_id ? signalAssets : [] }}) }}; }} }};
+    if (sql.includes("FROM assets")) return {{ bind(...params) {{ return {{ first: async () => params[0] === asset.asset_key && params[1] === asset.release_version ? asset : null, all: async () => ({{ results: params.length === 1 ? [...browserAssets, ...signalAssets] : params[1] === browserAssembly.accession ? browserAssets : params[1] === browserSource.source_id ? signalAssets : [] }}) }}; }} }};
     if (sql.includes("SELECT release_status")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ release_status: "published_standardized", total: 24 }}, {{ release_status: "audit_only", total: 1 }}] }}) }}; }} }};
     if (sql.includes("SELECT evidence_class")) return {{ bind() {{ return {{ all: async () => ({{ results: [{{ evidence_class: "author_called_endpoint", total: 1061 }}, {{ evidence_class: "author_reported", total: 28399 }}] }}) }}; }} }};
     if (sql.includes("FROM endpoints WHERE")) return {{ bind() {{ return {{ first: async () => ({{ total: 29460 }}) }}; }} }};
@@ -172,6 +176,11 @@ if ({signal_sample_mode_js} !== "none") {{
       byte_size: signalAssets[index].byte_size, sha256: signalAssets[index].sha256, asset_kind: "bigwig" }};
   }}
 }}
+for (const row of [...browserAssets, ...signalAssets]) {{
+  row.origin_url = dataReleaseManifest.assets[row.logical_path]?.url
+    || `https://huggingface.co/datasets/liurulong/terminator/resolve/${{"a".repeat(40)}}/v0.3.0/${{row.logical_path}}`;
+  if (dataReleaseManifestMode === "malformed") row.origin_url = row.origin_url.replace(/resolve\/[0-9a-f]{{40}}\//, "resolve/main/");
+}}
 globalThis.fetch = async (url) => {{
   fetchedUrl = String(url);
   if (fetchMode === "throw") throw new Error("Network connection lost");
@@ -180,6 +189,8 @@ globalThis.fetch = async (url) => {{
 }};
 const env = {{
   BTED_DB: db,
+  BTED_METADATA_REVISION: {metadata_revision_js},
+  BTED_D1_ONLY: {d1_only_js} ? "on" : "off",
   ALLOWED_ORIGIN_HOST: "huggingface.co",
   ASSETS: {{
     async fetch(request) {{
@@ -320,8 +331,9 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(default_view["offsetPx"], 18499)
         self.assertEqual(config["defaultSession"]["name"], "BTED · GCF_000009045.1")
         self.assertEqual(config["plugins"][0]["name"], "BTEDTrackPlugin")
-        self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js?v=41")
-        endpoint_track = next(track for track in config["tracks"] if track["trackId"].startswith("source_"))
+        self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js?v=44")
+        endpoint_track = next(track for track in config["tracks"] if track["metadata"]["btedAbout"]["kind"] == "endpoint")
+        self.assertEqual(endpoint_track["trackId"], "bted_v04_batter_s1_003_endpoints")
         expected_gff3 = "https://huggingface.co/datasets/liurulong/terminator/resolve/abcdefabcdefabcdefabcdefabcdefabcdefabcd/v0.4.0/genomes/GCF_000009045.1/studies/PMID_12345678/endpoints.gff3.gz"
         self.assertEqual(endpoint_track["adapter"]["type"], "Gff3Adapter")
         self.assertEqual(endpoint_track["adapter"]["gffLocation"]["uri"], expected_gff3)
@@ -367,6 +379,33 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(mismatch['status'], 503)
         self.assertEqual(mismatch['body']['error'], 'signal_sample_mismatch')
 
+    def test_legacy_jbrowse_url_uses_d1_config_builder_when_revision_is_configured(self):
+        payload = self.run_worker(
+            request_path="/jbrowse/assemblies/GCF_000009045.1.config.json",
+            metadata_revision="a" * 40,
+        )
+        self.assertEqual(payload["status"], 200)
+        self.assertEqual(payload["body"]["metadata"]["release_version"], "v0.4.0")
+        self.assertEqual(payload["body"]["metadata"]["assembly_accession"], "GCF_000009045.1")
+
+    def test_production_config_and_proxy_use_d1_without_static_manifests(self):
+        params = dict(d1_only=True, metadata_revision="a" * 40, data_release_manifest_mode="missing")
+        config = self.run_worker(request_path="/jbrowse/assemblies/GCF_000009045.1.config.json", **params)
+        self.assertEqual(config["status"], 200)
+        reference = config["body"]["assemblies"][0]["sequence"]["adapter"]["fastaLocation"]["uri"]
+        self.assertIn("/resolve/0123456789abcdef0123456789abcdef01234567/", reference)
+        asset = self.run_worker(**params)
+        self.assertEqual(asset["status"], 200)
+        self.assertIn("/resolve/0123456789abcdef0123456789abcdef01234567/", asset["fetchedUrl"])
+        manifest = self.run_worker(request_path="/assets/data-release.json", **params)
+        self.assertEqual(manifest["status"], 200)
+        registered = manifest["body"]["assets"]["assemblies/GCF_000009045.1/reference/reference.fna.fai"]
+        self.assertEqual(registered["fallback_url"], "/api/assets/v0.4.0--assembly-GCF_000009045.1--fai")
+        self.assertIn("/resolve/0123456789abcdef0123456789abcdef01234567/", registered["url"])
+        invalid = self.run_worker(d1_only=True, data_release_manifest_mode="malformed")
+        self.assertEqual(invalid["status"], 503)
+        self.assertIsNone(invalid["fetchedUrl"])
+
     def test_stats_keeps_release_and_source_status_counts(self):
         payload = self.run_worker(request_path="/api/stats")
         self.assertEqual(payload["status"], 200)
@@ -391,7 +430,7 @@ const env = { ASSETS: { async fetch() { return new Response('unchanged', { statu
   headers: { 'cache-control': 'no-cache', etag: 'original' } }); } } };
 for (const path of ['/jbrowse/static/js/main.de203b0d.js', '/jbrowse/static/js/6514.48beaae4.chunk.js',
   '/jbrowse/static/css/main.12345678.css', '/jbrowse/static/js/main.bted-sequence-v1.js',
-  '/jbrowse/static/js/8948.bted-sequence-v1.chunk.js', '/jbrowse/plugins/bted-track-plugin.js?v=41']) {
+  '/jbrowse/static/js/8948.bted-sequence-v1.chunk.js', '/jbrowse/plugins/bted-track-plugin.js?v=44']) {
   const result = await staticAsset(new Request('https://bted.example' + path), env);
   assert.equal(result.headers.get('cache-control'), 'public, max-age=31536000, immutable');
   assert.equal(result.headers.get('etag'), 'original'); assert.equal(await result.text(), 'unchanged');

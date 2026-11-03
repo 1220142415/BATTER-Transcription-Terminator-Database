@@ -82,7 +82,7 @@ class GenomeZipTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         outcome = json.loads(result.stdout)
         self.assertEqual(outcome["filename"], "BTED-v0.4.0-GCF_TEST.zip")
-        self.assertIn("2 GFF3 and TSV files", outcome["status"])
+        self.assertEqual(outcome["status"], "Study files ready: 2 GFF3 and TSV files.")
         with zipfile.ZipFile(io.BytesIO(base64.b64decode(outcome["archive"]))) as archive:
             self.assertEqual(archive.namelist(), [
                 "GCF_TEST/metadata.tsv",

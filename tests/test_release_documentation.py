@@ -23,7 +23,7 @@ class ReleaseDocumentationTests(unittest.TestCase):
         for required in (
             "genomes/<assembly-accession>/", "`metadata.tsv`", "`endpoints.gff3.gz`",
             "`gene_associations.tsv.gz`", "`condition_observations.tsv.gz`",
-            "29,460", "1,061", "196", "345", "2,277",
+            "29,460", "1,061", "345", "2,277",
             "CP000100.1", "NC_007604.1", "BigWig", "SHA256SUMS.txt",
         ):
             with self.subTest(required=required):

@@ -196,33 +196,20 @@ def is_published_status(value: object) -> bool:
     return status == "published" or status.startswith("published_")
 
 
-def evidence_label(value: str) -> str:
-    labels = {
-        "observed_signal": "Experimental signal",
-        "author_called_endpoint": "Author-reported endpoint",
-        "curated_record": "Literature-curated endpoint",
-        "experimentally_supported_endpoint": "Experimentally supported endpoint",
-        "predicted_candidate": "Predicted candidate",
-    }
-    return labels.get(value, value.replace("_", " ").strip().capitalize() or "Evidence not specified")
-
-
 SOURCE_PAGE_CAVEATS = {
     "BATTER_S1_004": "Sample strain ML76 differs from browser reference NA1000 (CP001340.1).",
     "BATTER_S1_006": "Multiple gene records may share a coordinate.",
     "BATTER_S1_007": "Some 3′ ends may result from RNA processing.",
     "BATTER_S1_008": "Gene associations are counted separately.",
-    "BATTER_S1_009": "Predicted sites excluded.",
+    "BATTER_S1_009": "Experimental files contain study-reported records only.",
     "BATTER_S1_012": "Sample strain M145 differs from browser reference A3(2).",
     "BATTER_S1_014": "Sample strain NBRC 108819 differs from browser reference NRRL 18488.",
     "BATTER_S1_015": "Study records counted separately.",
     "BATTER_S1_016": "Species name differs from NCBI; reference sequence matches.",
     "BATTER_S1_017": "Study records counted separately.",
     "BATTER_S1_020": "Predicted and mixed-evidence sites excluded.",
-    "BATTER_S1_021": "Condition annotations differ; see supplementary observations.",
-    "BATTER_S1_022": "Predicted sites excluded.",
-    **{f"BTED_EXT_2026_{number}": "Study-defined ends only; uncertain peaks excluded."
-       for number in (102, 103, 104)},
+    "BATTER_S1_021": "Each record keeps its reviewed condition annotation.",
+    "BATTER_S1_022": "Experimental files contain study-reported records only.",
 }
 
 
@@ -246,7 +233,7 @@ def raw_data_links(raw: str) -> str:
             continue
         links.append(f'<a href="{esc(url)}" target="_blank" rel="noopener">{esc(accession)}</a>')
     if not links:
-        return '<span class="muted">No raw-data accession recorded</span>'
+        return '<span class="muted">No data accession recorded.</span>'
     return " · ".join(links)
 
 
@@ -291,7 +278,7 @@ def page(title: str, content: str, *, current: str = "", scripts: tuple[str, ...
     script_tags = "".join(script_tag(src) for src in scripts)
     return f'''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Experimental transcript 3′ ends, BATTER predictions and training regions."><title>{esc(title)} · BTED</title>
+<meta name="description" content="Experimental transcript 3′ ends, predicted termination regions and augmented regions."><title>{esc(title)} · BTED</title>
 <link rel="icon" href="{prefix}assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="{prefix}css/style.css?v={stylesheet_version}"></head>
 <body><a class="skip-link" href="#main-content">Skip to content</a>{nav(current, depth)}{content}<footer class="site-footer"><div class="footer-inner"><span>{esc(footer_label)}</span><nav class="footer-links" aria-label="Footer navigation"><a href="{prefix}genomes.html">Genomes</a><a href="{prefix}methodology.html">Data notes</a><a href="{prefix}usage.html">Usage</a><a href="https://github.com/1220142415/BATTER-Transcription-Terminator-Database">GitHub ↗</a></nav></div></footer>{script_tags}</body></html>
 '''
@@ -332,18 +319,18 @@ def home_content(genomes: list[dict[str, object]], computational_genomes=(), *, 
     experimental_count = sum(any(is_published_status(row.get("release_status")) and int(row["record_count_number"]) > 0 for row in genome["metadata_rows"]) for genome in genomes)
     metrics = ((len(assemblies), "Catalog genomes"),
                (sum(row[10] for row in computational_genomes) + sum(r["prediction_count"] for g, r in load_predictions()["genomes"].items() if g in assemblies), "Predicted regions"),
-               (sum(row[5] + row[7] for row in computational_genomes), "Augmentation / Rfam regions"),
+               (sum(row[5] + row[7] for row in computational_genomes), "Augmented regions"),
                (experimental_count, "Genomes with experimental data"),
-               (sum(int(row["record_count_number"]) for row in published), "Experimental 3′-end records"),
+               (sum(int(row["record_count_number"]) for row in published), "3′-end records"),
                (len({row["pmid"] for row in published}), "Source publications"))
     summary = "".join(f'<div><strong>{"Loading…" if d1_metadata else f"{count:,}"}</strong><span>{label}</span></div>' for count, label in metrics)
     return f'''<main class="home-page"{' data-live-summary' if d1_metadata else ''}>
-<section class="hero hero-compact"><div class="page-shell hero-inner"><div class="hero-copy"><h1>Bacterial transcript<br>3′-end database</h1><p>Experimental transcript 3′ ends, BATTER predictions and training regions.</p><div class="hero-actions"><a class="button primary" href="genomes.html">Browse genomes <span aria-hidden="true">→</span></a><a class="button" href="#batter-reference">BATTER paper</a></div></div>
+<section class="hero hero-compact"><div class="page-shell hero-inner"><div class="hero-copy"><h1>Bacterial transcript<br>3′-end database</h1><p>Experimental transcript 3′ ends, predicted termination regions and augmented regions.</p><div class="hero-actions"><a class="button primary" href="genomes.html">Browse genomes <span aria-hidden="true">→</span></a><a class="button" href="methodology.html">Data notes</a></div></div>
 <figure class="hero-diagram"><div class="diagram-heading"><span class="eyebrow">Transcription termination</span></div><img src="assets/termination-motif.svg" width="520" height="310" alt="RNA stem-loop, U-rich tail and transcript 3′ end aligned with a schematic signal peak."><figcaption>Intrinsic termination (schematic).</figcaption></figure></div></section>
 <section class="page-shell home-summary" aria-label="Release statistics">{summary}</section>
 <div class="page-shell home-content">
-<section class="home-explore" aria-label="BTED pages"><a href="genomes.html?dataset=experimental"><h2>Experimental data <span aria-hidden="true">↗</span></h2></a><a href="genomes.html"><h2>Genome catalog <span aria-hidden="true">↗</span></h2></a><a href="methodology.html"><h2>Data notes <span aria-hidden="true">↗</span></h2></a></section>
-<section class="home-reference" id="batter-reference"><div><p class="eyebrow">Reference</p><h2>BATTER</h2></div>
+<section class="home-explore" aria-label="BTED pages"><a href="genomes.html?dataset=experimental"><h2>Experimental 3′ ends <span aria-hidden="true">↗</span></h2></a><a href="genomes.html"><h2>Genome catalog <span aria-hidden="true">↗</span></h2></a><a href="methodology.html"><h2>Data notes <span aria-hidden="true">↗</span></h2></a></section>
+<section class="home-reference" id="batter-reference"><div><p class="eyebrow">Reference</p><h2>Sources and methods</h2></div>
 <div class="home-reference-content"><p class="home-citation">Jin, Y., Cui, J., Liu, R. et al. <a href="https://doi.org/10.1186/s40168-026-02454-1">Conserved 3′ stem-loop structures enable comprehensive analysis of bacterial transcription termination in metagenomes.</a> <em>Microbiome</em> <strong>14</strong>, 222 (2026).</p><p class="home-doi">DOI: <a href="https://doi.org/10.1186/s40168-026-02454-1">10.1186/s40168-026-02454-1</a></p>
 <div class="home-reference-links"><a class="button" href="https://doi.org/10.1186/s40168-026-02454-1">Read paper ↗</a><a class="button" href="https://github.com/xu-research-lab/BATTER">BATTER code ↗</a><a class="button" href="https://github.com/1220142415/BATTER-Transcription-Terminator-Database">BTED repository ↗</a></div></div></section></div>
 </main>'''
@@ -370,12 +357,10 @@ def load_reference_sizes() -> dict[str, list[int]]:
 
 
 def data_sort_header(fields):
-    labels = {"endpoints": "Experimental 3′ ends", "predictions": "Predicted regions", "training": "Augmentation / Rfam"}
-    buttons = ''.join(f'<button type="button" data-sort="{field}" title="Sort by {labels[field].lower()}">{labels[field]}</button>' for field in fields)
-    return f'<th aria-sort="none"><span>Transcript 3′-end data</span><div class="genome-data-sort">{buttons}</div></th>'
+    return '<th>3′-end data</th>'
 
 
-def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[str, object]], taxonomy: dict[str, dict[str, str]], *, data_sorts=("endpoints",), source_filter=True) -> str:
+def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[str, object]], taxonomy: dict[str, dict[str, str]], *, data_sorts=("endpoints",), source_filter=True, sequencing_filter=False) -> str:
     reference_sizes = load_reference_sizes()
     predictions = load_predictions()['genomes']
     count = len(genomes)
@@ -392,7 +377,7 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
         if assembly in predictions:
             reference = predictions[assembly]['reference']
             size = (reference['genome_length'], len(reference['contigs']))
-        size_text = f'<span>{size[0]:,} bp</span><small>{size[1]:,} {"contig" if size[1] == 1 else "contigs"}</small>' if size else '<span class="muted">Not cataloged</span>'
+        size_text = f'<span>{size[0]:,} bp</span><small>{size[1]:,} {"contig" if size[1] == 1 else "contigs"}</small>' if size else '<span class="muted">Not recorded</span>'
         has_annotation = _asset_exists(asset_map, lambda logical, asset: asset.get("asset_kind") == "gff3" and
             logical in (f"assemblies/{assembly}/reference/genes.gff3.gz", f"assemblies/{assembly}/reference/genes.gff3", f"browser/{assembly}/annotation.gff3"))
         source_tags = []
@@ -415,10 +400,10 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
   <td data-label="Genome ID"><a class="genome-table-name" href="{href}"><code>{esc(assembly)}</code></a></td>
   <td data-label="Genome source">NCBI RefSeq</td>
   <td data-label="Organism"><span class="genome-organism">{esc(species or assembly)}</span>{''.join(source_tags)}</td>
-  <td data-label="Taxonomy"><span>{esc(genome_taxonomy['phylum'] or 'Unclassified')}</span><small>{esc(genome_taxonomy['genus'] or 'Genus not assigned')}</small></td>
-  <td data-label="Assembly size" data-reference-size title="Browser reference length">{size_text}</td>
-  <td data-label="Transcript 3′-end data"><div class="genome-data-counts"><span{' hidden' if not endpoint_count else ''} class="genome-evidence experimental{' unavailable' if not endpoint_count else ''}" title="Study-reported 3′ ends"><b>{endpoint_count:,}</b> experimental 3′-end records</span><span{' hidden' if not prediction_count else ''} class="genome-evidence prediction{' unavailable' if not prediction_count else ''}"><b data-prediction-count>{prediction_count:,}</b> predicted regions</span><span hidden class="genome-evidence training unavailable" title="OTU and Rfam regions; excludes context windows"><b data-augmentation-count>0</b> augmentation / Rfam regions</span></div></td>
-  <td data-label="Annotation"><span class="genome-annotation{' unavailable' if not has_annotation else ''}">{'Available' if has_annotation else 'Missing'}</span></td>
+  <td data-label="Taxonomy"><span>{esc(genome_taxonomy['phylum'] or 'Not assigned')}</span><small>{esc(genome_taxonomy['genus'] or 'Genus not assigned')}</small></td>
+  <td data-label="Genome size" data-reference-size title="Genome size">{size_text}</td>
+  <td data-label="3′-end data"><div class="genome-data-counts"><span{' hidden' if not endpoint_count else ''} class="genome-evidence experimental{' unavailable' if not endpoint_count else ''}" title="Study-reported 3′-end records"><b>{endpoint_count:,}</b> 3′-end records</span><span{' hidden' if not prediction_count else ''} class="genome-evidence prediction{' unavailable' if not prediction_count else ''}" title="Model-predicted termination regions"><b data-prediction-count>{prediction_count:,}</b> Predicted regions</span><span hidden class="genome-evidence training unavailable" title="OTU-derived and Rfam-derived regions; excludes context windows"><b data-augmentation-count>0</b> Augmented regions</span></div></td>
+  <td data-label="Annotation"><span class="genome-annotation{' unavailable' if not has_annotation else ''}">{'Available' if has_annotation else 'Not available'}</span></td>
 </tr>''')
     content = f'''<main>
 <section class="page-shell genome-results" id="genome-directory"><div class="page-heading"><div><h1>Genome catalog</h1></div><a class="text-link" href="methodology.html">Data notes <span aria-hidden="true">↗</span></a></div>
@@ -427,8 +412,9 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
     <button class="genome-filter-reset" type="button" data-clear-filters aria-label="Clear filters" title="Clear filters"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7a9 9 0 1 1-1 9M4 3v5h5"/></svg></button>
   </div><div class="genome-refine-filters">
     {'<label>Genome source<select data-genome-source-filter><option value="">All sources</option></select></label>' if source_filter else ''}
-    <label>Genome type<select data-genome-type-filter><option value="">All types</option><option value="isolate">Isolate</option><option value="MAG">MAG · Metagenome-assembled</option><option value="SAG">SAG · Single-cell amplified</option><option value="unknown">Not cataloged</option></select></label>
-    <label>Gene annotation<select data-genome-annotation-filter><option value="">All statuses</option><option value="Available">Available</option><option value="Missing">Missing</option></select></label>
+    <label>Genome type<select data-genome-type-filter><option value="">All types</option><option value="isolate">Isolate</option><option value="MAG">MAG · Metagenome-assembled</option><option value="SAG">SAG · Single-cell amplified</option><option value="unknown">Type not recorded</option></select></label>
+    <label>Gene annotation<select data-genome-annotation-filter><option value="">All statuses</option><option value="Available">Available</option><option value="Missing">Not available</option></select></label>
+    {'<label>Sequencing technology<select data-genome-assay-filter><option value="">All technologies</option></select></label>' if sequencing_filter else ''}
   </div><fieldset class="genome-taxonomy-panel"><legend>Taxonomy</legend><div class="genome-taxonomy-fields">
     {''.join(f'<label>{rank.capitalize()}<select data-taxonomy-rank="{rank}"{" disabled" if rank != "phylum" else ""}><option value="">All</option></select></label>' for rank in TAXONOMY_RANKS)}
   </div></fieldset></form>
@@ -438,8 +424,9 @@ def index_content(genomes: list[dict[str, object]], asset_map: dict[str, dict[st
     <th>Genome source</th>
     <th aria-sort="none"><button type="button" data-sort="organism">Organism</button></th>
     <th>Taxonomy</th>
-    <th aria-sort="none"><button type="button" data-sort="size">Assembly size</button></th>
+    <th aria-sort="none"><button type="button" data-sort="size">Genome size</button></th>
     {data_sort_header(data_sorts)}
+    {'<th>Sequencing technology</th>' if sequencing_filter else ''}
     <th>Annotation</th>
   </tr></thead><tbody data-genome-results>{''.join(table_rows)}</tbody></table></div>
   <p class="search-empty" data-empty hidden>No matching genomes.</p></div>
@@ -458,26 +445,24 @@ def _group_studies(rows: list[dict[str, str]]) -> list[tuple[str, list[dict[str,
 def genome_summary(experimental_count=None, study_count=0, computational=None, *, loading=False, prediction_count=None) -> str:
     prediction = prediction_count if prediction_count is not None else computational[10] if computational is not None else None
     augmentation = int(computational[5]) + int(computational[7]) if computational is not None else None
-    pending = "Loading…" if loading else "Not cataloged"
-    def number(value, marker="", fallback="Not cataloged"):
+    pending = "Loading…" if loading else "Not available"
+    def number(value, marker="", fallback="Not available"):
         return f'<strong {marker} class="{"count-missing" if value is None else ""}">{fallback if value is None else f"{int(value):,}"}</strong>'
     breakdown = f'OTU {int(computational[5]):,} · Rfam {int(computational[7]):,}' if computational is not None else ''
     studies = f"{study_count} {'publication' if study_count == 1 else 'publications'}" if experimental_count is not None else ""
     return f'''<section class="genome-summary genome-counts" aria-label="Genome data summary">
-<div>{number(experimental_count, 'data-experimental-count')}<span>Experimental 3′-end records</span><small>{studies}</small></div>
-<div>{number(prediction, 'data-prediction-count', pending)}<span>Predicted regions</span><small>BATTER</small></div>
-<div title="Context windows excluded.">{number(augmentation, 'data-training-count', pending)}<span>Augmentation / Rfam regions</span><small data-training-breakdown>{breakdown}</small></div>
+<div>{number(experimental_count, 'data-experimental-count')}<span>3′-end records</span><small>{studies}</small></div>
+<div>{number(prediction, 'data-prediction-count', pending)}<span>Predicted regions</span><small>BATTER-TPE</small></div>
+<div title="Context windows excluded.">{number(augmentation, 'data-training-count', pending)}<span>Augmented regions</span><small data-training-breakdown>{breakdown}</small></div>
 </section>'''
 
 
 def browser_actions(full_browser_href: str | None = None) -> str:
     full_attributes = f'href="{esc(full_browser_href)}"' if full_browser_href else 'data-batter-full hidden'
     return f'''<div class="browser-actions" role="group" aria-label="Genome browser actions">
-<button class="browser-open" type="button" data-select-tracks disabled><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 6h12M9 12h12M9 18h12"/><rect x="3" y="4" width="3" height="3" rx=".5"/><rect x="3" y="10" width="3" height="3" rx=".5"/><rect x="3" y="16" width="3" height="3" rx=".5"/></svg><span>Tracks</span></button>
-<button class="browser-open" type="button" data-add-user-track disabled><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3v12m-5-5 5 5 5-5M4 15v5h16v-5"/></svg><span>Import tracks</span></button>
 <button class="browser-open" type="button" data-share-view disabled><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg><span>Share view</span></button>
 <button class="browser-open" type="button" data-retry-browser><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20 7a9 9 0 1 0 1 9M20 3v5h-5"/></svg><span>Reload</span></button>
-<a class="browser-open browser-open--full" {full_attributes}><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 3h6v6M10 14 21 3M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg><span>Open full browser</span></a>
+<a class="browser-open browser-open--full" {full_attributes}><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 3h6v6M10 14 21 3M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/></svg><span>Open JBrowse</span></a>
 </div>'''
 
 
@@ -504,7 +489,7 @@ def genome_content(
 <p class="browser-share-status" data-browser-status role="status">Loading browser…</p><p class="browser-share-status" data-share-status role="status"></p><input class="browser-share-manual" data-share-manual readonly hidden aria-label="Share link">
 <iframe data-browser-frame data-config="{esc(config)}" title="{esc(assembly)} genome browser" loading="lazy" referrerpolicy="no-referrer"></iframe></section>
 <section class="genome-overview" data-experimental-overview aria-label="Genome overview"></section>
-<section class="genome-studies" id="genome-studies"><div class="section-heading"><h2>Studies</h2><div class="genome-download-actions"><button class="button" type="button" data-download-genome-package disabled>Download study ZIP</button><p class="package-status" data-package-status role="status"></p></div></div>
+<section class="genome-studies" id="genome-studies"><div class="section-heading"><h2>Studies</h2><div class="genome-download-actions"><button class="button" type="button" data-download-genome-package disabled>Download study files</button><p class="package-status" data-package-status role="status"></p></div></div>
 <p data-study-load-status role="status" aria-live="polite">Loading study metadata…</p><button type="button" data-retry-studies hidden>Retry study metadata</button><div data-study-cards></div><div hidden data-study-package-files></div></section></main>'''
     rows: list[dict[str, str]] = genome["metadata_rows"]
     published = [row for row in rows if is_published_status(row.get("release_status"))]
@@ -518,10 +503,10 @@ def genome_content(
         reference_size = (prediction['reference']['genome_length'], len(prediction['reference']['contigs']))
     overview_facts = [("Genome source", "NCBI RefSeq"), ("Reference strain", taxonomy.get("reference_strain") or "Not recorded")]
     if reference_size:
-        overview_facts.extend([("Browser reference length", f"{reference_size[0]:,} bp"), ("Contigs", f"{reference_size[1]:,}")])
+        overview_facts.extend([("Genome size", f"{reference_size[0]:,} bp"), ("Contigs", f"{reference_size[1]:,}")])
     overview_fields = ''.join(f'<div><dt>{esc(label)}</dt><dd>{esc(value)}</dd></div>' for label, value in overview_facts)
     taxonomy_fields = ''.join(f'<div><dt>{rank.capitalize()}</dt><dd>{esc(taxonomy.get(rank) or "Not assigned")}</dd></div>' for rank in TAXONOMY_RANKS)
-    taxonomy_source = esc(taxonomy.get("taxonomy_source") or "Classification source not recorded")
+    taxonomy_source = esc(taxonomy.get("taxonomy_source") or "Taxonomy source not recorded")
     if taxonomy.get("taxonomy_url", "").startswith("https://www.ncbi.nlm.nih.gov/Taxonomy/"):
         taxonomy_source = f'<a href="{esc(taxonomy["taxonomy_url"])}" target="_blank" rel="noopener">{taxonomy_source} · TaxID {esc(taxonomy.get("taxid"))}</a>'
     elif taxonomy.get("taxonomy_url") == "https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv":
@@ -562,7 +547,7 @@ def genome_content(
         common_context = f'<dl class="source-context">{common_items}</dl>' if common_items else ''
         raw_values = {row.get("raw_data_accessions", "").strip() for row in study_rows}
         common_raw = next(iter(raw_values)) if len(study_rows) > 1 and len(raw_values) == 1 else ''
-        study_raw = f'<p class="source-links">Raw data: {raw_data_links(common_raw)}</p>' if common_raw else ''
+        study_raw = f'<p class="source-links">Data accessions: {raw_data_links(common_raw)}</p>' if common_raw else ''
         study_path = next((row.get("study_gff3", "").strip() for row in study_rows if row.get("study_gff3", "").strip()), "")
         genome_dir = PurePosixPath(str(genome["metadata_path"])).parent
         gff3_path = (genome_dir / study_path).as_posix() if study_path else ""
@@ -571,10 +556,9 @@ def genome_content(
         for source_number, row in enumerate(study_rows, 1):
             source_id = row["source_id"]
             record_count = int(row["record_count_number"])
-            evidence = row.get("evidence_class", "")
             source_has_signal = source_id in signal_sources
             context = source_context.get(source_id, {})
-            context_fields = [("3′-end assay", _endpoint_assay(row, source_context)), ("Sample strain", context.get("sample_strain")), ("Genotype", context.get("genotype")), ("Conditions", context.get("conditions")), ("Evidence", evidence_label(evidence))]
+            context_fields = [("3′-end assay", _endpoint_assay(row, source_context)), ("Sample strain", context.get("sample_strain")), ("Genotype", context.get("genotype")), ("Conditions", context.get("conditions"))]
             replicate = context.get("replicate_label", "")
             if replicate:
                 context_fields.append(("Replicates", replicate + (f' ({context["replicate_type"]})' if context.get("replicate_type") else '')))
@@ -582,23 +566,24 @@ def genome_content(
             context_html = f'<dl class="source-context">{context_items}</dl>' if context_items else ''
             shared_source = context.get("reused_data_with", "")
             shared_pmid = next((other["pmid"] for other in published if other["source_id"] == shared_source), '')
-            shared_note = f'<p class="source-reuse">Shares raw sequencing data with <a href="#source-{esc(shared_source)}">PMID {esc(shared_pmid)}</a>.</p>' if shared_pmid else ''
+            shared_note = f'<p class="source-reuse">Shares raw data with <a href="#source-{esc(shared_source)}">PMID {esc(shared_pmid)}</a>.</p>' if shared_pmid else ''
             raw_accessions = row.get("raw_data_accessions", "").strip()
-            raw_link = f'<span class="source-raw">Raw data: {raw_data_links(raw_accessions)}</span>' if raw_accessions and not common_raw else ""
+            raw_link = f'<span class="source-raw">Data accessions: {raw_data_links(raw_accessions)}</span>' if raw_accessions and not common_raw else ""
             caveat = SOURCE_PAGE_CAVEATS.get(source_id, "")
             caveat_html = f'<p class="source-caveat">{esc(caveat)}</p>' if caveat else ""
-            signal_html = '<p class="signal-present">BigWig signal available in the genome browser.</p>' if source_has_signal else ""
+            signal_html = '<p class="signal-present">Signal track available.</p>' if source_has_signal else ""
             if source_id in samples:
                 sample = samples[source_id]
-                signal_html = f'<div class="source-signal"><p>Displayed BigWig sample: {raw_data_links(sample["sample_id"])} · {esc(sample["assay"])}</p><p class="muted">{esc(sample["conditions"])}</p></div>'
+                signal_html = f'<div class="source-signal"><p>Signal sample: {raw_data_links(sample["sample_id"])} · {esc(sample["assay"])}</p><p class="muted">{esc(sample["conditions"])}</p></div>'
                 if sample['sample_id'] == 'GSM2971249':
                     signal_html += f'<p class="source-caveat">Signal coverage: {esc(sample["coverage"])}</p>'
             if derived_signals["genome_id"] == assembly and derived_signals["source_id"] == source_id:
                 signal_conditions = []
                 for condition in derived_signals["conditions"]:
                     accessions = ";".join(sample["accession"] for sample in condition["samples"])
-                    signal_conditions.append(f'<div><p><strong>{esc(condition["label"])}</strong> · {raw_data_links(accessions)}</p><p class="muted">{esc(condition["conditions"])}</p></div>')
-                signal_html = f'<div class="source-signal"><p>Displayed BigWig conditions · {esc(derived_signals["conditions"][0]["assay"])}</p>' + ''.join(signal_conditions) + '</div>'
+                    replicate_note = f'<p class="muted">Mean of {int(condition["biological_replicates"])} biological replicates.</p>' if condition.get("aggregation") == "arithmetic_mean" and condition.get("biological_replicates") else ''
+                    signal_conditions.append(f'<div><p><strong>{esc(condition["label"])}</strong> · {raw_data_links(accessions)}</p><p class="muted">{esc(condition["conditions"])}</p>{replicate_note}</div>')
+                signal_html = f'<div class="source-signal"><p>Signal tracks · {esc(derived_signals["conditions"][0]["assay"])}</p>' + ''.join(signal_conditions) + '</div>'
             source_heading = f'<div class="source-heading"><h4>Dataset {source_number}</h4><strong>{record_count:,} 3′-end records</strong></div>' if len(study_rows) > 1 else ''
             source_lines.append(f'''<div class="source-evidence" id="source-{esc(source_id)}" data-source-card="{esc(source_id)}">
   {source_heading}
@@ -632,7 +617,7 @@ def genome_content(
         else:
             downloads_html = f'<div hidden data-study-package-files>{"".join(supplementary)}</div>'
         source_cards.append(f'''<article class="study-card" id="study-{esc(pmid)}">
-  <header><div><h3><a href="{esc(paper_url)}" target="_blank" rel="noopener">{esc(title)} ↗</a></h3><p class="study-citation">{_publication_citation(publication, pmid)}</p></div><div class="study-count" title="Source records for this genome; overlapping coordinates are not deduplicated."><strong>{study_total:,}</strong><span>experimental 3′-end records</span></div></header>
+  <header><div><h3><a href="{esc(paper_url)}" target="_blank" rel="noopener">{esc(title)} ↗</a></h3><p class="study-citation">{_publication_citation(publication, pmid)}</p></div><div class="study-count"><strong>{study_total:,}</strong><span>3′-end records</span></div></header>
   {common_context}<div class="study-source-list">{''.join(source_lines)}</div>{study_raw}{downloads_html}
 </article>''')
 
@@ -656,7 +641,7 @@ def genome_content(
         browser_html = '<section class="browser-panel browser-unavailable"><h2>Genome browser unavailable</h2></section>'
 
     metadata_link = f'<a hidden data-package-file data-zip-path="{esc(assembly)}/metadata.tsv" href="{site_href(str(metadata_url), 1)}">Source metadata</a>'
-    zip_button = '<button class="button" type="button" data-download-genome-package title="Available experimental study files and source metadata for this genome">Download study ZIP</button>' if total_records else ''
+    zip_button = '<button class="button" type="button" data-download-genome-package title="Available experimental study files and source metadata for this genome">Download study files</button>' if total_records else ''
     study_actions = f'<div class="genome-download-actions">{zip_button}{metadata_link}<p class="package-status" data-package-status role="status" aria-live="polite"></p></div>'
     content = f'''<main class="page-shell genome-page" data-genome-page data-assembly="{esc(assembly)}">
 <p class="breadcrumbs"><a href="../genomes.html">Genomes</a><span aria-hidden="true">/</span><span>{esc(assembly)}</span></p>
@@ -758,29 +743,29 @@ location.replace(target.href);
         _write(old_records / f"{source_id}.html", redirect_html("Genome page", destination=f"../genomes/{assembly}.html", query_script=script))
 
     methodology = '''<main class="page-shell notes-page"><p class="breadcrumbs"><a href="index.html">Home</a><span aria-hidden="true">/</span><span>Data notes</span></p><div class="page-heading"><div><h1>Data notes</h1></div></div>
-<div class="notes-layout"><nav class="notes-nav" aria-label="On this page"><span class="eyebrow">Contents</span><a href="#organization">Data</a><a href="#evidence">Evidence and coordinates</a><a href="#files">File formats</a><a href="#browser-guide">Genome browser</a></nav><div class="notes-content">
-<section id="organization"><h2>Data</h2><p>BTED contains experimental transcript 3′ ends, BATTER predictions and training regions.</p></section>
-<section id="evidence"><h2>Evidence and coordinates</h2><p class="evidence-callout">RNA 3′ ends can reflect transcription termination or RNA processing. <a href="https://doi.org/10.1186/s40168-026-02454-1">BATTER study ↗</a></p><dl class="evidence-guide"><div><dt>Experimental 3′-end records</dt><dd>Study-reported 3′ ends. Records from different studies are counted separately.</dd></div><div><dt>Predicted regions</dt><dd>BATTER predictions with interval coordinates.</dd></div><div><dt>Augmentation / Rfam regions</dt><dd>OTU augmentation and Rfam training regions. Counts exclude context windows.</dd></div></dl><p><strong>Genome ID</strong>: original genome identifier. <strong>GEM OTU</strong>: species-level cluster. <strong>Genome source</strong>: database or study. <strong>Sequence source</strong>: reference FASTA source.</p><p>Predictions use the corresponding reference assembly or OTU representative genome.</p><p>GFF3 coordinates are 1-based and inclusive. Tracks with different reference sequences use separate views.</p><p>Track counts cover the whole contig and both strands. Green: + strand. Red: − strand. Bars show regions; hollow flags mark their strand-oriented 3′ boundaries. Solid flags mark experimental 3′ ends.</p></section>
-<section id="files"><h2>File formats</h2><div class="notes-table-scroll"><table class="notes-table"><thead><tr><th scope="col">File</th><th scope="col">Contents</th></tr></thead><tbody><tr><th scope="row"><code>metadata.tsv</code></th><td>Study, reference and evidence.</td></tr><tr><th scope="row"><code>endpoints.gff3.gz</code></th><td>Experimental 3′-end coordinates.</td></tr><tr><th scope="row">Supplementary TSV</th><td>Gene associations or condition observations.</td></tr><tr><th scope="row">Genome ZIP</th><td>Study files and metadata.</td></tr><tr><th scope="row">GFF3</th><td>Prediction, augmentation or gene annotation.</td></tr><tr><th scope="row">FASTA</th><td>Reference sequence.</td></tr><tr><th scope="row">BigWig</th><td>Sequencing signal for the labeled sample or condition.</td></tr></tbody></table></div></section>
-<section id="browser-guide"><h2>Genome browser</h2><p><strong>Share view</strong> copies the current location and public tracks. <strong>Open full browser</strong> opens JBrowse.</p><p>BigWig tracks scale to the visible window. Different tracks scale independently; compare their numeric values rather than peak heights.</p><a class="button primary" href="genomes.html">Browse genomes <span aria-hidden="true">→</span></a></section>
+<div class="notes-layout"><nav class="notes-nav" aria-label="On this page"><span class="eyebrow">Contents</span><a href="#organization">Data</a><a href="#evidence">Data types and coordinates</a><a href="#files">File formats</a><a href="#browser-guide">Genome browser</a></nav><div class="notes-content">
+<section id="organization"><h2>Data</h2><p>BTED contains experimental transcript 3′ ends, predicted termination regions and augmented regions.</p></section>
+<section id="evidence"><h2>Data types and coordinates</h2><p class="evidence-callout">RNA 3′ ends can reflect transcription termination or RNA processing.</p><dl class="evidence-guide"><div><dt>Experimental 3′-end records</dt><dd>Study-reported transcript 3′ ends; records remain separate by study.</dd></div><div><dt>Predicted regions</dt><dd>BATTER predictions with interval coordinates.</dd></div><div><dt>Augmented regions</dt><dd>OTU-derived regions and Rfam-derived regions, separate from experimental 3′-end records. Sequence context windows are excluded from region counts.</dd></div></dl><p><strong>Genome ID</strong>: original genome identifier. <strong>GEM OTU</strong>: species-level GEM cluster. <strong>Genome source</strong>: database or study. <strong>Sequence source</strong>: reference sequence.</p><p>Predictions use the corresponding reference assembly or OTU representative genome.</p><p>GFF3 coordinates are 1-based and inclusive. Tracks with different reference sequences use separate views.</p><p>Counts cover the whole contig and both strands. Green = +; red = −. Bars mark regions; hollow flags mark interval 3′ boundaries; solid flags mark experimental 3′ ends.</p></section>
+<section id="files"><h2>File formats</h2><div class="notes-table-scroll"><table class="notes-table"><thead><tr><th scope="col">File</th><th scope="col">Contents</th></tr></thead><tbody><tr><th scope="row"><code>metadata.tsv</code></th><td>Publication, assay, sample, reference and source metadata.</td></tr><tr><th scope="row"><code>endpoints.gff3.gz</code></th><td>Experimental 3′-end coordinates.</td></tr><tr><th scope="row">Supplementary TSV</th><td>Gene associations or condition observations.</td></tr><tr><th scope="row">Study archive</th><td>Study files and source metadata.</td></tr><tr><th scope="row">GFF3</th><td>Predicted regions, augmented regions or gene annotation.</td></tr><tr><th scope="row">FASTA</th><td>Reference sequence.</td></tr><tr><th scope="row">BigWig</th><td>Sequencing signal for the labeled sample or condition.</td></tr></tbody></table></div></section>
+<section id="methods"><h2>Methods and sources</h2><p>Prediction and augmentation methods: <a href="https://doi.org/10.1186/s40168-026-02454-1">Jin et al., Microbiome 14, 222 (2026)</a> · <a href="https://github.com/xu-research-lab/BATTER">BATTER code ↗</a>.</p></section>
+<section id="browser-guide"><h2>Genome browser</h2><p><strong>Share view</strong> copies the current location and tracks. <strong>Open JBrowse</strong> opens the full view.</p><p>BigWig tracks rescale to the visible window; compare values, not peak heights.</p><a class="button primary" href="genomes.html">Browse genomes <span aria-hidden="true">→</span></a></section>
 </div></div></main>'''
     _write(site_root / "methodology.html", page("Data notes", methodology, current="notes"))
     usage = '''<main class="page-shell usage-page">
 <p class="breadcrumbs"><a href="index.html">Home</a><span aria-hidden="true">/</span><span>Usage</span></p>
-<div class="page-heading"><div><p class="eyebrow">BTED</p><h1>Website usage</h1><p>Page views. IP addresses are not stored.</p></div></div>
-<form class="usage-range"><label for="usage-days">Period</label><select id="usage-days" name="days"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option><option value="365">12 months</option><option value="0">Available history</option></select><button class="button" type="submit">Apply</button></form>
+<div class="page-heading"><div><p class="eyebrow">BTED</p><h1>Site usage</h1></div></div>
+<form class="usage-range"><label for="usage-days">Period</label><select id="usage-days" name="days"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option><option value="365">12 months</option><option value="0">Available history</option></select></form>
 <p id="usage-status" role="status">Loading usage…</p><noscript><p>Enable JavaScript to view usage statistics.</p></noscript>
 <div id="usage-report" hidden>
 <section class="usage-metrics" aria-label="Summary"><div><span>Page views</span><strong id="usage-views">0</strong></div><div><span>Countries / regions</span><strong id="usage-countries">0</strong></div><div><span>Active days</span><strong id="usage-active">0</strong></div></section>
 <section class="usage-panel"><h2>Views by location</h2><figure class="usage-map"><div id="usage-map"></div><figcaption><span>No views</span><span class="usage-map-scale" aria-hidden="true"></span><span id="usage-map-max"></span></figcaption></figure></section>
 <section class="usage-panel"><h2>Daily page views</h2><figure class="usage-trend"><div id="usage-trend"></div><figcaption><span id="usage-start"></span><span>Page views · UTC</span><span id="usage-end"></span></figcaption></figure></section>
-<div class="usage-columns"><section class="usage-panel"><h2>Countries / regions</h2><div class="usage-table-wrap"><table><thead><tr><th scope="col">Country / region</th><th scope="col">Views</th><th scope="col">Share</th></tr></thead><tbody id="usage-country-rows"></tbody></table></div></section>
+<div class="usage-columns"><section class="usage-panel"><h2>Countries / regions</h2><div class="usage-table-wrap"><table><thead><tr><th scope="col">Country / region</th><th scope="col">Views</th><th scope="col">Share of views</th></tr></thead><tbody id="usage-country-rows"></tbody></table></div></section>
 <section class="usage-panel"><h2>Cities</h2><p id="usage-no-cities" hidden>No city data.</p><div class="usage-table-wrap"><table><thead><tr><th scope="col">City</th><th scope="col">Views</th></tr></thead><tbody id="usage-city-rows"></tbody></table></div></section></div>
-<section class="usage-panel"><h2>Pages</h2><div class="usage-table-wrap"><table><thead><tr><th scope="col">Page</th><th scope="col">Views</th></tr></thead><tbody id="usage-path-rows"></tbody></table></div></section>
 <p id="usage-period" class="usage-footnote"></p></div>
-<p class="usage-footnote">Full page loads; excludes API requests, downloads, JBrowse and known crawlers. Approximate locations. 400-day retention.</p>
+<p class="usage-footnote">Counts full page loads only; excludes API, downloads, JBrowse and crawlers. Locations are approximate. Data retained 400 days.</p>
 </main>'''
-    _write(site_root / "usage.html", page("Website usage", usage, current="usage", scripts=("assets/usage.js",)))
+    _write(site_root / "usage.html", page("Site usage", usage, current="usage", scripts=("assets/usage.js",)))
     _write(site_root / "about.html", redirect_html("Data notes", destination="methodology.html", query_script="location.replace(new URL('methodology.html', document.baseURI).href);"))
     _write(site_root / "accession-range-demo.html", redirect_html(
         "Genome search", destination="genomes.html",

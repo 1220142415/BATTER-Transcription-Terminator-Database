@@ -291,7 +291,7 @@ def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: 
             problems.append(f"{config_path.relative_to(site_dir).as_posix()} requires exactly one BTED plugin config")
         for plugin in configured_plugins:
             uri = plugin.get("esmUrl") if isinstance(plugin, dict) else None
-            if not isinstance(plugin, dict) or plugin.get("name") != "BTEDTrackPlugin" or uri not in {"plugins/bted-track-plugin.js", "plugins/bted-track-plugin.js?v=41"}:
+            if not isinstance(plugin, dict) or plugin.get("name") != "BTEDTrackPlugin" or uri not in {"plugins/bted-track-plugin.js", "plugins/bted-track-plugin.js?v=44"}:
                 problems.append(f"{config_path.relative_to(site_dir).as_posix()} has invalid BTED plugin config")
             elif not (jbrowse_root / uri.split("?", 1)[0]).is_file():
                 problems.append(f"{config_path.relative_to(site_dir).as_posix()} lacks the BTED plugin file")
@@ -513,7 +513,7 @@ def main() -> int:
             ):
                 problems.append(f"{rel} disallowed file type (raw data/workbook/archive/coordinates)")
             size_limit = MAX_JBROWSE_FILE_BYTES if in_jbrowse else (MAX_DOWNLOAD_FILE_BYTES if in_downloads else MAX_FILE_BYTES)
-            if rel == "assets/batter-browser.json":
+            if rel in {"assets/batter-browser.json", "assets/genome-browsers.json"}:
                 size_limit = MAX_DOWNLOAD_FILE_BYTES  # Compact metadata only; no genome/track files.
             if size > size_limit:
                 problems.append(f"{rel} file too large ({size} bytes > {size_limit} byte limit)")

@@ -91,11 +91,11 @@ def prepare(inputs, export, output):
         row.update(version=versions['experimental'], training=0)
         groups['experimental'].append(row)
     assert len(groups['gem']) == 42904 and len(groups['experimental']) == 20
-    labels = {'gtdb': 'GTDB predictions', 'experimental': 'Experimental 3′ ends', 'gem': 'GEM catalogue · Legacy'}
-    taxonomy = {'gtdb': 'GTDB R207.0 (2022)', 'experimental': 'GEM / GTDB (original); exact assembly matches only', 'gem': 'GEM / GTDB (original; release not established)'}
+    labels = {'gtdb': 'GTDB predictions', 'experimental': 'Experimental 3′ ends', 'gem': 'GEM'}
+    taxonomy = {'gtdb': 'GTDB R207.0 (2022)', 'experimental': 'GEM / GTDB (original); exact assembly matches only', 'gem': 'GTDB R89 (GEM)'}
     descriptions = {'gtdb': 'BATTER-TPE predictions on GTDB R207.0 assemblies. Fixed, partially published catalogue.',
                     'experimental': 'Study-reported transcript 3′ ends, original publications and condition-specific coverage tracks.',
-                    'gem': 'Archived computational catalogue, including GEM, IMG, NCBI and published-study sources. Predictions are retained without further updates.'}
+                    'gem': 'Predicted and augmented regions from GEM and other genome sources.'}
     statements = [(ROOT / 'database/migrations/0009_collections.sql').read_text(encoding='utf-8') + '\n']
     registry = {}
     for key, rows in groups.items():

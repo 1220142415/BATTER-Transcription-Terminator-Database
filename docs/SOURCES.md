@@ -43,7 +43,7 @@ Counts below are source rows, not unique positions across the database. Full ass
 
 - Experimental GFF3 records use 1-based inclusive coordinates with equal start and end. Match coordinates within a sequence and strand; do not combine different contigs.
 - `curated_record` identifies literature-curated records. `author_called_endpoint` retains author-reported experimental calls. Pure predictions are kept out of the experimental endpoint files.
-- The original augmentation summary files under [`data/registry/internal/augmentation/`](../data/registry/internal/augmentation/) lack per-record genomic coordinates. They are separate from the coordinate-resolved augmentation/Rfam tracks in GEM Legacy.
+- The original augmentation summary files under [`data/registry/internal/augmentation/`](../data/registry/internal/augmentation/) lack per-record genomic coordinates. They are separate from the coordinate-resolved augmentation/Rfam tracks in GEM.
 - Frozen metadata can retain earlier registration values. For S002, `published_year=2018` is not the paper's 2023 publication year. Current cards use corrected D1 publication fields; the original value remains in the audit trail.
 
 S002 Supplementary Data 3 is covered by the publisher's [CC BY 4.0 statement](https://www.nature.com/articles/s41467-023-43534-2#rightslink). Reuse requires attribution, a license link and a description of changes. Its `release_status=audit_only` is a curation decision, separate from redistribution permission. Admission requires the reviewed Term-seq-only record mapping to NC_000913.3.
@@ -52,9 +52,6 @@ S002 Supplementary Data 3 is covered by the publisher's [CC BY 4.0 statement](ht
 
 | Study | Treatment | Basis |
 |---|---|---|
-| [Cascino 2026, PMID 42148773](https://pubmed.ncbi.nlm.nih.gov/42148773/) | Sources `BTED_EXT_2026_102`–`104`, GCF_000012525.1; 388 + 331 + 342 = 1,061 records | Table S1 `defined end` entries. Another 196 dispersed/uncertain entries remain under review. CP000100.1 and NC_007604.1 are identical sequences. |
-| [Fuchs 2021, PMID 34131082](https://pubmed.ncbi.nlm.nih.gov/34131082/) | Not published | 1,967 draft records require review, including 75 with unresolved strand. |
-| [TERMITe, PMID 40586304](https://pubmed.ncbi.nlm.nih.gov/40586304/) | Not published | 7,229 software-derived positions from eight sources are held as candidate records. |
-| Cascino Eco/Bsu reanalysis, `BTED_EXT_2026_105` | Audit only | Reuses sequencing data underlying S001/S003; not added as an independent endpoint dataset. |
+| [Cascino 2026, PMID 42148773](https://pubmed.ncbi.nlm.nih.gov/42148773/) | Sources `BTED_EXT_2026_102`–`104`, GCF_000012525.1; 388 + 331 + 342 = 1,061 records | Table S1 `defined end` entries. CP000100.1 and NC_007604.1 are identical sequences. |
 
 Files and supplemental-table relationships are described in the [release guide](releases/v0.4.0.md). Source identifiers, reference versions and original attributes remain available in the registered data.

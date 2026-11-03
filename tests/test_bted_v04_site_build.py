@@ -22,6 +22,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_v0_4_site  # noqa: E402
 import build_batter_browser  # noqa: E402
+import build_collections  # noqa: E402
 
 
 @contextmanager
@@ -135,6 +136,53 @@ def create_release(root: Path, *, mismatched_count: bool = False) -> tuple[Path,
 
 
 class V04SiteBuildTests(unittest.TestCase):
+    def test_collection_home_keeps_intro_and_termination_diagram(self) -> None:
+        with temporary_directory() as temp:
+            site = temp / "site"
+            (site / "assets").mkdir(parents=True)
+            (site / "assets/genome-browsers.json").write_text('{"experimental": []}', encoding="utf-8")
+            for retired in ('home.js', 'genome-directory.json'):
+                (site / 'assets' / retired).write_text('old', encoding='utf-8')
+            release = temp / "release"
+            release.mkdir()
+            (release / "release.json").write_text('{"files": []}', encoding="utf-8")
+            build_collections.build(site, release)
+            experimental_index = (site / 'experimental.html').read_text(encoding='utf-8')
+            # Extensions share the established experimental shell and browser controls.
+            extension = (site / 'experimental/genome.html').read_text(encoding='utf-8')
+            self.assertFalse(list((site / 'experimental').glob('GCF_*.html')))
+            for marker in ('data-live-experimental', 'data-study-cards', 'data-download-genome-package',
+                           'data-share-view', 'data-retry-browser', 'data-experimental-overview',
+                           '../assets/study-metadata.js', '../assets/genome-page.js'):
+                self.assertIn(marker, extension)
+            self.assertNotIn('Experimental sources', extension)
+            self.assertNotIn('<style>', extension)
+            self.assertIn('<th>Sequencing technology</th>', experimental_index)
+            self.assertIn('data-genome-assay-filter', experimental_index)
+            for key in ('gem', 'gtdb'):
+                self.assertNotIn('data-genome-assay-filter', (site / f'{key}.html').read_text(encoding='utf-8'))
+            old_directory = (site / 'genomes.html').read_text(encoding='utf-8')
+            self.assertIn('location.replace("gem.html"+location.search+location.hash)', old_directory)
+            self.assertNotIn('data-genome-search-form', old_directory)
+            for retired in ('home.js', 'genome-directory.json'):
+                self.assertFalse((site / 'assets' / retired).exists())
+            home = (site / "index.html").read_text(encoding="utf-8")
+            self.assertIn("published bacterial transcript 3′ ends, predicted termination regions and augmented regions", home)
+            self.assertIn("Sources and methods", home)
+            self.assertNotIn("Training regions", home)
+            self.assertIn('src="assets/termination-motif.svg"', home)
+            self.assertIn("Intrinsic termination (schematic).", home)
+            self.assertIn('id="batter-reference"', home)
+            self.assertIn('href="https://github.com/xu-research-lab/BATTER">BATTER code', home)
+            self.assertLess(home.index("termination-motif.svg"), home.index('class="collection-cards"'))
+            self.assertEqual(re.findall(r'data-collection-card="([^"]+)"', home), ["experimental", "gtdb", "gem"])
+            for collection in ("gtdb", "experimental", "gem"):
+                self.assertIn(f'data-collection-card="{collection}"', home)
+                directory = (site / f"{collection}.html").read_text(encoding="utf-8")
+                self.assertIn('<th>3′-end data</th>', directory)
+                navigation = re.search(r'<nav class="collection-nav".*?</nav>', directory).group(0)
+                self.assertEqual(re.findall(r'href="([^"]+)"', navigation), ["experimental.html", "gtdb.html", "gem.html"])
+
     def test_home_counts_cover_all_datasets_without_counting_audit_only_records(self) -> None:
         records = [["GCF_1", *([""] * 4), 2, 20, 3, 30, "matched", 10, ""],
                    ["GCF_2", *([""] * 4), 1, 10, 0, 0, "matched", 20, ""]]
@@ -148,10 +196,10 @@ class V04SiteBuildTests(unittest.TestCase):
         ]}], records)
         self.assertIn("3</strong><span>Catalog genomes", content)
         self.assertIn("30</strong><span>Predicted regions", content)
-        self.assertIn("6</strong><span>Augmentation / Rfam regions", content)
+        self.assertIn("6</strong><span>Augmented regions", content)
         self.assertIn("1</strong><span>Genomes with experimental data", content)
         self.assertIn("1</strong><span>Source publications", content)
-        self.assertIn("7</strong><span>Experimental 3′-end records", content)
+        self.assertIn("7</strong><span>3′-end records", content)
         self.assertNotIn("107</strong>", content)
 
     def test_genome_site_combines_evidence_browser_downloads_and_legacy_redirects(self) -> None:
@@ -189,7 +237,7 @@ class V04SiteBuildTests(unittest.TestCase):
             home = (site / "genomes.html").read_text(encoding="utf-8")
             genome = (site / "genomes/GCF_000012525.1.html").read_text(encoding="utf-8")
             self.assertIn("GCF_000012525.1", home)
-            self.assertIn("3</strong><span>Experimental 3′-end records", landing)
+            self.assertIn("3</strong><span>3′-end records", landing)
             self.assertIn("1</strong><span>Source publications", landing)
             self.assertIn("42,904</strong><span>Catalog genomes", landing)
             self.assertIn("122,039,507</strong><span>Predicted regions", landing)
@@ -207,12 +255,12 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn('data-genome-source="NCBI RefSeq" data-genome-type="unknown" data-genome-annotation="Missing"', home)
             for removed in ("Phylum", "Studies", "Methods", "Signal", "Open"):
                 self.assertNotIn(f'data-label="{removed}"', home)
-            for column in ("Genome ID", "Genome source", "Organism", "Taxonomy", "Assembly size", "Transcript 3′-end data", "Annotation"):
+            for column in ("Genome ID", "Genome source", "Organism", "Taxonomy", "Genome size", "3′-end data", "Annotation"):
                 self.assertIn(f'data-label="{column}"', home)
             self.assertIn('<td data-label="Genome source">NCBI RefSeq</td>', home)
             self.assertIn('2,742,269 bp', home)
             self.assertIn('2 contigs', home)
-            self.assertIn('experimental 3′-end records</span>', home)
+            self.assertIn('title="Study-reported 3′-end records"><b>', home)
             self.assertIn('<a class="genome-table-name" href="genomes/GCF_000012525.1.html"><code>GCF_000012525.1</code></a>', home)
             for removed in ("study", "assay", "evidence", "signal"):
                 self.assertNotIn(f'data-filter-{removed}', home)
@@ -224,7 +272,7 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn("../css/style.css", genome)
             self.assertIn("../assets/genome-page.js", genome)
             self.assertIn("Study GFF3", genome)
-            self.assertIn('<strong>3</strong><span>experimental 3′-end records', genome)
+            self.assertIn('<strong>3</strong><span>3′-end records', genome)
             self.assertIn('href="https://doi.org/10.1128/msystems.01581-25"', genome)
             self.assertIn('PMID 42148773 ↗', genome)
             self.assertIn('class="study-citation"', genome)
@@ -234,27 +282,27 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertIn('<h4>Dataset 2</h4><strong>1 3′-end records', genome)
             self.assertNotIn('<h4>BTED_EXT_', genome)
             self.assertNotIn('<summary>Study notes</summary>', genome)
-            self.assertIn('<dt>Evidence</dt><dd>Author-reported endpoint', genome)
+            self.assertNotIn('<dt>Evidence</dt>', genome)
             self.assertNotIn('<dt>Source ID</dt>', genome)
             self.assertNotIn('<dt>Redistribution</dt>', genome)
             self.assertIn('<dt>3′-end assay</dt><dd>Rend-seq', genome)
             self.assertNotIn('dRNA-seq', genome)
-            self.assertEqual(genome.count('Raw data:'), 1)
+            self.assertEqual(genome.count('Data accessions:'), 1)
             self.assertEqual(genome.count('class="genome-summary genome-counts"'), 1)
             self.assertIn("Gene associations TSV", genome)
             self.assertNotIn("No experimental signal", genome)
             self.assertNotIn("Track menus include", genome)
             self.assertNotIn("data-track-hint", genome)
             self.assertIn("data-share-view", genome)
-            self.assertIn("data-select-tracks", genome)
-            self.assertIn("data-add-user-track", genome)
+            self.assertNotIn("data-select-tracks", genome)
+            self.assertNotIn("data-add-user-track", genome)
             self.assertNotIn("Article licence", genome)
             self.assertNotIn("data-source-select", genome)
             self.assertIn("data-download-genome-package", genome)
             self.assertNotIn("genome-title-actions", genome)
             self.assertNotIn('class="section-nav"', genome)
             self.assertIn('class="genome-overview"', genome)
-            self.assertIn('Browser reference length</dt><dd>2,742,269 bp', genome)
+            self.assertIn('Genome size</dt><dd>2,742,269 bp', genome)
             self.assertIn('<dt>Phylum</dt><dd>Cyanobacteria', genome)
             self.assertIn('<dt>Species</dt><dd>Not assigned', genome)
             self.assertIn('class="source-context"', genome)
@@ -262,7 +310,7 @@ class V04SiteBuildTests(unittest.TestCase):
             self.assertLess(genome.index('class="browser-panel"'), genome.index('class="genome-overview"'))
             self.assertNotIn('<h2 id="genome-downloads-title">Downloads</h2>', genome)
             self.assertLess(genome.index('class="genome-studies"'), genome.index('data-download-genome-package'))
-            self.assertIn('Download study ZIP', genome)
+            self.assertIn('Download study files', genome)
             self.assertIn('Source metadata</a>', genome)
             self.assertIn('<a hidden data-package-file', genome)
             self.assertIn('<div hidden data-study-package-files>', genome)
@@ -305,7 +353,10 @@ class V04SiteBuildTests(unittest.TestCase):
             combined = (site / "genomes.html").read_text(encoding="utf-8")
             self.assertEqual(len(re.findall(r'<th[ >]', combined)), 7)
             self.assertEqual(len(re.findall(r'<td[ >]', combined)), 7)
-            self.assertIn('data-sort="endpoints" title="Sort by experimental 3′ ends">Experimental 3′ ends', combined)
+            self.assertIn('<th>3′-end data</th>', combined)
+            self.assertNotIn('data-sort="endpoints"', combined)
+            self.assertNotIn('>Predicted</button>', combined)
+            self.assertNotIn('>Augmented regions</button>', combined)
             catalogue = json.loads((site / "assets/batter-browser.json").read_text(encoding="utf-8"))
             self.assertIn(f'data-genome-catalogue="api/batter-catalogue?revision={catalogue["revision"]}&amp;annotation=', combined)
             self.assertIn('&amp;v=1"', combined)
@@ -390,7 +441,7 @@ class V04SiteBuildTests(unittest.TestCase):
 
     def test_genome_counts_distinguish_missing_data_from_zero_and_exclude_windows(self) -> None:
         empty = build_v0_4_site.genome_summary()
-        self.assertEqual(empty.count('Not cataloged</strong>'), 3)
+        self.assertEqual(empty.count('Not available</strong>'), 3)
         self.assertNotIn('>0</strong>', empty)
         computational = ['test', '', '', '', '', 11, 105, 5, 50, '', 0]
         content = build_v0_4_site.genome_summary(2848, 2, computational)

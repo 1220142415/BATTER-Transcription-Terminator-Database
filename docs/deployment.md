@@ -6,11 +6,12 @@ Production runs on [Cloudflare Workers](https://bted.1052596411.workers.dev/). R
 
 | Input | Version |
 |---|---|
-| Public experimental files | `data/public/v0.4.0/` at Git commit `8132334474a70cc609261fb0dc05011fbfd9e8ef` |
+| Retained experimental files | `data/public/v0.4.0/` at Git commit `8132334474a70cc609261fb0dc05011fbfd9e8ef` |
+| Experimental v0.5.0 extension | HF `277f829ad3b408f60925122ff2a498c8a158e7c3`; nine new assemblies and 11 sources; D1 `bted_experimental_v05_*` |
 | v0.4 scientific assets | HF `eea5b7225975b224a1c837f60c4fa10497fef022` |
 | Earlier references and signals | HF `90651318aedf5a5ca26b8308070927d36fd3d6c9`, bound per file |
 | GEM computational references | HF `9f81698a3cee64f4eaf90b90cd36d640f38d9315` |
-| Recovered gene annotations | HF `2acf28d9cf0a276f05e6a1456d56c92ccc2292b7` |
+| Recovered gene annotations | HF `765f663d12e49b06721ca03aecc7d1c64daa78cb` |
 | GTDB directory | Snapshot `deffa4a7183f71a8b47b3c44`, commit `7ed77270f02862da5722dad1d7836e3444e67dfd`; scientific files use their registered per-genome revisions |
 | Collection bindings | `data/registry/collections.json` and D1 `bted_collections` |
 | JBrowse application | Verified `preview-v0.2.0` release archive, application version 4.3.0 |
@@ -51,7 +52,7 @@ python scripts/check_markdown_links.py
 python -m unittest discover -s tests -p 'test*.py' -q
 node --test tests/*.mjs
 python scripts/validate-site.py dist/worker-site
-npx wrangler deploy --dry-run --config worker/wrangler.jsonc --outdir ../dist/worker-dry-run
+npx wrangler deploy --dry-run --config worker/wrangler.jsonc --outdir dist/worker-dry-run
 ```
 
 Use `npx wrangler dev --config worker/wrangler.jsonc` for a Worker preview with a reviewed local D1 import. `serve_v04_preview.py` checks static assets and layout; it does not substitute for D1 API acceptance.
@@ -60,19 +61,77 @@ Use `npx wrangler dev --config worker/wrangler.jsonc` for a Worker preview with 
 
 Code-only changes do not require a D1 import. For data changes, follow the [database guide](../database/README.md) and execute only the reviewed operation. Never replay all migrations as a deployment step.
 
+GTDB and GEM each use their existing generic detail shell; all three collection
+directories obtain the active version from D1. Production experimental detail
+URLs resolve internally to one data-free
+`experimental/genome.html` shell. The existing study cards, download package,
+reference summary and browser controls query the standard D1 APIs using the URL's
+assembly accession. Do not add per-assembly HTML, a code allowlist, independent
+styles or hardcoded HF commits when registering an experimental assembly.
+The directory reads the active version from `/api/collections`; registration,
+summary updates and collection activation in D1 do not require a site rebuild.
+
+Production experimental browser configurations, including legacy `.config.json` URLs and combined views, are generated from D1 at request time. With `BTED_D1_ONLY=on`, D1 asset registrations also provide the scientific-file allowlist. Updating consistent metadata or pinned-file registrations does not require rebuilding or redeploying the site. Standalone Pages builds retain generated configurations and a fixed manifest.
+
 ```sh
 # Only for an approved data change:
 npx wrangler d1 execute bted-catalog --remote --config worker/wrangler.jsonc --file database/changes/<operation>/apply.sql --yes
-# After checking the active D1 version:
+# Only when Worker code or static assets changed:
 npx wrangler deploy --config worker/wrangler.jsonc
 ```
 
-Record the previous Worker version, D1 collection pointers and recovery bookmark first. Directory changes require matching `collections.json` and `BTED_COLLECTION_REVISION` values. Keep `BTED_D1_ONLY=on` and `BTED_RUNTIME_FIELDS=on` in production. Scientific-file updates require a separately verified HF commit, not a moving `main` URL.
+Record the previous Worker version and active D1 collection pointers first.
+Production retains only online releases and real online dependencies, not backup
+or rollback directory copies. Accept a replacement before switching, then delete
+its superseded registrations within budget. D1 collection pointers and summaries
+are authoritative; `collections.json` provides build defaults, not a runtime
+assembly list. Refresh local registry documentation after a release. Bump
+`BTED_COLLECTION_REVISION` for code/cache changes, not for every data registration.
+Keep `BTED_D1_ONLY=on`
+and `BTED_RUNTIME_FIELDS=on` in production. Scientific-file updates require a
+separately verified HF commit, not a moving `main` URL.
 
 After deployment, check `/api/health`, `/api/collections`, affected directories and configurations. Exercise filtering, header sorting, downloads, and rendered tracks or sequence controls affected by the change.
 
+### Keep maintenance within the Free row allowance
+
+D1 Free allows 5,000,000 rows read and 100,000 rows written per UTC day, not that
+many queries. Reuse valid saved full-validation evidence and check changed rows
+with indexed predicates. Record official `meta.rows_read/rows_written` for remote
+maintenance. Do not repeat global foreign-key, integrity or FTS checks after an
+unchanged or rejected operation. Stop on a quota error without more readback.
+
+The active continuation is `_workspace/outputs/BTED-GTDB-update-2026-10-29/live-only-state.json`;
+read its `STATUS.md` and `RUNBOOK.md` before remote maintenance. October 31 is at
+`safe_budget_stop` after 1,450 fixed GTDB candidate genomes were imported, with
+no pending/inflight operation. The active experimental directory is now
+`202610310000000000000005`; its `storage_version` remains
+`202610220000000000000006`, an actual online dependency. GEM remains on its
+accepted CDS-recovery revision. Historical counters and older pointer assertions
+are not current admission or recovery instructions.
+
+The existing `bted-gtdb` continuation runs daily at 08:20 Asia/Shanghai and stops
+after cleanup and GTDB acceptance. `next-day` grants one account-checked UTC-day
+budget and cleans retired rows; `admit-import-day` performs the same admission
+without cleanup, so the existing `import_gtdb_batches.py run` can use that budget.
+Both reject a second same-day grant. Cleanup, import and validation share at most
+500,000 reads / 50,000 writes, reduced for account-wide activity and website
+headroom. Rolling statistics may lag; use the checkpoint and actual receipts.
+
+Current collections and experimental `reference_registry_version` dependencies
+remain protected. The old aggregate alias and API are retired, so its former
+storage is no longer protected and is queued for deletion. Do not use an import
+or another endpoint to circumvent quota denial. Partial progress is not completion.
+
 ## Recovery
 
-For a data correction, apply its `rollback.sql` while its preconditions still hold, then restore the corresponding Worker. Restore local collection/cache bindings before the next deployment. For code-only changes, roll back the Worker. Preserve scientific tables and usage counts.
+For a data correction, historical `rollback.sql` requires every referenced row
+and version to remain available. Live-only cleanup deliberately removes those
+copies. Fix forward with current collection/cache bindings; do not restore a
+Worker serving purged directories or retired sorts. Preserve online scientific
+registrations and usage counts.
 
-Keep schema, ordered migrations and small reviewed corrections in Git. Store production exports, raw evidence and run logs outside the repository. The [current deployment record](releases/current.md) identifies the active version and recovery commands.
+Keep schema, ordered migrations and small reviewed corrections in Git. Store run
+receipts and source evidence in the Git-ignored `_workspace/` directory; do not create production
+backup exports. The [current deployment record](releases/current.md) identifies
+the active version and applicable recovery conditions.

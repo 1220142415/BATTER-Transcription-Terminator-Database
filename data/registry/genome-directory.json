@@ -1,7 +1,7 @@
 {
-  "version": "386304acab62868a458e16be",
+  "version": "ce9c58ba2c3700dd9b610a6e",
   "reference_revision": "9f81698a3cee64f4eaf90b90cd36d640f38d9315",
-  "annotation_revision": "2acf28d9cf0a276f05e6a1456d56c92ccc2292b7",
+  "annotation_revision": "765f663d12e49b06721ca03aecc7d1c64daa78cb",
   "summary": {
     "total": 42923,
     "sources": [
@@ -149,7 +149,7 @@
       "Wallbacteria",
       "Zixibacteria"
     ],
-    "available": 14593,
+    "available": 27385,
     "counts": {
       "source": {
         "NCBI RefSeq": 10726,
@@ -167,8 +167,8 @@
         "unknown": 19
       },
       "annotation": {
-        "Available": 14593,
-        "Missing": 28330
+        "Available": 27385,
+        "Missing": 15538
       },
       "phylum": {
         "Actinobacteriota": 5496,
@@ -333,25 +333,11 @@
       "GCF_005519465.1": 11098,
       "GCF_015710995.1": 11715,
       "GCF_018282115.1": 2126
-    }
-  },
-  "sqlite_bytes": 68595712,
-  "first_page_plan": [
-    "SEARCH hf_directory_genomes USING INDEX directory_endpoints (version=?)"
-  ],
-  "files": [
-    "000-schema.sql",
-    "001-rows.sql",
-    "002-rows.sql",
-    "003-rows.sql",
-    "004-rows.sql",
-    "005-rows.sql",
-    "006-rows.sql",
-    "007-rows.sql",
-    "008-rows.sql",
-    "009-rows.sql",
-    "010-rows.sql",
-    "011-rows.sql",
-    "999-ready.sql"
-  ]
+    },
+    "feature_totals": {
+      "predictions": 122155736,
+      "training": 2538172
+    },
+    "storage_version": "765f663d12e49b06721ca002"
+  }
 }

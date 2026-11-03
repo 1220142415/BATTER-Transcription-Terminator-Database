@@ -52,10 +52,12 @@ def apply_signal_tracks(config, sources):
         if not endpoint:
             raise ValueError('Signal sample has no matching endpoint track')
         old = [t for t in tracks if t.get('metadata', {}).get('btedAbout', {}).get('kind') == 'signal'
-               and t['metadata']['btedAbout'].get('source_id') == sample['source_id']]
+               and t['metadata']['btedAbout'].get('source_id') == sample['source_id']
+               and not t['metadata']['btedAbout'].get('sample_id')
+               and not t['metadata'].get('condition_id')]
         track_id = f"bted_{sample['sample_id'].lower()}_mirrored_signal"
         about = copy.deepcopy(endpoint['metadata']['btedAbout'])
-        for key in ('record_count', 'evidence', 'gff3_url', 'limitations', 'reference_name'):
+        for key in ('record_count', 'evidence', 'gff3_url', 'limitations', 'reference_name', 'explanation'):
             about.pop(key, None)
         about.update(kind='signal', sample_id=sample['sample_id'], assay=sample['assay'],
                      conditions=sample['conditions'], strand='+ / −', coverage=sample['coverage'],
@@ -77,11 +79,11 @@ def apply_signal_tracks(config, sources):
             'displays': [{'type': 'MultiLinearWiggleDisplay', 'displayId': f'{track_id}-MultiLinearWiggleDisplay', 'defaultRendering': 'xyplot', 'autoscale': 'local', 'scaleType': 'linear', 'height': 180}],
         }
         old_ids = {t['trackId'] for t in old}
-        tracks[:] = [t for t in tracks if t['trackId'] != track_id]
+        tracks[:] = [t for t in tracks if t['trackId'] not in old_ids | {track_id}]
         tracks.insert(tracks.index(endpoint) + 1, merged)
         for view in config.get('defaultSession', {}).get('views', []):
             visible = view.get('tracks', [])
-            visible[:] = [t for t in visible if t['configuration'] not in old_ids]
+            visible[:] = [t for t in visible if t['configuration'] not in old_ids | {track_id}]
             index = next((i for i, t in enumerate(visible) if t['configuration'] == endpoint['trackId']), None)
             if index is not None:
                 visible.insert(index + 1, {'id': f'{track_id}-v04-view', 'type': 'MultiQuantitativeTrack', 'configuration': track_id,

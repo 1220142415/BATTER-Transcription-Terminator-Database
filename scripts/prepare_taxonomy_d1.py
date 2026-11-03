@@ -142,7 +142,7 @@ def prepare(source, output):
             matched_accession=r['genome_id'] if any(ranks.values()) else '', match_method='retained_exact_assembly_mapping' if any(ranks.values()) else 'no_exact_assembly_match',
             domain='Bacteria' if any(ranks.values()) else '', **ranks,
             source_url='https://portal.nersc.gov/GEM/otus/otu_taxonomy.tsv', retrieved_at='2026-10-15',
-            evidence_json=compact({'directory_version': previous['version'], 'note': 'Retained original mapping; exact GTDB release not established.'})))
+            evidence_json=compact({'directory_version': previous['version'], 'note': 'Retained GEM OTU mapping; GTDB R89 framework identified by direct taxonomy-table comparison on 2026-10-23.'})))
     rows = []
     for original in old:
         r = {k: original[k] for k in COLS}

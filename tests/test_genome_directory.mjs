@@ -14,7 +14,7 @@ const dir = mkdtempSync(join(root, 'directory-test-'));
 const databasePath = join(dir, 'directory.sqlite');
 const python = process.platform === 'win32' ? 'py' : 'python3';
 const pythonArgs = process.platform === 'win32' ? ['-3.13'] : [];
-execFileSync(python, [...pythonArgs, fixture, databasePath, 'init']);
+execFileSync(python, [...pythonArgs, fixture, databasePath, 'init', 'gem']);
 const queries = [];
 const env = {
   BTED_METADATA_REVISION: 'a'.repeat(40), BTED_ANNOTATION_REVISION: 'b'.repeat(40),
@@ -27,7 +27,7 @@ const env = {
     return { all: async () => ({ results: execute() }), first: async () => execute()[0] };
   } }) },
 };
-const request = query => new Request(`https://bted.example/api/genome-directory?v=${'a'.repeat(24)}${query}`);
+const request = query => new Request(`https://bted.example/api/collections/gem/directory?v=${'a'.repeat(24)}${query}`);
 const ids = data => data.rows.map(row => row.batter[0]);
 
 test('D1 directory returns only the requested page, keeps totals and uses a bounded indexed SELECT', async () => {
@@ -36,14 +36,14 @@ test('D1 directory returns only the requested page, keeps totals and uses a boun
   const data = await first.json();
   assert.equal(data.rows.length, 25); assert.equal(data.total, 60);
   assert.deepEqual(ids(data).slice(0, 6), ['GCF_0', 'GCF_1', 'GCF_2', 'GCF_3', 'GCF_4', 'GCF_5']);
-  assert.equal(queries.length, 3);
-  assert.match(queries[1].sql, /LIMIT 25 OFFSET \?/);
-  assert.ok(!queries[1].sql.includes('metadata_json'));
+  assert.equal(queries.length, 4);
+  assert.match(queries[2].sql, /LIMIT 25 OFFSET \?/);
+  assert.ok(!queries[2].sql.includes('metadata_json'));
   const second = await (await worker.fetch(request('&page=2'), env)).json();
   assert.equal(second.rows.length, 25); assert.equal(second.total, 60); assert.equal(second.page, 2);
   assert.deepEqual(ids(second).slice(0, 2), ['GCF_25', 'GCF_26']);
-  assert.equal(queries.length, 5);
-  assert.equal(queries[3].binds.at(-1), 25);
+  assert.equal(queries.length, 8);
+  assert.equal(queries[6].binds.at(-1), 25);
 });
 
 test('substring search, combined filters and all sort fields work through actual SQLite indexes', async () => {
@@ -57,12 +57,32 @@ test('substring search, combined filters and all sort fields work through actual
   const before = queries.filter(query => query.sql.includes('COUNT(*)')).length;
   await worker.fetch(request('&phylum=P2&class=C2&annotation=Missing&page=2'), env);
   assert.equal(queries.filter(query => query.sql.includes('COUNT(*)')).length, before);
-  for (const sort of ['accession', 'organism', 'size', 'endpoints', 'predictions', 'training']) {
+  for (const sort of ['accession', 'organism', 'size', 'endpoints']) {
     const result = await (await worker.fetch(request(`&sort=${sort}&direction=asc`), env)).json();
     assert.equal(result.total, 60); assert.equal(result.rows.length, 25);
   }
+  const predictions = await worker.fetch(request('&sort=predictions&direction=desc'), env);
+  assert.equal(predictions.status, 200);
+  assert.equal((await predictions.json()).rows.length, 25);
   const available = await (await worker.fetch(request('&annotation=Available'), env)).json();
   assert.equal(available.total, 31);
+});
+
+test('retired sorts are rejected before assets, D1 or even an old edge-cache hit', async () => {
+  const original = globalThis.caches;
+  const untouched = () => { assert.fail('retired sorts must not access a backing service'); };
+  globalThis.caches = { default: { match: untouched, put: untouched } };
+  const blockedEnv = { BTED_DB: { prepare: untouched }, ASSETS: { fetch: untouched } };
+  try {
+    for (const path of ['gtdb', 'gem', 'experimental'].map(key => `/api/collections/${key}/directory`)) {
+      for (const sort of ['sort=training', 'sort=training&direction=asc', 'sort=training&direction=desc', 'sort=predictions&direction=asc']) {
+        const response = await worker.fetch(new Request(`https://bted.example${path}?v=${'a'.repeat(24)}&${sort}`), blockedEnv);
+        assert.equal(response.status, 400);
+        assert.equal(response.headers.get('cache-control'), 'no-store');
+        assert.deepEqual(await response.json(), {error: 'invalid_directory_query'});
+      }
+    }
+  } finally { globalThis.caches = original; }
 });
 
 test('page responses are cached independently, normalized queries hit and invalid requests stay uncached', async () => {
@@ -74,15 +94,15 @@ test('page responses are cached independently, normalized queries hit and invali
     const first = await worker.fetch(request(''), env);
     assert.equal(first.headers.get('x-bted-cache'), 'MISS');
     assert.equal((await worker.fetch(request('&page=1&sort=endpoints&direction=desc&ignored=x'), env)).headers.get('x-bted-cache'), 'HIT');
-    assert.equal(queries.length, before + 2);
+    assert.equal(queries.length, before + 3);
     assert.equal((await worker.fetch(request('&page=2'), env)).headers.get('x-bted-cache'), 'MISS');
-    assert.equal(queries.length, before + 4);
+    assert.equal(queries.length, before + 5);
     for (const query of ['&page=0', '&page=1.2', '&page=2001', '&sort=bad', '&direction=bad', '&q=xx', '&annotation=bad', '&page_size=1000']) {
       assert.equal((await worker.fetch(request(query), env)).status, 400);
     }
-    const wrong = new Request(`https://bted.example/api/genome-directory?v=${'c'.repeat(24)}`);
+    const wrong = new Request(`https://bted.example/api/collections/gem/directory?v=${'c'.repeat(24)}`);
     assert.equal((await worker.fetch(wrong, env)).status, 409);
-    assert.equal(queries.length, before + 4);
+    assert.equal(queries.length, before + 5);
   } finally { globalThis.caches = original; }
 });
 

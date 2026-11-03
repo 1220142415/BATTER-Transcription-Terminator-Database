@@ -1,3 +1,175 @@
+// BTED_EXPERIMENTAL_V05_EXTENSION_BEGIN
+const VERSION = "v0.5.0";
+const ID = /^GCF_\d+\.\d+$/;
+const PREFIX = "genomes/experimental-only/";
+
+function response(data, status = 200) {
+  return new Response(JSON.stringify(data), {status, headers:{"content-type":"application/json; charset=utf-8","cache-control":"public, max-age=60"}});
+}
+function uri(request, path) {
+  const u = new URL("/api/experimental-v05/files", request.url);
+  u.searchParams.set("path", path);
+  return {uri:u.href,locationType:"UriLocation"};
+}
+async function loadGenome(env, id) {
+  return env.BTED_DB.prepare("SELECT * FROM bted_experimental_v05_assemblies WHERE accession=?").bind(id).first();
+}
+async function loadData(env, id) {
+  const [sources,files] = await Promise.all([
+    env.BTED_DB.prepare("SELECT * FROM bted_experimental_v05_sources WHERE assembly_accession=? ORDER BY source_id").bind(id).all(),
+    env.BTED_DB.prepare("SELECT logical_path,source_id,file_kind,byte_size,sha256,hf_revision FROM bted_experimental_v05_files WHERE assembly_accession=? ORDER BY logical_path").bind(id).all()
+  ]);
+  return {sources:sources.results || [],files:files.results || []};
+}
+function toFile(files, needle) {
+  return files.find(item=>item.logical_path.endsWith(needle));
+}
+function track(request, id, name, path, files, category, extra={}) {
+  const gff=files.find(f=>f.logical_path===path);
+  const tbi=files.find(f=>f.logical_path===path+".tbi");
+  if (!gff||!tbi) return null;
+  const trackId="bted_v05_"+(extra.source_id || name).replace(/[^A-Za-z0-9_-]/g,"_");
+  return {
+    type:"FeatureTrack", trackId,name,assemblyNames:[id],category,
+    adapter:{type:"Gff3TabixAdapter",gffGzLocation:uri(request,gff.logical_path),index:{location:uri(request,tbi.logical_path),indexType:"TBI"}},
+    displays:[btedExperimentalDisplay(trackId+"_display",category[0]==="Reference annotation"?"reference":"endpoint")],
+    metadata:{...extra,sha256:gff.sha256,btedAbout:{kind:category[0]==="Reference annotation"?"reference":"endpoint",assembly:id,...extra}}
+  };
+}
+async function experimentalV05Config(request,env,genome) {
+  const id=genome.accession;
+  const contigs=JSON.parse(genome.contigs_json);
+  const {sources,files}=await loadData(env,id);
+  const fasta=toFile(files,"/reference/reference.fa.gz");
+  const fai=toFile(files,"/reference/reference.fa.gz.fai");
+  const gzi=toFile(files,"/reference/reference.fa.gz.gzi");
+  if (!fasta||!fai||!gzi) return response({error:"reference_files_missing"},503);
+  const refTrack={type:"ReferenceSequenceTrack",trackId:"bted_v05_reference",name:"Reference sequence",adapter:{
+    type:"BgzipFastaAdapter",fastaLocation:uri(request,fasta.logical_path),faiLocation:uri(request,fai.logical_path),gziLocation:uri(request,gzi.logical_path)
+  }};
+  const tracks=[];
+  const gene=toFile(files,"/annotations/genes.gff3.gz");
+  if (gene) {
+    const t=track(request,id,"Reference gene annotation",gene.logical_path,files,["Reference annotation"],{
+      reference:`${genome.organism} · ${id}`,reference_name:Object.keys(JSON.parse(genome.contigs_json))[0],
+      reference_url:`https://www.ncbi.nlm.nih.gov/datasets/genome/${id}/`,explanation:"NCBI gene annotation.",
+      btedDownloads:[{kind:"reference",label:"Reference annotation GFF3",url:uri(request,gene.logical_path).uri,filename:`${id}.genes.gff3.gz`}]
+    });
+    if(t)tracks.push(t);
+  }
+  for (const s of sources) {
+    const endpoint=files.find(f=>f.source_id===s.source_id&&f.logical_path.endsWith("/endpoints.gff3.gz"));
+    if(!endpoint)continue;
+    const m=JSON.parse(s.metadata_json);
+    const t=track(request,id,`PMID ${s.pmid} · ${s.assay} · 3′ ends`,endpoint.logical_path,files,["Experimental 3' ends"],{
+      source_id:s.source_id,record_count:s.record_count,
+      btedContigCounts:Object.keys(contigs).length===1?{[Object.keys(contigs)[0]]:s.record_count}:m.contig_counts || null,
+      evidence_class:s.evidence_class,assay:s.assay,
+      paper_title:m.paper_title,title:m.paper_title,pmid:s.pmid,doi:s.doi,
+      pubmed_url:`https://pubmed.ncbi.nlm.nih.gov/${s.pmid}/`,doi_url:`https://doi.org/${s.doi}`,
+      evidence:s.evidence_class,limitations:m.scientific_caveat || "",gff3_url:uri(request,endpoint.logical_path).uri,
+      explanation:"Study records counted separately.",
+      btedDownloads:[{kind:"endpoint",label:"3′ end GFF3",url:uri(request,endpoint.logical_path).uri,filename:`${s.source_id}.endpoints.gff3.gz`,source_id:s.source_id}],
+    });
+    if(t)tracks.push(t);
+  }
+  const first=Object.entries(contigs).sort((a,b)=>b[1]-a[1])[0];
+  const sessionTracks=tracks.map((t,i)=>({
+    id:"exp_v05_t"+(i+1),type:"FeatureTrack",configuration:t.trackId,
+    displays:[{id:"exp_v05_d"+(i+1),type:"LinearBasicDisplay",configuration:t.displays[0].displayId}]
+  }));
+  sessionTracks.unshift({id:"exp_v05_ref",type:"ReferenceSequenceTrack",configuration:refTrack.trackId,
+    displays:[{id:"exp_v05_ref_d",type:"LinearReferenceSequenceDisplay",configuration:refTrack.trackId+"-LinearReferenceSequenceDisplay",showTranslation:true,heightPreConfig:120}]});
+  return response({
+    plugins:[{name:"BTEDTrackPlugin",esmUrl:new URL(BTED_PLUGIN_PATH,request.url).href}],
+    configuration:btedExperimentalTheme(),
+    assemblies:[{name:id,displayName:genome.organism,sequence:refTrack}],
+    tracks,defaultSession:{name:"BTED experimental v0.5.0",views:[{
+      id:"exp_v05_view",type:"LinearGenomeView",name:genome.organism,bpPerPx:1,offsetPx:0,
+      displayedRegions:[{refName:first[0],start:0,end:first[1],reversed:false,assemblyName:id}],
+      tracks:sessionTracks
+    }]},
+    metadata:{assembly_accession:id,release_version:VERSION,hf_revision:genome.hf_revision,source_count:sources.length,endpoint_count:genome.endpoint_count}
+  });
+}
+
+async function experimentalV05PageMetadata(request,env,genome,directory,classifications) {
+  const {sources,files}=await loadData(env,genome.accession);
+  const sourceData=sources.map(source=>{
+    const metadata=JSON.parse(source.metadata_json);
+    return {
+      source_id:source.source_id,assembly_accession:genome.accession,
+      publication_pmid:source.pmid,species:genome.organism,assay_family:source.assay,
+      evidence_class:source.evidence_class,record_count:source.record_count,
+      release_status:"published_standardized",signals:[],
+      metadata:{...metadata,title:metadata.paper_title,
+        interpretation_note:metadata.scientific_caveat || metadata.interpretation_note,
+        raw_data_accessions:(metadata.raw_accessions || metadata.original_experiment_accessions || []).join(";")},
+      publication:{pmid:source.pmid,doi:source.doi,paper_title:metadata.paper_title,
+        journal:metadata.journal,published_year:metadata.publication_year,citation:{}}
+    };
+  });
+  return {
+    release_version:VERSION,metadata_source:"d1",hf_revision:genome.hf_revision,
+    assembly:{accession:genome.accession,organism_name:genome.organism,
+      reference_url:`https://www.ncbi.nlm.nih.gov/datasets/genome/${genome.accession}/`,
+      directory,classifications,contigs:Object.entries(JSON.parse(genome.contigs_json)).map(([contig_accession,length_bp])=>({contig_accession,length_bp}))},
+    predictions:null,sources:sourceData,record_count:genome.endpoint_count,
+    study_count:new Set(sources.map(source=>source.pmid)).size,
+    downloads:[{path:`${genome.accession}/metadata.tsv`,url:`/api/assemblies/${genome.accession}/metadata.tsv`},
+      ...files.filter(file=>file.source_id).map(file=>({
+        path:`${genome.accession}/sources/${file.source_id}/${file.file_kind}`,
+        url:uri(request,file.logical_path).uri}))]
+  };
+}
+async function fileProxy(request,env,url) {
+  const path=url.searchParams.get("path")||"";
+  if(!path.startsWith(PREFIX)||path.length>1024||path.includes("..")||path.includes("?")||path.includes("#"))return response({error:"invalid_file"},400);
+  const f=await env.BTED_DB.prepare("SELECT * FROM bted_experimental_v05_files WHERE logical_path=?").bind(path).first();
+  if(!f || !/^[0-9a-f]{40}$/.test(f.hf_revision))return response({error:"unregistered_file"},404);
+  const origin="https://huggingface.co/datasets/liurulong/terminator/resolve/"+f.hf_revision+"/"+VERSION+"/"+path.split("/").map(encodeURIComponent).join("/");
+  const range=request.headers.get("range");
+  if(range && !/^bytes=(?:\d+-\d*|-\d+)$/.test(range))return response({error:"invalid_range"},416);
+  const header={};if(range)header.range=range;
+  let upstream;
+  try{upstream=await fetch(origin,{method:request.method,headers:header,redirect:"follow"});}
+  catch{return response({error:"origin_unavailable"},502);}
+  if(![200,206,304,416].includes(upstream.status))return response({error:"upstream_unavailable"},502);
+  if(upstream.status===206) {
+    const match=/^bytes (\d+)-(\d+)\/(\d+)$/.exec(upstream.headers.get("content-range")||"");
+    if(!match || Number(match[3])!==f.byte_size || Number(match[2])<Number(match[1])) return response({error:"upstream_range_mismatch"},502);
+  }
+  const headers=new Headers();
+  for(const h of ["content-type","content-length","content-range","accept-ranges"]) {
+    if(upstream.headers.has(h))headers.set(h,upstream.headers.get(h));
+  }
+  headers.set("cache-control","public,max-age=300");
+  headers.set("x-bted-revision",f.hf_revision);
+  headers.set("x-bted-sha256",f.sha256);
+  return new Response(request.method==="HEAD"?null:upstream.body,{status:upstream.status,headers});
+}
+async function experimentalV05Api(request,env) {
+  if (!["GET","HEAD"].includes(request.method)) return new Response(null,{status:405,headers:{allow:"GET, HEAD"}});
+  const url=new URL(request.url);
+  if(url.pathname==="/api/experimental-v05/files")return fileProxy(request,env,url);
+  if(url.pathname==="/api/experimental-v05/assemblies") {
+    const {results}=await env.BTED_DB.prepare("SELECT accession,organism,endpoint_count,source_count,hf_revision FROM bted_experimental_v05_assemblies ORDER BY accession").all();
+    const revisions=[...new Set((results||[]).map(row=>row.hf_revision))];
+    return response({release_version:VERSION,hf_revision:revisions.length===1?revisions[0]:null,assemblies:results||[]});
+  }
+  const match=/^\/api\/experimental-v05\/assemblies\/(GCF_\d+\.\d+)(?:\/(config))?$/.exec(url.pathname);
+  if(!match)return response({error:"not_found"},404);
+  const genome=await loadGenome(env,match[1]);
+  if(!genome)return response({error:"not_found"},404);
+  if(match[2]==="config")return experimentalV05Config(request,env,genome);
+  const {sources,files}=await loadData(env,genome.accession);
+  return response({assembly:{...genome,contigs:JSON.parse(genome.contigs_json),contigs_json:undefined},
+    source_count:sources.length,sources:sources.map(s=>({source_id:s.source_id,record_count:s.record_count,pmid:s.pmid,doi:s.doi,assay:s.assay,evidence_class:s.evidence_class,metadata:JSON.parse(s.metadata_json)})),
+    files:files.map(f=>({...f,url:"/api/experimental-v05/files?path="+encodeURIComponent(f.logical_path)})),hf_revision:genome.hf_revision});
+}
+
+
+// BTED_EXPERIMENTAL_V05_EXTENSION_END
 const PUBLIC_EVIDENCE = new Set([
   "observed_signal",
   "called_endpoint",
@@ -8,7 +180,19 @@ const PUBLIC_EVIDENCE = new Set([
 const CURRENT_RELEASE_VERSION = "v0.4.0";
 const RETIRED_RELEASE_ARCHIVE = "data/archive/BTED-v0.2.0.tar.gz";
 const DATA_RELEASE_MANIFEST_PATH = "/assets/data-release.json";
-const BTED_PLUGIN_PATH = "/jbrowse/plugins/bted-track-plugin.js?v=41";
+const BTED_PLUGIN_PATH = "/jbrowse/plugins/bted-track-plugin.js?v=44";
+
+function btedExperimentalDisplay(displayId,kind) {
+  const renderer={type:"SvgFeatureRenderer",color1:"jexl:btedStrandColor(feature)",color2:"jexl:btedStrandColor(feature)"};
+  return kind === "endpoint"
+    ? {type:"LinearBasicDisplay",displayId,showLabels:false,height:140,renderer:{...renderer,height:14,showLabels:false}}
+    : {type:"LinearBasicDisplay",displayId,height:130,filter:{genes:"only"},renderer:{...renderer,showDescriptions:false}};
+}
+function btedExperimentalTheme() {
+  return {theme:{palette:{primary:{main:"#343674"},secondary:{main:"#6660a9"},tertiary:{main:"#eeedf9"}},
+    typography:{fontFamily:'"Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif'}}};
+}
+
 const HF_DATA_ASSET_PATTERN = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/(v0\.3\.0|v0\.4\.0|v0\.5\.0)\/(.+)$/;
 const LOCAL_DATA_ASSET_PATTERN = /^downloads\/(v0\.3\.0|v0\.4\.0)\/(.+)$/;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/;
@@ -146,6 +330,22 @@ function dataReleaseErrorResponse(error) {
 }
 
 async function fixedDataReleaseManifest(env, request) {
+  if (env.BTED_D1_ONLY === "on") {
+    return cachedD1Lookup(env.BTED_DB, `asset-registry:${CURRENT_RELEASE_VERSION}`, async () => {
+      const rows = await allAssets(env, CURRENT_RELEASE_VERSION, null, null);
+      const assets = {};
+      for (const row of rows) {
+        const origin = HF_DATA_ASSET_PATTERN.exec(row.origin_url || "");
+        if (!origin || decodePath(origin[3]) !== row.logical_path || !safeLogicalPath(row.logical_path)
+            || !SHA256_PATTERN.test(row.sha256) || !Number.isSafeInteger(row.byte_size) || row.byte_size < 0) {
+          throw dataReleaseError("data_release_manifest_invalid");
+        }
+        assets[row.logical_path] = { url: row.origin_url, revision: origin[1], asset_kind: row.asset_kind,
+          byte_size: row.byte_size, sha256: row.sha256, fallback_url: `/api/assets/${encodeURIComponent(row.asset_key)}` };
+      }
+      return { releaseVersion: CURRENT_RELEASE_VERSION, assets };
+    });
+  }
   if (!env.ASSETS || typeof env.ASSETS.fetch !== "function") {
     throw dataReleaseError("data_release_manifest_missing");
   }
@@ -296,21 +496,38 @@ async function publication(env, pmid) {
 
 // Live descriptions are separate from the immutable coordinate-file release.
 async function experimentalPageMetadata(env, release, accession, request) {
+  if (env.BTED_EXPERIMENTAL_V05 === "on") {
+    const genome=await loadGenome(env,accession);
+    if (genome) {
+      const collection=await collectionRelease(env,"experimental",request);
+      if (!collection) throw new Error("experimental_collection_unavailable");
+      const directory=await env.BTED_DB.prepare("SELECT d.* FROM hf_directory_genomes d WHERE d.version=? AND d.genome_id=?")
+        .bind(JSON.parse(collection.summary_json).storage_version || collection.version,accession).first();
+      if (!directory) return null;
+      return experimentalV05PageMetadata(request,env,genome,directory,await collectionTaxonomies(env,collection,accession));
+    }
+  }
   const assembly = await env.BTED_DB.prepare("SELECT * FROM assemblies WHERE release_version = ? AND accession = ?")
     .bind(release.release_version, accession).first();
   if (!assembly) return null;
   const collection = await collectionRelease(env, "experimental", request);
   if (!collection) throw new Error("experimental_collection_unavailable");
-  let [sources, papers, tracks, assets, directory, contigs] = await Promise.all([
+  let [sources, papers, accessions, tracks, assets, directory, contigs] = await Promise.all([
     env.BTED_DB.prepare("SELECT * FROM sources WHERE release_version = ? AND assembly_accession = ? ORDER BY source_id").bind(release.release_version, accession).all(),
     env.BTED_DB.prepare("SELECT * FROM publications WHERE pmid IN (SELECT publication_pmid FROM sources WHERE release_version = ? AND assembly_accession = ?)").bind(release.release_version, accession).all(),
+    env.BTED_DB.prepare("SELECT source_id, accession, external_url FROM source_accessions WHERE release_version = ? AND source_id IN (SELECT source_id FROM sources WHERE release_version = ? AND assembly_accession = ?) ORDER BY ordinal, accession").bind(release.release_version, release.release_version, accession).all(),
     trackRows(env, release.release_version, accession, null),
     allAssets(env, release.release_version, accession, null),
-    env.BTED_DB.prepare("SELECT d.* FROM hf_directory_genomes d WHERE d.version=? AND d.genome_id=?").bind(collection.version, accession).first(),
+    env.BTED_DB.prepare("SELECT d.* FROM hf_directory_genomes d WHERE d.version=? AND d.genome_id=?").bind(JSON.parse(collection.summary_json).storage_version || collection.version, accession).first(),
     env.BTED_DB.prepare("SELECT contig_accession, length_bp FROM contigs WHERE release_version = ? AND assembly_accession = ? ORDER BY contig_accession").bind(release.release_version, accession).all(),
   ]);
   const data = sources.results.map(row => {
     const source = publicSourceMetadata(row);
+    if (!Array.isArray(source.metadata?.raw_data_links)) {
+      const registered = accessions.results.filter(item => item.source_id === row.source_id && item.accession)
+        .map(item => ({ accession: item.accession, url: item.external_url || "" }));
+      if (registered.length) source.metadata = { ...(source.metadata || {}), raw_data_links: registered };
+    }
     const paper = papers.results.find(paper => paper.pmid === row.publication_pmid);
     source.publication = paper ? { ...paper, citation: JSON.parse(paper.citation_json || "{}") } : null;
     source.signals = tracks.filter(track => track.source_id === row.source_id && Number(track.is_public) === 1)
@@ -383,18 +600,6 @@ function experimentalMetadataTsv(data) {
   const columns = [...new Set(rows.flatMap(row => Object.keys(row)))].filter(key => !["article_license", "known_limitations"].includes(key));
   const cell = value => String(typeof value === "object" && value !== null ? JSON.stringify(value) : value ?? "").replace(/[\t\r\n]+/g, " ");
   return columns.join("\t") + "\n" + rows.map(row => columns.map(key => cell(row[key])).join("\t")).join("\n") + "\n";
-}
-
-async function siteSummary(env) {
-  const release = await env.BTED_DB.prepare("SELECT summary_json FROM hf_directory_releases WHERE reference_revision = ? AND annotation_revision = ? AND status = 'ready' ORDER BY rowid DESC LIMIT 1")
-    .bind(env.BTED_METADATA_REVISION, env.BTED_ANNOTATION_REVISION || "original").first();
-  if (!release) return json({ error: "directory_unavailable" }, 503, { "cache-control": "no-store" });
-  const summary = JSON.parse(release.summary_json);
-  if (!summary.feature_totals) return json({ error: "summary_unavailable" }, 503, { "cache-control": "no-store" });
-  const experiments = await env.BTED_DB.prepare("SELECT COUNT(DISTINCT assembly_accession) AS experimental, COUNT(DISTINCT publication_pmid) AS publications, SUM(record_count) AS records FROM sources WHERE release_version = ? AND release_status = 'published_standardized' AND record_count > 0")
-    .bind(CURRENT_RELEASE_VERSION).first();
-  return json({ metadata_source: "d1", total: summary.total, experimental: summary.counts.dataset.experimental,
-    ...summary.feature_totals, ...experiments, phyla: summary.counts.phylum }, 200, { "x-bted-metadata-source": "d1" });
 }
 
 function publicBrowserAvailable(source, track, assemblyAssets) {
@@ -684,7 +889,7 @@ function experimentalPredictionTrack(request, manifest, assembly, assets, assemb
     return { uri: dataAssetUrl(manifest, root + name, request, asset), locationType: "UriLocation" };
   };
   const id = "bted_experimental_prediction";
-  return { type: "FeatureTrack", trackId: id, name: "Predicted regions", category: ["Model prediction"], assemblyNames: [assemblyName],
+  return { type: "FeatureTrack", trackId: id, name: "Predicted regions", category: ["Predicted regions"], assemblyNames: [assemblyName],
     adapter: { type: "Gff3TabixAdapter", gffGzLocation: uri("prediction.gff3.gz"), index: { location: uri("prediction.gff3.gz.tbi"), indexType: "TBI" } },
     displays: [{ type: "LinearBasicDisplay", displayId: id + "_display", height: 160, showLabels: false,
       renderer: { type: "SvgFeatureRenderer", showLabels: false, height: 14, color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)", mouseover: "jexl:btedPredictionTooltip(feature)" } }],
@@ -769,6 +974,18 @@ async function applyConditionSignals(config, request, env, accession, rows = nul
 }
 
 async function experimentalBrowserConfig(request, env, accession) {
+  if (env.BTED_EXPERIMENTAL_V05 === "on") {
+    const genome=await loadGenome(env,accession);
+    if (genome) return experimentalV05Config(request,env,genome);
+  }
+  // Prefer the D1-backed builder so assembly, track and asset metadata can be
+  // updated without rebuilding one static config per genome. The static file
+  // remains a compatibility fallback for local previews and older deployments.
+  if (/^[0-9a-f]{40}$/.test(env.BTED_METADATA_REVISION || "")) {
+    const selected = await withRelease(env, new URL(request.url));
+    if (!selected?.release) return json({ error: "release_not_loaded" }, 503, { "cache-control": "no-store" });
+    return jbrowseConfig(request, env, selected.release, accession, null);
+  }
   const response = await env.ASSETS.fetch(new Request(new URL(`/jbrowse/assemblies/${accession}.config.json`, request.url)));
   if (!response.ok) return response;
   try {
@@ -782,7 +999,7 @@ async function applyD1Descriptions(config, env, accession) {
     env.BTED_DB.prepare("SELECT * FROM sources WHERE release_version = ? AND assembly_accession = ?").bind(CURRENT_RELEASE_VERSION, accession).all(),
     env.BTED_DB.prepare("SELECT * FROM publications WHERE pmid IN (SELECT publication_pmid FROM sources WHERE release_version = ? AND assembly_accession = ?)").bind(CURRENT_RELEASE_VERSION, accession).all(),
     trackRows(env, CURRENT_RELEASE_VERSION, accession, null),
-    env.BTED_DB.prepare("SELECT source_id, external_url FROM source_accessions WHERE release_version = ? AND source_id IN (SELECT source_id FROM sources WHERE release_version = ? AND assembly_accession = ?) ORDER BY ordinal, accession").bind(CURRENT_RELEASE_VERSION, CURRENT_RELEASE_VERSION, accession).all(),
+    env.BTED_DB.prepare("SELECT source_id, accession, external_url FROM source_accessions WHERE release_version = ? AND source_id IN (SELECT source_id FROM sources WHERE release_version = ? AND assembly_accession = ?) ORDER BY ordinal, accession").bind(CURRENT_RELEASE_VERSION, CURRENT_RELEASE_VERSION, accession).all(),
   ]);
   for (const track of config.tracks) {
     const about = track.metadata?.btedAbout;
@@ -817,6 +1034,10 @@ async function applyD1Descriptions(config, env, accession) {
 }
 
 async function jbrowseConfig(request, env, release, accession, sourceId) {
+  if (env.BTED_EXPERIMENTAL_V05 === "on") {
+    const genome=await loadGenome(env,accession);
+    if (genome) return experimentalV05Config(request,env,genome);
+  }
   let dataManifest;
   try {
     dataManifest = await fixedDataReleaseManifest(env, request);
@@ -963,13 +1184,19 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     const publicationTitles = [...new Set(studyTracks.map(({ track: trackItem }) => trackItem.paper_title).filter(Boolean))];
     const pmids = [...new Set(studyTracks.map(({ track: trackItem }) => trackItem.pmid).filter(Boolean))];
     const rawAccessions = [...new Set(studyTracks.flatMap(({ rawAccessions: values }) => values.map((item) => item.accession).filter(Boolean)))];
-    const endpointTrackId = `source_${sourceIds[0].replace(/[^A-Za-z0-9_]/g, "_")}_endpoints`;
+    const endpointTrackId = `bted_v04_${sourceIds[0].toLowerCase()}_endpoints`;
     const evidenceClasses = [...new Set(studyTracks.map(({ source: sourceItem }) => sourceItem.evidence_class).filter(Boolean))];
     const contigCounts = {};
     for (const row of endpointCounts.results || []) {
       if (sourceIds.includes(row.source_id)) contigCounts[row.reference_name] = (contigCounts[row.reference_name] || 0) + Number(row.record_count);
     }
     const totalRecords = studyTracks.reduce((sum, { source: item }) => sum + Number(item.record_count || 0), 0);
+    const trackLabels = [...new Set(studyTracks.flatMap(({ source: item }) => {
+      try {
+        const metadata = JSON.parse(item.metadata_json || "{}");
+        return [metadata.genotype, metadata.replicate_label].filter(Boolean);
+      } catch { return []; }
+    }))];
     const metadata = {
       btedContigCounts: Object.values(contigCounts).reduce((sum, count) => sum + count, 0) === totalRecords ? contigCounts : null,
       source_ids: sourceIds,
@@ -989,15 +1216,12 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
     tracksConfig.push({
       type: "FeatureTrack",
       trackId: endpointTrackId,
-      name: `PMID ${pmids.join(", ")} · 3′ ends`,
+      name: `PMID ${pmids.join(", ")}${trackLabels.length ? ` · ${trackLabels.join(" · ")}` : ""} · 3′ ends`,
       adapter: { type: "Gff3Adapter", gffLocation: { uri: first.endpointGff3Url, locationType: "UriLocation" } },
       category: ["Experimental 3′ ends", ...pmids.map(pmid => `PMID ${pmid}`)],
       assemblyNames: [assemblyName],
       metadata,
-      displays: [{
-        type: "LinearBasicDisplay", displayId: `${endpointTrackId}_display`, showLabels: false, height: 140,
-        renderer: { type: "SvgFeatureRenderer", color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)", height: 14, showLabels: false },
-      }],
+      displays: [btedExperimentalDisplay(`${endpointTrackId}_display`,"endpoint")],
     });
     for (const sourceId of sourceIds) {
       const signal = signalTracks.get(sourceId);
@@ -1011,7 +1235,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       trackId: `${assemblyName}_genes`,
       name: "Reference gene annotation",
       adapter: { type: "Gff3TabixAdapter", gffGzLocation: { uri: assetUrl(request, gff.asset_key), locationType: "UriLocation" }, index: { location: { uri: assetUrl(request, tbi.asset_key), locationType: "UriLocation" }, indexType: "TBI" } },
-      displays: [{ type: "LinearBasicDisplay", displayId: `${assemblyName}_genes-LinearBasicDisplay`, height: 130, jexlFilters: ["get(feature,'type')!='region'"], renderer: { type: "SvgFeatureRenderer", showDescriptions: false, color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)" } }],
+      displays: [btedExperimentalDisplay(`${assemblyName}_genes-LinearBasicDisplay`,"reference")],
       category: ["Reference annotation"],
       assemblyNames: [assemblyName],
       metadata: {
@@ -1032,7 +1256,7 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
       trackId: `${assemblyName}_genes`,
       name: "Reference gene annotation",
       adapter: { type: "Gff3Adapter", gffLocation: { uri: assetUrl(request, browserGff.asset_key), locationType: "UriLocation" } },
-      displays: [{ type: "LinearBasicDisplay", displayId: `${assemblyName}_genes-LinearBasicDisplay`, height: 130, jexlFilters: ["get(feature,'type')!='region'"], renderer: { type: "SvgFeatureRenderer", showDescriptions: false, color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)" } }],
+      displays: [btedExperimentalDisplay(`${assemblyName}_genes-LinearBasicDisplay`,"reference")],
       category: ["Reference annotation"],
       assemblyNames: [assemblyName],
       metadata: {
@@ -1071,7 +1295,8 @@ async function jbrowseConfig(request, env, release, accession, sourceId) {
   });
   const config = {
     plugins: [{ name: "BTEDTrackPlugin", esmUrl: new URL(BTED_PLUGIN_PATH, request.url).href }],
-    assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", name: "Reference sequence", trackId: `${assemblyName}_refseq`, adapter: { type: "IndexedFastaAdapter", fastaLocation: { uri: assetUrl(request, fasta.asset_key), locationType: "UriLocation" }, faiLocation: { uri: assetUrl(request, fai.asset_key), locationType: "UriLocation" } } } }],
+    configuration: btedExperimentalTheme(),
+    assemblies: [{ name: assemblyName, displayName: `${assembly.display_name || assembly.organism_name} (${accession})`, sequence: { type: "ReferenceSequenceTrack", name: "Reference sequence", trackId: `${assemblyName}_refseq`, adapter: { type: "IndexedFastaAdapter", fastaLocation: { uri: dataAssetUrl(dataManifest, fasta.logical_path, request, fasta), locationType: "UriLocation" }, faiLocation: { uri: dataAssetUrl(dataManifest, fai.logical_path, request, fai), locationType: "UriLocation" } } } }],
     tracks: configTracks,
     defaultSession: { name: `BTED · ${accession}`, views: [{ id: "bted_linear_genome_view", type: "LinearGenomeView", name: assembly.organism_name || accession, offsetPx: initialStart / initialBpPerPx, bpPerPx: initialBpPerPx, displayedRegions: [{ refName: contigName, start: 0, end: length, reversed: false, assemblyName }], tracks: sessionTracks }] },
     metadata: { release_version: release.release_version, assembly_accession: accession, source_ids: publicTracks.map(({ source }) => source.source_id), browser_asset_origin: release.asset_origin_status },
@@ -1241,17 +1466,30 @@ async function runtimeRelease(env) {
   return release;
 }
 const batterCatalogues = new WeakMap();
-const directoryPins = new WeakMap();
 const DIRECTORY_RANKS = ["phylum", "class", "order", "family", "genus", "species"];
-const DIRECTORY_SORT = { accession: "accession_key", organism: "organism_key", size: "size", endpoints: "endpoints", predictions: "predictions", training: "training" };
+const DIRECTORY_SORT = { accession: "accession_key", organism: "organism_key", size: "size", endpoints: "endpoints", predictions: "predictions" };
 const DIRECTORY_DATASETS = { experimental: "endpoints", prediction: "predictions", augmentation: "training" };
+// Only methods supporting published endpoint records, not companion assays or predictions.
+const TERMSEQ_MODIFIED_ASSAY = "3′ RNA-seq (modified from Term-seq)";
+const DIRECTORY_ASSAY_SOURCES = `s.release_version='${CURRENT_RELEASE_VERSION}' AND s.release_status='published_standardized' AND s.record_count>0 AND trim(s.assay_family)!=''`;
 
-function directoryConditions(version, criteria) {
+function experimentalAssays(v05) {
+  // Canonicalize only the directory label and filter; publication metadata retain the original assay.
+  const originals = `SELECT s.assembly_accession,trim(s.assay_family) AS assay FROM sources s WHERE ${DIRECTORY_ASSAY_SOURCES}`
+    + (v05 ? " UNION SELECT assembly_accession,trim(assay) AS assay FROM bted_experimental_v05_sources WHERE trim(assay)!=''" : "");
+  return `SELECT src.assembly_accession,CASE WHEN src.assay=('3'||char(8242)||' RNA-seq (modified from Term-seq)') THEN 'Term-seq' ELSE src.assay END AS assay FROM (${originals}) src`;
+}
+
+function directoryConditions(version, criteria, v05 = false) {
   const where = ["version = ?"], binds = [version];
   for (const field of ["source", "genome_type", "annotation", ...DIRECTORY_RANKS]) if (criteria[field]) {
     where.push(`"${field}" = ?`); binds.push(criteria[field]);
   }
   if (criteria.dataset) where.push(`${DIRECTORY_DATASETS[criteria.dataset]} > 0`);
+  if (criteria.assay) {
+    where.push(`genome_id IN (SELECT a.assembly_accession FROM (${experimentalAssays(v05)}) a WHERE a.assay=?)`);
+    binds.push(criteria.assay);
+  }
   if (criteria.q) {
     const tokens = criteria.q.split(/[^\p{L}\p{N}_.-]+/u).filter(Boolean), trigrams = new Set();
     for (const token of tokens) {
@@ -1265,7 +1503,7 @@ function directoryConditions(version, criteria) {
   return { condition: where.join(" AND "), binds };
 }
 
-async function directoryFacets(request, env, ctx, version, storageVersion, summary, criteria) {
+async function directoryFacets(request, env, ctx, version, storageVersion, summary, criteria, experimental = false) {
   const facets = {}, groups = new Map();
   let total = null;
   for (const field of ["source", "genome_type", "annotation", "dataset", ...DIRECTORY_RANKS]) {
@@ -1285,7 +1523,7 @@ async function directoryFacets(request, env, ctx, version, storageVersion, summa
   }
   await Promise.all([...groups.values()].map(async ({ scope, fields }) => {
     const values = await directoryCachedValue(request, env, ctx, version, "facets-v3", { ...scope, fields: fields.join(",") }, async () => {
-      const { condition, binds } = directoryConditions(storageVersion, scope);
+      const { condition, binds } = directoryConditions(storageVersion, scope, env.BTED_EXPERIMENTAL_V05 === "on");
       const expressions = fields.flatMap(field => field === "dataset"
         ? Object.entries(DIRECTORY_DATASETS).map(([key, column]) => `MAX(${column} > 0) AS "${key}"`)
         : field === "phylum" ? ["phylum"]
@@ -1294,13 +1532,23 @@ async function directoryFacets(request, env, ctx, version, storageVersion, summa
       // to avoid sorting this small grouped result.
       const rows = await env.BTED_DB.prepare(`SELECT COUNT(*) AS total,${expressions.join(",")} FROM hf_directory_genomes WHERE ${condition}${fields.includes("phylum") ? " GROUP BY +phylum" : ""}`).bind(...binds).all();
       return rows.results;
-    });
+    }, experimental ? 60 : 604800);
     if (JSON.stringify(scope) === JSON.stringify(criteria)) total = values.reduce((n,row) => n + row.total,0);
     for (const field of fields) facets[field] = field === "dataset"
       ? Object.keys(DIRECTORY_DATASETS).filter(key => values.some(row => row[key]))
       : field === "phylum" ? values.filter(row => row.phylum).sort((a,b) => b.total-a.total || (a.phylum < b.phylum ? -1 : a.phylum > b.phylum ? 1 : 0)).map(row => row.phylum)
       : [...new Set(values.flatMap(row => JSON.parse(row[field])))].sort();
   }));
+  if (experimental) {
+    const scope = Object.fromEntries(Object.entries(criteria).filter(([key]) => key !== "assay"));
+    facets.assay = await directoryCachedValue(request, env, ctx, version, "assays-v1", scope, async () => {
+      const { condition, binds } = directoryConditions(storageVersion, scope, env.BTED_EXPERIMENTAL_V05 === "on");
+      const { results } = await env.BTED_DB.prepare(`SELECT DISTINCT a.assay FROM (${experimentalAssays(env.BTED_EXPERIMENTAL_V05 === "on")}) a
+        WHERE EXISTS (SELECT 1 FROM hf_directory_genomes WHERE ${condition} AND genome_id=a.assembly_accession)
+        ORDER BY assay`).bind(...binds).all();
+      return results.map(row => row.assay);
+    }, 60);
+  }
   return {facets,total};
 }
 
@@ -1310,14 +1558,16 @@ function directoryQuery(url) {
   const sort = params.get("sort") || "endpoints", direction = params.get("direction") || "desc";
   if (!/^[0-9a-f]{24}$/.test(params.get("v") || "") || !Number.isInteger(page) || page < 1 || page > 2000
       || !Object.hasOwn(DIRECTORY_SORT, sort) || !["asc", "desc"].includes(direction)
+      || sort === "predictions" && direction !== "desc"
       || params.has("page_size") && params.get("page_size") !== "25") throw new Error("invalid_directory_query");
   const q = (params.get("q") || "").normalize("NFKC").toLowerCase().trim();
   const tokens = q.split(/[^\p{L}\p{N}_.-]+/u).filter(Boolean);
   if (q.length > 160 || tokens.length > 12) throw new Error("invalid_directory_query");
   if (tokens.length && !tokens.some(token => [...token].length >= 3)) throw new Error("search_too_short");
   const query = { v: params.get("v"), page, sort, direction, q };
-  for (const field of ["source", "genome_type", "annotation", "dataset", ...DIRECTORY_RANKS]) {
+  for (const field of ["source", "genome_type", "annotation", "dataset", "assay", ...DIRECTORY_RANKS]) {
     query[field] = params.get(field) || "";
+    if (field === "assay" && query[field] === TERMSEQ_MODIFIED_ASSAY) query[field] = "Term-seq";
     if (query[field].length > 160) throw new Error("invalid_directory_query");
   }
   for (const [field, allowed] of [["genome_type", ["isolate", "MAG", "SAG", "environmental", "unknown"]], ["annotation", ["Available", "Missing"]], ["dataset", ["experimental", "prediction", "augmentation"]]]) {
@@ -1341,39 +1591,27 @@ async function directoryCachedValue(request, env, ctx, version, kind, params, lo
   return value;
 }
 
-async function genomeDirectory(request, env, ctx, collection = null) {
+async function genomeDirectory(request, env, ctx, collection) {
   let parsed;
   try { parsed = directoryQuery(new URL(request.url)); }
   catch (error) { return json({ error: error.message }, 400, { "cache-control": "no-store" }); }
   const { query, tokens } = parsed;
   try {
-    if (!collection && !directoryPins.has(env.ASSETS)) {
-      const task = env.ASSETS.fetch(new Request(new URL("/assets/genome-directory.json", request.url))).then(async response => {
-        if (!response.ok) throw new Error("directory_unavailable");
-        return response.json();
-      });
-      directoryPins.set(env.ASSETS, task);
-      task.catch(() => directoryPins.delete(env.ASSETS));
-    }
-    const pin = collection ? await collectionRelease(env, collection, request, ctx) : await directoryPins.get(env.ASSETS);
-    if (!pin || query.v !== pin.version || !collection && (pin.reference_revision !== env.BTED_METADATA_REVISION
-        || pin.annotation_revision !== (env.BTED_ANNOTATION_REVISION || "original"))) return json({ error: "directory_version_changed" }, 409, { "cache-control": "no-store" });
-    const release = collection ? pin : await cachedD1Lookup(env.BTED_DB, `directory-release:${query.v}`, () => env.BTED_DB.prepare(
-      "SELECT summary_json FROM hf_directory_releases WHERE version = ? AND reference_revision = ? AND annotation_revision = ? AND status = 'ready'")
-      .bind(query.v, pin.reference_revision, pin.annotation_revision).first());
-    if (!release) throw new Error("directory_unavailable");
-    const summary = JSON.parse(release.summary_json);
+    const pin = await collectionRelease(env, collection, request, ctx);
+    if (!pin || query.v !== pin.version) return json({ error: "directory_version_changed" }, 409, { "cache-control": "no-store" });
+    const summary = JSON.parse(pin.summary_json);
+    if (query.assay && collection !== "experimental") return json({ error: "invalid_directory_query" }, 400, { "cache-control": "no-store" });
     if (query.source && !summary.sources.includes(query.source)) return json({ error: "invalid_directory_query" }, 400, { "cache-control": "no-store" });
     const storageVersion = summary.storage_version || query.v;
-    const criteria = Object.fromEntries(["source", "genome_type", "annotation", "dataset", ...DIRECTORY_RANKS, "q"]
+    const criteria = Object.fromEntries(["source", "genome_type", "annotation", "dataset", "assay", ...DIRECTORY_RANKS, "q"]
       .filter(field => field === "q" ? tokens.length : query[field]).map(field => [field, query[field]]));
-    const { condition, binds } = directoryConditions(storageVersion, criteria);
+    const { condition, binds } = directoryConditions(storageVersion, criteria, env.BTED_EXPERIMENTAL_V05 === "on");
     const fields = Object.keys(criteria), knownCount = fields.length === 0 ? summary.total
       : fields.length === 1 && summary.counts[fields[0]] ? summary.counts[fields[0]][criteria[fields[0]]] ?? 0 : null;
-    const scope = await directoryFacets(request, env, ctx, query.v, storageVersion, summary, criteria);
+    const scope = await directoryFacets(request, env, ctx, query.v, storageVersion, summary, criteria, collection === "experimental");
     const facets = scope.facets;
     const total = knownCount ?? scope.total ?? (await directoryCachedValue(request, env, ctx, query.v, "count", criteria, () =>
-      env.BTED_DB.prepare(`SELECT COUNT(*) AS total FROM hf_directory_genomes WHERE ${condition}`).bind(...binds).first())).total;
+      env.BTED_DB.prepare(`SELECT COUNT(*) AS total FROM hf_directory_genomes WHERE ${condition}`).bind(...binds).first(), collection === "experimental" ? 60 : 604800)).total;
     const page = Math.max(1, Math.min(query.page, Math.ceil(total / 25)));
     const order = `${query.sort === "size" ? "(size IS NULL), " : ""}${DIRECTORY_SORT[query.sort]} ${query.direction.toUpperCase()}, accession_key ASC`;
     const { results } = await env.BTED_DB.prepare(`SELECT * FROM hf_directory_genomes WHERE ${condition} ORDER BY ${order} LIMIT 25 OFFSET ?`)
@@ -1385,6 +1623,26 @@ async function genomeDirectory(request, env, ctx, collection = null) {
       : `SELECT genome_id, catalogue_row_json FROM hf_genome_metadata WHERE revision = ? AND genome_id IN (${results.map(() => "?").join(",")})`)
       .bind(...(env.BTED_RUNTIME_FIELDS === "on" ? [] : [pin.reference_revision]), ...results.map(row => row.genome_id)).all()).results : [];
     const records = new Map(metadataRows.map(row => [row.genome_id, env.BTED_RUNTIME_FIELDS === "on" ? runtimeCatalogueRow(row) : row.catalogue_row_json ? JSON.parse(row.catalogue_row_json) : null]));
+    const signalTrackCounts = new Map();
+    const sequencingTechnologies = new Map();
+    if (collection === "experimental" && results.length) {
+      const assayRows = await env.BTED_DB.prepare(`SELECT DISTINCT a.assembly_accession,a.assay FROM (${experimentalAssays(env.BTED_EXPERIMENTAL_V05 === "on")}) a
+        WHERE a.assembly_accession IN (${results.map(() => "?").join(",")}) ORDER BY assay`)
+        .bind(...results.map(row => row.genome_id)).all();
+      for (const { assembly_accession, assay } of assayRows.results) {
+        if (!sequencingTechnologies.has(assembly_accession)) sequencingTechnologies.set(assembly_accession, []);
+        sequencingTechnologies.get(assembly_accession).push(assay);
+      }
+      const signalRows = await env.BTED_DB.prepare(
+        `SELECT assembly_accession, metadata_json FROM tracks WHERE release_version=? AND is_public=1 AND assembly_accession IN (${results.map(() => "?").join(",")})`,
+      ).bind(CURRENT_RELEASE_VERSION, ...results.map(row => row.genome_id)).all();
+      for (const signalRow of signalRows.results || []) {
+        let metadata;
+        try { metadata = JSON.parse(signalRow.metadata_json || "{}"); } catch { metadata = {}; }
+        const count = Array.isArray(metadata.signal_conditions) ? metadata.signal_conditions.length : metadata.signal_sample ? 1 : 0;
+        if (count) signalTrackCounts.set(signalRow.assembly_accession, (signalTrackCounts.get(signalRow.assembly_accession) || 0) + count);
+      }
+    }
     const taxonomyStatuses = collection === "experimental" && results.length ? new Map((await env.BTED_DB.prepare(
       `SELECT genome_id,status FROM bted_taxonomy_records WHERE version=? AND system=? AND taxonomy_version=? AND genome_id IN (${results.map(() => "?").join(",")})`)
       .bind(storageVersion, pin.taxonomy_system, pin.taxonomy_version, ...results.map(row => row.genome_id)).all()).results.map(row => [row.genome_id,row.status])) : new Map();
@@ -1397,7 +1655,10 @@ async function genomeDirectory(request, env, ctx, collection = null) {
       if (collection === "experimental") {
         if (!taxonomyStatuses.has(item.genome_id)) throw new Error("taxonomy_record_missing");
         row.dataset.taxonomyStatus = taxonomyStatuses.get(item.genome_id);
+        row.dataset.signalTracks = String(signalTrackCounts.get(item.genome_id) || 0);
+        row.sequencingTechnologies = sequencingTechnologies.get(item.genome_id) || [];
         row.filterData = Object.fromEntries(["accession_key", "organism_key", "source", "genome_type", "annotation", "endpoints", "predictions", "training", "size", "search_text", ...DIRECTORY_RANKS].map(key => [key, item[key]]));
+        row.filterData.assay = row.sequencingTechnologies;
       }
       if (item.size) row.referenceSize = [item.size, item.contigs];
       if (item.recovered_coverage) row.recoveredAnnotation = { coverage: item.recovered_coverage, matched_reference_contigs: item.recovered_matched, total_reference_contigs: item.recovered_total };
@@ -1425,10 +1686,12 @@ async function collectionSummary(env, request, ctx) {
       const row = await collectionRelease(env, key, request, ctx);
       if (!row) throw new Error("collection_not_ready");
       const summary = JSON.parse(row.summary_json);
+      const phylumCounts = Object.fromEntries(Object.entries(summary.counts?.phylum || {})
+        .filter(([name, count]) => name && Number.isInteger(Number(count)) && Number(count) > 0));
       return { collection: key, label: row.label, version: row.version, taxonomy_label: row.taxonomy_label,
         taxonomy_system: row.taxonomy_system, taxonomy_version: row.taxonomy_version,
         description: row.description, total: summary.total, source_genome_count: row.source_genome_count,
-        partial: Boolean(row.partial), feature_totals: summary.feature_totals };
+        partial: Boolean(row.partial), feature_totals: summary.feature_totals, phylum_counts: phylumCounts };
     }));
     return json({ metadata_source: "d1", collections }, 200, { "cache-control": "public, max-age=60", "x-bted-metadata-source": "d1" });
   } catch { return json({ error: "collections_unavailable" }, 503, { "cache-control": "no-store" }); }
@@ -1441,9 +1704,9 @@ function taxonomyString(record) {
 async function collectionTaxonomies(env, release, id) {
   const rows = await cachedD1Lookup(env.BTED_DB, `taxonomy-v1:${release.version}:${id}`, () => env.BTED_DB.prepare(
     "SELECT * FROM bted_taxonomy_records WHERE version=? AND genome_id=? ORDER BY system,taxonomy_version")
-    .bind(release.version, id).all());
+    .bind(JSON.parse(release.summary_json).storage_version || release.version, id).all());
   const records = rows.results.map(row => ({ ...row, evidence: JSON.parse(row.evidence_json), evidence_json: undefined,
-    label: row.system === "ncbi" ? "NCBI Taxonomy" : row.system === "gtdb" ? `GTDB ${row.taxonomy_version}` : "GEM / GTDB (original; release not established)" }));
+    label: row.system === "ncbi" ? "NCBI Taxonomy" : row.system === "gtdb" ? `GTDB ${row.taxonomy_version}` : "GTDB R89 (GEM)" }));
   if (!records.some(row => row.system === release.taxonomy_system && row.taxonomy_version === release.taxonomy_version)) throw new Error("default_taxonomy_missing");
   return { default_system: release.taxonomy_system, default_version: release.taxonomy_version, records };
 }
@@ -1501,10 +1764,10 @@ async function gtdbConfig(request, metadata) {
       }
     } catch { /* Optional index statistics must not be presented as zero records. */ }
   }
-  for (const [kind, file, name] of [["reference", "genes.gff3.gz", "Reference gene annotation"], ["prediction", "prediction.gff3.gz", "Predicted regions · BATTER-TPE"]]) {
+  for (const [kind, file, name] of [["reference", "genes.gff3.gz", "Reference gene annotation"], ["prediction", "prediction.gff3.gz", "Predicted regions"]]) {
     if (!metadata.browser_files[file]) continue;
     const trackId = kind === "reference" ? "gtdb_genes" : "gtdb_prediction";
-    tracks.push({ type: "FeatureTrack", trackId, name, assemblyNames: [id], category: [kind === "prediction" ? "Model prediction" : "Reference annotation"],
+    tracks.push({ type: "FeatureTrack", trackId, name, assemblyNames: [id], category: [kind === "prediction" ? "Predicted regions" : "Reference annotation"],
       adapter: { type: "Gff3TabixAdapter", gffGzLocation: uri(file), index: { location: uri(file + ".tbi"), indexType: "TBI" } },
       displays: [{ type: "LinearBasicDisplay", displayId: `${trackId}_display`, height: kind === "prediction" ? 160 : 130, showLabels: false,
         ...(kind === "reference" ? { jexlFilters: ["get(feature,'type')!='region'"] } : {}),
@@ -1533,7 +1796,7 @@ async function collectionGenome(request, env, collection, id, action, file) {
     if (url.searchParams.has("url") || url.searchParams.has("revision") && url.searchParams.get("revision") !== release.reference_revision)
       return json({ error: "collection_version_changed" }, 409, { "cache-control": "no-store" });
     if (action === "taxonomy") {
-      const exists = await env.BTED_DB.prepare("SELECT genome_id FROM hf_directory_genomes WHERE version=? AND genome_id=?").bind(release.version,id).first();
+      const exists = await env.BTED_DB.prepare("SELECT genome_id FROM hf_directory_genomes WHERE version=? AND genome_id=?").bind(JSON.parse(release.summary_json).storage_version || release.version,id).first();
       return exists ? json({ metadata_source: "d1", collection, genome_id: id, version: release.version, ...await collectionTaxonomies(env,release,id) }, 200,
         { "x-bted-metadata-source": "d1" }) : json({ error: "genome_not_found" },404);
     }
@@ -1546,8 +1809,13 @@ async function collectionGenome(request, env, collection, id, action, file) {
       return json(data, 200, { "cache-control": "public, max-age=60", "x-bted-metadata-source": "d1" });
     }
     if (collection === "experimental") {
+      if (env.BTED_EXPERIMENTAL_V05 === "on" && await loadGenome(env,id)) {
+        const target = new URL(`/api/experimental-v05/assemblies/${id}${action === "config" ? "/config" : ""}`,request.url);
+        if (action && action !== "config") return json({error:"not_found"},404);
+        return experimentalV05Api(new Request(target,request),env);
+      }
       if (action !== "config") return json({ error: "not_found" }, 404);
-      const registered = await env.BTED_DB.prepare("SELECT genome_id,predictions FROM hf_directory_genomes WHERE version=? AND genome_id=?").bind(release.version, id).first();
+      const registered = await env.BTED_DB.prepare("SELECT genome_id,predictions FROM hf_directory_genomes WHERE version=? AND genome_id=?").bind(JSON.parse(release.summary_json).storage_version || release.version, id).first();
       if (!registered) return json({ error: "genome_not_found" }, 404);
       const assembly = await env.BTED_DB.prepare("SELECT prediction_count FROM assemblies WHERE release_version=? AND accession=?").bind(CURRENT_RELEASE_VERSION,id).first();
       const combined = registered.predictions > 0 && !Number(assembly?.prediction_count);
@@ -1693,6 +1961,11 @@ export function applyRecoveredAnnotation(metadata, recovery) {
     recovered: true, coverage: entry.coverage, matched_reference_contigs: entry.matched_reference_contigs,
     total_reference_contigs: entry.total_reference_contigs, features: entry.features,
     source_url: entry.source_url, source_annotation_type: entry.source_annotation_type,
+    annotation_origin: entry.provenance?.annotation_origin,
+    annotation_origin_label: ({ original_study: "Original study annotation",
+      primary_database_annotation: "Primary database annotation",
+      archived_primary_database_annotation: "Archived primary database annotation",
+      third_party_reannotation: "Published third-party reannotation" })[entry.provenance?.annotation_origin],
     annotation_revision: recovery.annotation_revision };
   metadata.browser_files["genes.gff3"] = { ...entry.file,
     url: `https://huggingface.co/datasets/liurulong/terminator/resolve/${recovery.annotation_revision}/${path}`,
@@ -1732,8 +2005,13 @@ export function combineGenomeTracks(config, experimental, verified, metadata) {
 }
 
 async function batterFileBytes(url, file) {
-  const response = await fetch(url, { cf: { cacheTtl: 86400, cacheEverything: true } });
-  if (!response.ok) throw new Error("file_not_uploaded");
+  let response = await fetch(url, { cf: { cacheTtl: 86400, cacheEverything: true } });
+  // A failed immutable-cache read must not hide a published reference index.
+  if (!response.ok) {
+    await response.body?.cancel();
+    response = await fetch(url, { cache: "no-store" });
+  }
+  if (!response.ok) throw new Error(`file_origin_unavailable_${response.status}`);
   if (file.bytes > 16 * 1024 * 1024) throw new Error("file_too_large");
   const bytes = await response.arrayBuffer();
   const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(n => n.toString(16).padStart(2, "0")).join("");
@@ -1827,11 +2105,11 @@ async function batterConfig(request, metadata) {
   }
   const tracks = [];
   function addTrack(trackId, name, file, renderer, height, explanation) {
-    tracks.push({ type: "FeatureTrack", trackId, name, assemblyNames: [id], category: [trackId === "batter_prediction" ? "Model prediction" : trackId === "batter_genes" ? "Reference annotation" : "Augmentation / Rfam"],
+    tracks.push({ type: "FeatureTrack", trackId, name, assemblyNames: [id], category: [trackId === "batter_prediction" ? "Predicted regions" : trackId === "batter_genes" ? "Reference annotation" : "Augmented regions"],
       adapter: file.endsWith(".gff3") ? { type: "Gff3Adapter", gffLocation: uri(file) }
         : { type: "Gff3TabixAdapter", gffGzLocation: uri(file), index: { location: uri(file + ".tbi"), indexType: "TBI" } },
       displays: [{ type: "LinearBasicDisplay", displayId: trackId + "_display", height, showLabels: false, renderer: { type: "SvgFeatureRenderer", showLabels: false, ...renderer } }],
-      metadata: { btedAbout: { kind: trackId === "batter_genes" ? "reference" : "augmentation", title: "BATTER", assembly: id, evidence: trackId === "batter_genes" ? "Reference annotation" : "OTU data augmentation and Rfam-derived training regions", ...(trackId === "batter_augmentation" ? { record_count: augmented } : {}), explanation, doi_url: "https://doi.org/10.1186/s40168-026-02454-1", gff3_url: uri(file).uri },
+      metadata: { btedAbout: { kind: trackId === "batter_genes" ? "reference" : "augmentation", title: name, assembly: id, evidence: trackId === "batter_genes" ? "Reference annotation" : "OTU-derived regions and Rfam-derived regions", ...(trackId === "batter_augmentation" ? { record_count: augmented } : {}), explanation, doi_url: "https://doi.org/10.1186/s40168-026-02454-1", gff3_url: uri(file).uri },
         btedDownloads: [{ kind: "reference", label: name + " GFF3", url: uri(file).uri, filename: id + "." + file }] } });
   }
   if (!metadata.annotation.recovered && metadata.annotation.status === "matched" && metadata.browser_files["genes.gff3.gz"] && metadata.browser_files["genes.gff3.gz.tbi"]) {
@@ -1839,15 +2117,16 @@ async function batterConfig(request, metadata) {
   }
   if (metadata.annotation.recovered && metadata.browser_files["genes.gff3"]) {
     const annotation = metadata.annotation;
-    const explanation = `Annotation: ${annotation.matched_reference_contigs}/${annotation.total_reference_contigs} contigs${annotation.coverage === "partial" ? " (partial)" : ""}.`;
+    const explanation = `${annotation.annotation_origin_label ? annotation.annotation_origin_label + ". " : ""}Annotation: ${annotation.matched_reference_contigs}/${annotation.total_reference_contigs} contigs${annotation.coverage === "partial" ? " (partial)" : ""}.`;
     addTrack("batter_genes", "Reference gene annotation", "genes.gff3", { showDescriptions: false, color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)" }, 130, explanation);
     tracks.at(-1).metadata.btedAbout = { kind: "reference", title: "Gene annotation", assembly: id,
       reference: `${id} · ${annotation.matched_reference_contigs}/${annotation.total_reference_contigs} contigs${annotation.coverage === "partial" ? " (partial)" : ""}`,
-      evidence: annotation.source_annotation_type, explanation, record_count: annotation.features,
+      evidence: annotation.source_annotation_type, annotation_origin: annotation.annotation_origin,
+      explanation, record_count: annotation.features,
       gff3_url: uri("genes.gff3").uri, source_url: annotation.source_url };
   }
   if (augmented || counts.otu_augmentation_window || counts.rfam_training_window) {
-    addTrack("batter_augmentation", "Augmentation / Rfam regions", "augmentation.gff3.gz", { color1: "jexl:btedAugmentationColor(feature)", color2: "jexl:btedAugmentationColor(feature)", mouseover: "jexl:get(feature,'type') == 'training_sequence_window' || get(feature,'type') == 'rfam_training_window' ? 'Sequence context window' : get(feature,'name')", height: 14 }, 96, "OTU augmentation and Rfam training regions. Counts exclude context windows.");
+    addTrack("batter_augmentation", "Augmented regions", "augmentation.gff3.gz", { color1: "jexl:btedAugmentationColor(feature)", color2: "jexl:btedAugmentationColor(feature)", mouseover: "jexl:get(feature,'type') == 'training_sequence_window' || get(feature,'type') == 'rfam_training_window' ? 'Sequence context window' : get(feature,'name')", height: 14 }, 96, "OTU-derived regions and Rfam-derived regions. Counts exclude context windows.");
   }
   for (const track of tracks) {
     if (track.trackId === "batter_genes") track.displays[0].jexlFilters = ["get(feature,'type')!='region'"];
@@ -1924,10 +2203,10 @@ async function batterApi(request, env, match, isolated = false) {
       const path = registry.experimental?.[id];
       if (path && !isolated) {
         if (!/^\/jbrowse\/assemblies\/[A-Za-z0-9_.-]+\.config\.json$/.test(path)) throw new Error("invalid_experimental_config_path");
-        const experimentalResponse = await env.ASSETS.fetch(new Request(new URL(path, request.url)));
+        const experimentalResponse = await experimentalBrowserConfig(request, env, id);
         if (!experimentalResponse.ok) throw new Error("experimental_config_unavailable");
         const verified = registry.revision === catalogue.revision ? registry.overlays?.[id] : null;
-        config = combineGenomeTracks(config, await applyD1Descriptions(await experimentalResponse.json(), env, id), verified, metadata);
+        config = combineGenomeTracks(config, await experimentalResponse.json(), verified, metadata);
         await applyConditionSignals(config, request, env, id);
       }
       return json(config, 200, { "cache-control": "no-cache", "x-bted-metadata-source": env.BTED_METADATA_REVISION ? "d1" : "hf" });
@@ -2093,8 +2372,11 @@ async function purgeUsage(env, time) {
 
 async function cachedPublicApi(request, ctx, load, env = {}) {
   const url = new URL(request.url);
+  // Retired aggregate endpoints must bypass even previously cached responses.
+  if (["/api/genome-directory", "/api/site-summary"].includes(url.pathname)) return json(
+    { error: "endpoint_retired", collections: "/api/collections" }, 410, { "cache-control": "no-store" });
   const experimentalConfig = /^\/jbrowse\/assemblies\/GCF_\d+\.\d+\.config\.json$/.test(url.pathname);
-  const directory = url.pathname === "/api/genome-directory" || /^\/api\/collections\/(gtdb|experimental|gem)\/directory$/.test(url.pathname);
+  const directory = /^\/api\/collections\/(gtdb|experimental|gem)\/directory$/.test(url.pathname);
   let directoryParams;
   if (directory) { try { directoryParams = directoryQuery(url).query; } catch { return load(); } }
   const collectionDirectory = /^\/api\/collections\/(gtdb|experimental|gem)\/directory$/.exec(url.pathname);
@@ -2116,7 +2398,7 @@ async function cachedPublicApi(request, ctx, load, env = {}) {
   const liveStudies = /^\/api\/assemblies\/[^/]+\/page-metadata$/.test(url.pathname);
   const experimentalBatterConfig = /^\/api\/batter\/GCF_\d+\.\d+\/config$/.test(url.pathname);
   const collectionApi = /^\/api\/collections(?:\/(gtdb|experimental|gem)(?:\/[A-Za-z0-9_.-]+(?:\/(config|taxonomy))?)?)?$/.test(url.pathname);
-  const ttl = liveStudies || url.pathname === "/api/site-summary" || url.pathname === "/api/collections" ? 60 : experimentalConfig || experimentalBatterConfig ? 300 : directory ? 604800 : collectionApi ? 300 : fixedMetadata ? (catalogue ? 604800 : 86400) : url.pathname === "/api/usage" ? 60
+  const ttl = liveStudies || url.pathname === "/api/collections" || collectionDirectory?.[1] === "experimental" ? 60 : experimentalConfig || experimentalBatterConfig ? 300 : directory ? 604800 : collectionApi ? 300 : fixedMetadata ? (catalogue ? 604800 : 86400) : url.pathname === "/api/usage" ? 60
     : url.pathname === "/api/batter-catalogue" ? 300
     : /^\/api\/(stats|catalogue|sources|assemblies|endpoints)(\/[^/]+(\/jbrowse-config)?)?$/.test(url.pathname) ? 300 : 0;
   const cache = globalThis.caches?.default;
@@ -2127,9 +2409,9 @@ async function cachedPublicApi(request, ctx, load, env = {}) {
     for (const [key, value] of Object.entries(directoryParams)) if (value) keyUrl.searchParams.set(key, String(value));
   }
   if (fixedMetadata) keyUrl.search = "";
-  keyUrl.searchParams.set("__bted_cache", collectionApi ? `collections-v1:${env.BTED_COLLECTION_REVISION}:${BTED_PLUGIN_PATH}` : directory ? `directory-v3:${env.BTED_METADATA_REVISION}:${env.BTED_ANNOTATION_REVISION || "original"}` : catalogue
+  keyUrl.searchParams.set("__bted_cache", collectionApi ? `collections-v5-signal-count:${env.BTED_COLLECTION_REVISION}:${BTED_PLUGIN_PATH}` : directory ? `${collectionDirectory?.[1] === "experimental" ? "directory-v5-assays" : "directory-v3"}:${env.BTED_METADATA_REVISION}:${env.BTED_ANNOTATION_REVISION || "original"}` : catalogue
     ? `catalogue-v1:${CURRENT_RELEASE_VERSION}:${env.BTED_METADATA_REVISION || "hf"}:${env.BTED_ANNOTATION_REVISION || "original"}`
-    : `public-api-20261023-membership-v3:${CURRENT_RELEASE_VERSION}:${env.BTED_METADATA_REVISION || "hf"}:${env.BTED_ANNOTATION_REVISION || "original"}:${env.BTED_RUNTIME_FIELDS || "legacy"}:${BTED_PLUGIN_PATH}`);
+    : `public-api-20261031-shared-experimental:${CURRENT_RELEASE_VERSION}:${env.BTED_METADATA_REVISION || "hf"}:${env.BTED_ANNOTATION_REVISION || "original"}:${env.BTED_RUNTIME_FIELDS || "legacy"}:${BTED_PLUGIN_PATH}`);
   keyUrl.searchParams.sort();
   const key = new Request(keyUrl);
   const cacheControl = `public, max-age=${pinnedCatalogue ? 31536000 : Math.min(ttl, 60)}, s-maxage=${ttl}${pinnedCatalogue ? ", immutable" : ""}`;
@@ -2164,6 +2446,8 @@ export default {
 
 async function routeRequest(request, env, ctx) {
     const url = new URL(request.url);
+    // Independent v0.5.0 extension: preserve frozen legacy release and in-flight GTDB.
+    if (url.pathname.startsWith("/api/experimental-v05/") && env.BTED_EXPERIMENTAL_V05 === "on") return experimentalV05Api(request, env);
     if (env.BTED_D1_ONLY === "on" && !env.BTED_METADATA_REVISION &&
         (url.pathname === "/api/batter-catalogue" || url.pathname.startsWith("/api/batter/"))) {
       return json({ error: "d1_metadata_not_configured" }, 503, { "cache-control": "no-store" });
@@ -2171,6 +2455,16 @@ async function routeRequest(request, env, ctx) {
     if (!["GET", "HEAD"].includes(request.method)) return json({ error: "method_not_allowed" }, 405, { allow: "GET, HEAD" });
     if (url.pathname.startsWith("/downloads/v0.2.0/")) return retiredReleaseResponse("v0.2.0");
     if (!url.pathname.startsWith("/api/")) {
+      if (["/genomes", "/genomes/", "/genomes.html"].includes(url.pathname)) {
+        url.pathname = "/gem.html";
+        return Response.redirect(url.href, 302);
+      }
+      if (["/assets/genome-directory.json", "/assets/home.js"].includes(url.pathname)) return new Response("Retired asset", { status: 410 });
+      if (url.pathname === DATA_RELEASE_MANIFEST_PATH && env.BTED_D1_ONLY === "on") {
+        try { return json(await fixedDataReleaseManifest(env, request), 200,
+          { "cache-control": "public, max-age=60", "x-bted-metadata-source": "d1" }); }
+        catch (error) { return dataReleaseErrorResponse(error); }
+      }
       const experimentalConfig = /^\/jbrowse\/assemblies\/(GCF_\d+\.\d+)\.config\.json$/.exec(url.pathname);
       if (experimentalConfig) return experimentalBrowserConfig(request, env, experimentalConfig[1]);
       let assetRequest = request;
@@ -2178,7 +2472,7 @@ async function routeRequest(request, env, ctx) {
       if (collectionPage && collectionPage[2] !== "genome") {
         try {
           const release = await collectionRelease(env, collectionPage[1], request, ctx);
-          const exists = release && await env.BTED_DB.prepare("SELECT genome_id FROM hf_directory_genomes WHERE version=? AND genome_id=?").bind(release.version, collectionPage[2]).first();
+          const exists = release && await env.BTED_DB.prepare("SELECT genome_id FROM hf_directory_genomes WHERE version=? AND genome_id=?").bind(JSON.parse(release.summary_json).storage_version || release.version, collectionPage[2]).first();
           if (!exists && release && collectionPage[1] === "experimental") {
             const version = JSON.parse(release.summary_json).reference_registry_version;
             const registered = /^[0-9a-f]{24}$/.test(version || "") && await env.BTED_DB.prepare("SELECT genome_id FROM hf_directory_genomes WHERE version=? AND genome_id=?").bind(version, collectionPage[2]).first();
@@ -2188,10 +2482,8 @@ async function routeRequest(request, env, ctx) {
             }
           }
           if (!exists) return new Response("Genome not found in this collection.", { status: 404 });
-          if (collectionPage[1] !== "experimental") {
-            const target = new URL(request.url); target.pathname = `/${collectionPage[1]}/genome`;
-            assetRequest = new Request(target, request);
-          }
+          const target = new URL(request.url); target.pathname = `/${collectionPage[1]}/genome`;
+          assetRequest = new Request(target, request);
         } catch { return new Response("Collection temporarily unavailable.", { status: 503 }); }
       }
       const genomePage = /^\/genomes\/([A-Za-z0-9_.-]+)(?:\.html)?$/.exec(url.pathname);
@@ -2219,8 +2511,6 @@ async function routeRequest(request, env, ctx) {
     if (collectionDirectory) return genomeDirectory(request, env, ctx, collectionDirectory[1]);
     const collectionGenomeMatch = /^\/api\/collections\/(gtdb|experimental|gem)\/([^/]+)(?:\/(config|files|taxonomy)(?:\/([^/]+))?)?$/.exec(url.pathname);
     if (collectionGenomeMatch) return collectionGenome(request, env, collectionGenomeMatch[1], collectionGenomeMatch[2], collectionGenomeMatch[3], collectionGenomeMatch[4]);
-    if (url.pathname === "/api/genome-directory") return genomeDirectory(request, env, ctx);
-    if (url.pathname === "/api/site-summary") return siteSummary(env);
     if (url.pathname === "/api/batter-catalogue") return batterCatalogueResponse(request, env);
     const batterMatch = url.pathname.match(/^\/api\/batter\/([^/]+)(?:\/(config|files)(?:\/([^/]+))?)?$/);
     if (batterMatch) return batterApi(request, env, batterMatch);
@@ -2232,7 +2522,16 @@ async function routeRequest(request, env, ctx) {
       return json({ error: "release_not_found", release_version: requestedRelease }, 404);
     }
     const selected = await withRelease(env, url);
-    if (url.pathname === "/api/health") return selected ? json({ status: "ok", deployment: "cloudflare-worker-d1-preview", release: releasePayload(selected.release) }) : json({ status: "error", error: "release_not_loaded" }, 503);
+    if (url.pathname === "/api/health") {
+      if (!selected) return json({status:"error",error:"release_not_loaded"},503);
+      const payload={status:"ok",deployment:"cloudflare-worker-d1",release:releasePayload(selected.release)};
+      if (env.BTED_EXPERIMENTAL_V05 === "on") {
+        const collection=await collectionRelease(env,"experimental",request,ctx);
+        const summary=JSON.parse(collection.summary_json);
+        payload.experimental_release={release_version:summary.scientific_release,hf_revision:summary.experimental_extension_revision};
+      }
+      return json(payload);
+    }
     if (!selected) return json({ error: "release_not_found" }, 404);
     const pageMetadataMatch = url.pathname.match(/^\/api\/assemblies\/(GCF_\d+\.\d+)\/(page-metadata|metadata\.tsv)$/);
     if (pageMetadataMatch) {

@@ -33,11 +33,13 @@ test('a new public directory version uses the current indexed rows and only acce
   const db = new DatabaseSync(':memory:');
   const version = 'c'.repeat(24), storage = 'a'.repeat(24), revision = 'b'.repeat(40), genome = 'GCF_000005845.2';
   db.exec(readFileSync(new URL('../database/migrations/0005_genome_directory.sql', import.meta.url), 'utf8'));
+  db.exec(readFileSync(new URL('../database/migrations/0009_collections.sql', import.meta.url), 'utf8'));
   db.exec(readFileSync(new URL('../database/migrations/0006_runtime_metadata.sql', import.meta.url), 'utf8'));
   db.prepare('INSERT INTO hf_runtime_release VALUES(1,?,?,?,?,?)').run(revision, 'ready', 42904, 0, 'd'.repeat(64));
   db.prepare('INSERT INTO hf_directory_releases VALUES(?,?,?,?,?)').run(storage, revision, 'original', '{}', 'loading');
   const summary = { total: 1, sources: ['NCBI RefSeq'], phyla: [], counts: {}, storage_version: storage, experimental_predictions: { [genome]: 4447 } };
   db.prepare('INSERT INTO hf_directory_releases VALUES(?,?,?,?,?)').run(version, revision, 'original', JSON.stringify(summary), 'ready');
+  db.prepare('INSERT INTO bted_collections VALUES(?,?,?,?,?,?,?)').run('gem', version, 'GEM', 'GTDB R89 (GEM)', '', 1, 0);
   db.prepare('INSERT INTO hf_directory_genomes(version,genome_id,accession_key,organism_key,organism,source,genome_type,annotation,endpoints,predictions,training,phylum,class,"order",family,genus,species,search_text) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
     .run(storage, genome, genome, 'ecoli', 'E. coli', 'NCBI RefSeq', 'unknown', 'Missing', 0, 4447, 0, '', '', '', '', '', '', 'ecoli');
   const queries = [];
@@ -47,11 +49,11 @@ test('a new public directory version uses the current indexed rows and only acce
   }) }) });
   const env = { BTED_METADATA_REVISION: revision, BTED_RUNTIME_FIELDS: 'on', BTED_DB: database(),
     ASSETS: { fetch: async () => Response.json({ version, reference_revision: revision, annotation_revision: 'original' }) } };
-  const request = new Request(`https://bted.example/api/genome-directory?v=${version}`);
+  const request = new Request(`https://bted.example/api/collections/gem/directory?v=${version}`);
   try {
     const response = await worker.fetch(request, env); assert.equal(response.status, 200);
     const data = await response.json(); assert.equal(data.rows[0].batter[10], 4447); assert.equal(data.rows[0].dataset.sortPredictions, '4447');
-    assert.equal(queries.length, 4, 'no extra per-genome prediction lookup');
+    assert.equal(queries.length, 5, 'no extra per-genome prediction lookup');
     assert.equal(queries.find(q => q.sql.includes('LIMIT 25 OFFSET')).binds[0], storage);
     db.prepare('UPDATE hf_directory_genomes SET predictions=9999 WHERE genome_id=?').run(genome);
     assert.equal((await worker.fetch(request, {...env, BTED_DB:database()})).status, 503);

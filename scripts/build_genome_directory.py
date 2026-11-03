@@ -94,7 +94,7 @@ def directory_rows(site):
             row['recoveredAnnotation'] = {k: recovered[k] for k in ('coverage', 'matched_reference_contigs', 'total_reference_contigs')}
         if record[0] in catalogue.get('reference_sizes', {}):
             row['referenceSize'] = catalogue['reference_sizes'][record[0]]
-        source = {'NCBI-RefSeq': 'NCBI RefSeq', 'NCBI-MAG': 'NCBI GenBank', 'NCBI-SAG': 'NCBI GenBank'}.get(record[12], record[12] or 'Not cataloged')
+        source = {'NCBI-RefSeq': 'NCBI RefSeq', 'NCBI-MAG': 'NCBI GenBank', 'NCBI-SAG': 'NCBI GenBank'}.get(record[12], record[12] or 'Not recorded')
         annotation = 'Available' if record[9] == 'matched' or recovered else dataset.get('genomeAnnotation', 'Missing')
         # Experimental-only annotation availability is taken from the verified public asset list.
         if record[0].upper() in parser.rows and not record[1]:

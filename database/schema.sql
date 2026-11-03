@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS assets (
   release_version TEXT NOT NULL REFERENCES release_versions(release_version),
   assembly_accession TEXT,
   source_id TEXT,
-  asset_kind TEXT NOT NULL CHECK (asset_kind IN ('fasta', 'fai', 'gff3', 'tbi', 'bigwig', 'bed', 'config', 'metadata', 'checksum', 'archive')),
+  asset_kind TEXT NOT NULL CHECK (asset_kind IN ('fasta', 'fai', 'gff3', 'tbi', 'bigwig', 'bed', 'config', 'metadata', 'checksum', 'archive', 'gzi')),
   logical_path TEXT NOT NULL,
   origin_url TEXT NOT NULL,
   origin_host TEXT NOT NULL,

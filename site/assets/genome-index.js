@@ -13,6 +13,7 @@
     ["source", document.querySelector("[data-genome-source-filter]"), "genomeSource"],
     ["genome_type", document.querySelector("[data-genome-type-filter]"), "genomeType"],
     ["annotation", document.querySelector("[data-genome-annotation-filter]"), "genomeAnnotation"],
+    ["assay", document.querySelector("[data-genome-assay-filter]"), "genomeAssay"],
   ].filter(([, select]) => select);
   const resultCount = document.querySelector(".genome-result-count");
   const previous = document.querySelector("[data-genome-prev]");
@@ -26,8 +27,8 @@
   const rows = Array.from(tbody.querySelectorAll("[data-genome-row]"));
   if (dataType) rows.forEach(row => { row.node = row; });
   const sortButtons = Array.from(document.querySelectorAll("[data-sort]"));
-  const sortFields = new Set(["accession", "organism", "size", "endpoints", ...(dataType ? ["predictions", "training"] : [])]);
-  const numericFields = new Set(["size", "endpoints", "predictions", "training"]);
+  const sortFields = new Set(["accession", "organism", "size", "endpoints", ...(dataType ? ["predictions"] : [])]);
+  const numericFields = new Set(["size", "endpoints", "predictions"]);
   const collator = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
   const defaultSort = form.dataset.defaultSort || "endpoints";
   let sortField = defaultSort;
@@ -46,6 +47,16 @@
     sortButtons.find(button => button.dataset.sort === sortField)?.closest("th")?.setAttribute("aria-sort", direction === "asc" ? "ascending" : "descending");
   }
 
+  function readSort(params) {
+    const explicitSort = sortFields.has(params.get("sort"));
+    sortField = explicitSort ? params.get("sort") : defaultSort;
+    const order = params.get("direction") || params.get("order");
+    direction = ["asc", "desc"].includes(order) ? order : explicitSort ? "asc" : "desc";
+    // Retired sort links keep their filters, using the collection's default
+    // order for training and descending order for predictions.
+    if (params.get("sort") === "training" || sortField === "predictions") direction = "desc";
+  }
+
   function initPaged() {
     const pages = new Map();
     const menus = [...filters.map(([field, select]) => [field, select]), ...(dataType ? [["dataset", dataType]] : [])];
@@ -56,7 +67,7 @@
     // response for interactive filters; never substitute a bundled snapshot.
     function filterExperimental(data, url) {
       const ranks = taxonomy.map(s => s.dataset.taxonomyRank);
-      const fields = ["source", "genome_type", "annotation", "dataset", ...ranks];
+      const fields = ["source", "genome_type", "annotation", "dataset", ...("assay" in data.facets ? ["assay"] : []), ...ranks];
       const selected = Object.fromEntries(fields.map(k => [k, url.searchParams.get(k) || ""]));
       const q = (url.searchParams.get("q") || "").normalize("NFKC").toLowerCase().trim();
       const tokens = q.split(/[^\p{L}\p{N}_.-]+/u).filter(Boolean);
@@ -64,7 +75,7 @@
       const matches = (row, omitted = []) => {
         const r = row.filterData;
         if (!tokens.every(t => r.search_text.includes(t))) return false;
-        return fields.every(k => omitted.includes(k) || !selected[k] || (k === "dataset" ? r[datasets[selected[k]]] > 0 : r[k] === selected[k]));
+        return fields.every(k => omitted.includes(k) || !selected[k] || (k === "dataset" ? r[datasets[selected[k]]] > 0 : k === "assay" ? r.assay.includes(selected[k]) : r[k] === selected[k]));
       };
       const facets = {};
       for (const field of fields) {
@@ -76,7 +87,7 @@
           if (!tokens.length && fields.every(k => k === field || !selected[k])) facets[field].sort();
         }
         else {
-          facets[field] = [...new Set(scope.map(r => r.filterData[field]).filter(Boolean))].sort();
+          facets[field] = [...new Set(scope.flatMap(r => r.filterData[field]).filter(Boolean))].sort();
           if (field === "phylum") {
             const counts = new Map();scope.forEach(r => counts.set(r.filterData.phylum, (counts.get(r.filterData.phylum) || 0) + 1));
             facets[field].sort((a,b) => counts.get(b) - counts.get(a) || (a < b ? -1 : a > b ? 1 : 0));
@@ -128,11 +139,10 @@
       filters.forEach(([param, select]) => {
         let value = params.get(param) || "";
         if (param === "annotation" && ["Incompatible", "Unavailable", "Not cataloged"].includes(value)) value = "Missing";
+        if (param === "assay" && value === "3′ RNA-seq (modified from Term-seq)") value = "Term-seq";
         restoreMenu(select, value);
       });
-      sortField = sortFields.has(params.get("sort")) ? params.get("sort") : defaultSort;
-      const order = params.get("direction") || params.get("order");
-      direction = ["asc", "desc"].includes(order) ? order : params.has("sort") ? "asc" : "desc";
+      readSort(params);
       page = Math.max(0, Math.min(1999, (Number(params.get("page")) || 1) - 1));
     }
 
@@ -211,7 +221,7 @@
         showPage(data);
       } catch (error) {
         if (ticket !== sequence || error.name === "AbortError") return;
-        loadStatus.textContent = error.message === "version" ? "Catalog updated. Reload this page." : "Catalog unavailable.";
+        loadStatus.textContent = error.message === "version" ? "Catalog updated. Reload this page." : "Catalog unavailable. Retry.";
         retry.hidden = false;
         // Never label the previous page as the newly requested result.
         tbody.hidden = true; resultCount.hidden = true;
@@ -234,7 +244,7 @@
     sortButtons.forEach(button => button.addEventListener("click", () => {
       const nextSort = button.dataset.sort;
       if (!sortFields.has(nextSort)) return;
-      direction = sortField === nextSort ? direction === "asc" ? "desc" : "asc" : "asc";
+      direction = nextSort === "predictions" ? "desc" : sortField === nextSort ? direction === "asc" ? "desc" : "asc" : "asc";
       sortField = nextSort; changePage();
     }));
     clear?.addEventListener("click", () => {
@@ -242,6 +252,15 @@
       if (dataType) dataType.value = "";
       filters.forEach(([, select]) => { select.value = ""; });
       sortField = defaultSort; direction = "desc"; changePage();
+    });
+    form.addEventListener("bted:collection-version", event => {
+      const version = event.detail?.version;
+      if (!/^[0-9a-f]{24}$/.test(version || "")) return;
+      const url = new URL(form.dataset.genomePages, window.location.href);
+      if (url.searchParams.get("v") === version) return;
+      url.searchParams.set("v", version); form.dataset.genomePages = url.href;
+      pages.clear(); localCatalogue = null; localLoadedAt = 0; useLocal = true;
+      changePage(false);
     });
     retry.addEventListener("click", () => changePage(false));
     window.addEventListener("popstate", () => { clearTimeout(searchTimer); readPagedUrl(); loadPage(); });
@@ -267,10 +286,7 @@
       if (param === "annotation" && ["Incompatible", "Unavailable", "Not cataloged"].includes(value)) value = "Missing";
       select.value = validOption(select, value);
     });
-    const explicitSort = sortFields.has(params.get("sort"));
-    sortField = explicitSort ? params.get("sort") : defaultSort;
-    const order = params.get("direction") || params.get("order");
-    direction = ["asc", "desc"].includes(order) ? order : explicitSort ? "asc" : "desc";
+    readSort(params);
 
   }
 
@@ -385,8 +401,10 @@
   sortButtons.forEach((button) => button.addEventListener("click", () => {
     const next = button.dataset.sort;
     if (!sortFields.has(next)) return;
-    if (sortField === next) direction = direction === "asc" ? "desc" : "asc";
-    else { sortField = next; direction = "asc"; }
+    if (next === "predictions") direction = "desc";
+    else if (sortField === next) direction = direction === "asc" ? "desc" : "asc";
+    else direction = "asc";
+    sortField = next;
     changed();
   }));
   clear?.addEventListener("click", () => {
@@ -395,7 +413,7 @@
     updateTaxa();
     if (dataType) dataType.value = "";
     filters.forEach(([, select]) => { select.value = ""; });
-    sortField = "endpoints";
+    sortField = defaultSort;
     direction = "desc";
     changed();
   });
@@ -408,7 +426,7 @@
     const record = row.batter;
     const tr = document.createElement("tr");
     const href = `${form.dataset.genomePrefix || "genomes"}/${encodeURIComponent(record[0])}`;
-    for (const label of ["Genome ID", "Genome source", "Organism", "Taxonomy", "Assembly size", "Transcript 3′-end data", "Annotation"]) {
+    for (const label of ["Genome ID", "Genome source", "Organism", "Taxonomy", "Genome size", "3′-end data", ...(filters.some(([field]) => field === "assay") ? ["Sequencing technology"] : []), "Annotation"]) {
       const td = document.createElement("td"); td.dataset.label = label;
       if (label === "Genome ID") {
         const link = document.createElement("a"), code = document.createElement("code");
@@ -421,19 +439,28 @@
         const type = document.createElement("small"); type.textContent = ({ MAG: "Metagenome-assembled", SAG: "Single-cell amplified", isolate: "Isolate", environmental: "Environmental", unknown: "Type not recorded" })[record[4]] || record[4]; td.append(type);
       } else if (label === "Taxonomy") {
         const phylum = document.createElement("span"), genus = document.createElement("small");
-        phylum.textContent = row.dataset.taxonomyPhylum || (row.dataset.taxonomyStatus === "pending" ? "Pending verification" : "Unclassified"); genus.textContent = row.dataset.taxonomyGenus || (row.dataset.taxonomyStatus === "pending" ? "Assembly version unresolved" : "Genus not assigned"); td.append(phylum, genus);
-      } else if (label === "Assembly size") {
+        phylum.textContent = row.dataset.taxonomyPhylum || (row.dataset.taxonomyStatus === "pending" ? "NCBI taxonomy unavailable" : "Not assigned"); genus.textContent = row.dataset.taxonomyGenus || (row.dataset.taxonomyStatus === "pending" ? "Exact NCBI taxonomy unavailable for this assembly." : "Genus not assigned"); td.append(phylum, genus);
+      } else if (label === "Genome size") {
         td.dataset.referenceSize = ""; referenceSize(td, row);
-      } else if (label === "Transcript 3′-end data") {
+      } else if (label === "3′-end data") {
         const counts = document.createElement("div"); counts.className = "genome-data-counts";
-        for (const [type, field, text, title] of [["experimental", "endpoints", "experimental 3′-end records", "Study-reported 3′ ends"], ["prediction", "predictions", "predicted regions", "BATTER predictions"], ["training", "training", "augmentation / Rfam regions", "OTU and Rfam regions; excludes context windows"]]) {
+        for (const [type, field, text, title] of [["experimental", "endpoints", "3′-end records", "Study-reported 3′-end records"], ["prediction", "predictions", "Predicted regions", "Model-predicted termination regions"], ["training", "training", "Augmented regions", "OTU-derived and Rfam-derived regions; excludes context windows"]]) {
           if (!Number(row.dataset[`sort${field[0].toUpperCase()}${field.slice(1)}`])) continue;
           const badge = document.createElement("span"), number = document.createElement("b");
           badge.className = `genome-evidence ${type}${Number(row.dataset[`sort${field[0].toUpperCase()}${field.slice(1)}`]) ? "" : " unavailable"}`;
-          badge.title = title; number.textContent = Number(row.dataset[`sort${field[0].toUpperCase()}${field.slice(1)}`] || 0).toLocaleString("en-US"); badge.append(number, ` ${text}`); counts.append(badge);
+          badge.title = title; number.textContent = Number(row.dataset[`sort${field[0].toUpperCase()}${field.slice(1)}`] || 0).toLocaleString("en-US");
+          const signalCount = type === "experimental" ? Number(row.dataset.signalTracks || 0) : 0;
+          badge.append(number, ` ${text}${signalCount ? ` · ${signalCount.toLocaleString("en-US")} signal track${signalCount === 1 ? "" : "s"}` : ""}`); counts.append(badge);
         }
         if (!counts.children.length) counts.textContent = form.dataset.genomePrefix === "experimental" ? "No published 3′-end records" : "—";
         td.append(counts);
+      } else if (label === "Sequencing technology") {
+        const tags = document.createElement("div"); tags.className = "genome-assay-tags";
+        for (const technology of row.sequencingTechnologies || []) {
+          const tag = document.createElement("span"); tag.className = "genome-assay-tag"; tag.textContent = technology; tags.append(tag);
+        }
+        if (!tags.children.length) { tags.textContent = "Not recorded"; tags.className = "muted"; }
+        td.append(tags);
       } else {
         td.append(annotationBadge(record[9], row.recoveredAnnotation));
       }
@@ -451,7 +478,7 @@
   }
 
   function referenceSource(source) {
-    return ({ "NCBI-RefSeq": "NCBI RefSeq", "NCBI-MAG": "NCBI GenBank", "NCBI-SAG": "NCBI GenBank" })[source] || source || "Not cataloged";
+    return ({ "NCBI-RefSeq": "NCBI RefSeq", "NCBI-MAG": "NCBI GenBank", "NCBI-SAG": "NCBI GenBank" })[source] || source || "Not recorded";
   }
 
   function updateSourceOptions() {
@@ -466,15 +493,19 @@
 
   function referenceSize(cell, row) {
     cell.replaceChildren();
-    cell.title = "Browser reference length";
+    cell.title = "Reference genome length";
     const bases = document.createElement("span");
-    bases.textContent = row.referenceSize ? `${row.referenceSize[0].toLocaleString("en-US")} bp` : "Not cataloged";
+    bases.textContent = row.referenceSize ? `${row.referenceSize[0].toLocaleString("en-US")} bp` : "Not recorded";
     cell.append(bases);
     if (row.referenceSize) { const contigs = document.createElement("small"); contigs.textContent = `${row.referenceSize[1].toLocaleString("en-US")} ${row.referenceSize[1] === 1 ? "contig" : "contigs"}`; cell.append(contigs); }
     else bases.className = "muted";
   }
 
   function annotationLabel(status, recovered) {
+    return status === "matched" || recovered ? "Available" : "Not available";
+  }
+
+  function annotationFilterValue(status, recovered) {
     return status === "matched" || recovered ? "Available" : "Missing";
   }
 
@@ -514,7 +545,7 @@
           ? catalogue.annotation_recovery.genomes?.[record[0]] : null;
         row.dataset.genomeSource = referenceSource(record[12]);
         row.dataset.genomeType = record[4] || "unknown";
-        row.dataset.genomeAnnotation = annotationLabel(record[9], row.recoveredAnnotation);
+        row.dataset.genomeAnnotation = annotationFilterValue(record[9], row.recoveredAnnotation);
         row.dataset.genomeSearch += ` ${record[0]} ${record[2]} ${record[3]} ${record[11] || ""} ${referenceSource(record[12])}`.toLowerCase();
         row.sources ||= Array.from(row.querySelectorAll("[data-source-filter]"));
         row.dataset.sortPredictions = String(record[10]);

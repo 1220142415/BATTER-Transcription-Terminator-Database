@@ -19,7 +19,7 @@
 | `analytics_daily_geo` | UTC day, country code, region, city | Views |
 | `analytics_daily_path` | UTC day, normalized path | Views |
 
-D1 batch updates both tables atomically. Unknown countries use `XX`, and missing cities use an empty string. Totals include unknown locations; the country count excludes `XX`. Reports show the top 50 cities and 30 pages.
+D1 batch updates both tables atomically. Unknown countries use `XX`, and missing cities use an empty string. Totals include unknown locations; the country count excludes `XX`. The API retains the top 30 page aggregates for compatibility; the usage page shows location and trend summaries without a page list. Reports show the top 50 cities.
 
 `GET /api/usage?days=7|30|90|365|0` returns aggregates; the default is 30 days and `0` selects retained history. `BTED_ANALYTICS=on` enables new counts. Other values stop counting while retaining existing reports. `assets.run_worker_first=true` routes HTML through the Worker.
 

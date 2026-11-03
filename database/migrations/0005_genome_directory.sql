@@ -34,9 +34,6 @@ CREATE INDEX IF NOT EXISTS directory_organism ON hf_directory_genomes(version, o
 CREATE INDEX IF NOT EXISTS directory_endpoints ON hf_directory_genomes(version, endpoints DESC, accession_key);
 CREATE INDEX IF NOT EXISTS directory_endpoints_asc ON hf_directory_genomes(version, endpoints, accession_key);
 CREATE INDEX IF NOT EXISTS directory_predictions ON hf_directory_genomes(version, predictions DESC, accession_key);
-CREATE INDEX IF NOT EXISTS directory_predictions_asc ON hf_directory_genomes(version, predictions, accession_key);
-CREATE INDEX IF NOT EXISTS directory_training ON hf_directory_genomes(version, training DESC, accession_key);
-CREATE INDEX IF NOT EXISTS directory_training_asc ON hf_directory_genomes(version, training, accession_key);
 CREATE INDEX IF NOT EXISTS directory_size ON hf_directory_genomes(version, (size IS NULL), size, accession_key);
 CREATE INDEX IF NOT EXISTS directory_size_desc ON hf_directory_genomes(version, (size IS NULL), size DESC, accession_key);
 CREATE INDEX IF NOT EXISTS directory_source ON hf_directory_genomes(version, source);

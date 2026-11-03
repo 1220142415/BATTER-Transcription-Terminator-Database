@@ -9,6 +9,7 @@ const { default: worker } = await import(`data:text/javascript;base64,${Buffer.f
 const version = 'a'.repeat(24), storage = 'b'.repeat(24), revision = 'c'.repeat(40);
 const db = new DatabaseSync(':memory:');
 db.exec(readFileSync(new URL('../database/migrations/0005_genome_directory.sql', import.meta.url), 'utf8'));
+db.exec(readFileSync(new URL('../database/migrations/0009_collections.sql', import.meta.url), 'utf8'));
 db.exec('CREATE TABLE hf_genome_metadata(revision TEXT,genome_id TEXT,catalogue_row_json TEXT)');
 const entries = [
   ['IMG', 'MAG', 'Available', 'Z9', 'C1', 'O1', 'Alpha', 0, 5, 1],
@@ -24,6 +25,7 @@ const summary = { total: 6, sources: ['GEM', 'IMG', 'NCBI RefSeq'], phyla: ['P2'
     phylum: { Z9: 3, P2: 2, P3: 1 }, dataset: { experimental: 2, prediction: 4, augmentation: 2 } } };
 db.prepare('INSERT INTO hf_directory_releases VALUES(?,?,?,?,?)').run(storage, revision, 'original', '{}', 'loading');
 db.prepare('INSERT INTO hf_directory_releases VALUES(?,?,?,?,?)').run(version, revision, 'original', JSON.stringify(summary), 'ready');
+db.prepare('INSERT INTO bted_collections VALUES(?,?,?,?,?,?,?)').run('gem', version, 'GEM', 'GTDB R89 (GEM)', '', 6, 0);
 for (const [index, [source, type, annotation, phylum, cl, order, name, endpoints, predictions, training]] of entries.entries()) {
   const id = `GCF_TEST${index}.1`;
   const lineage = `p__${phylum};c__${cl};o__${order};f__F${order};g__G${order};s__Species ${order}`;
@@ -41,7 +43,7 @@ const env = { BTED_METADATA_REVISION: revision,
     all: async () => { queries.push({ sql, binds }); return { results: db.prepare(sql).all(...binds) }; },
   }) }) } };
 async function query(params) {
-  const response = await worker.fetch(new Request('https://bted.example/api/genome-directory?' + new URLSearchParams({ v: version, ...params })), env);
+  const response = await worker.fetch(new Request('https://bted.example/api/collections/gem/directory?' + new URLSearchParams({ v: version, ...params })), env);
   assert.equal(response.status, 200);
   return response.json();
 }
@@ -131,6 +133,66 @@ test('complete small D1 pages filter locally with the same linked facets, search
     assert.deepEqual(actual.rows.map(r=>r.batter[0]),expected.rows.map(r=>r.batter[0]),JSON.stringify(params));
     assert.deepEqual(actual.facets,expected.facets,JSON.stringify(params));assert.equal(actual.total,expected.total);
   }
+});
+
+test('retired-index upgrade preserves directory rows, search and the default predictions plan', () => {
+  const schema = readFileSync(new URL('../database/migrations/0005_genome_directory.sql', import.meta.url), 'utf8');
+  const apply = readFileSync(new URL('../database/migrations/0011_retire_directory_sorts.sql', import.meta.url), 'utf8');
+  const retired = ['directory_predictions_asc', 'directory_training', 'directory_training_asc'];
+  const names = () => db.prepare("SELECT name FROM sqlite_schema WHERE type='index'").all().map(r => r.name);
+  const rows = () => db.prepare('SELECT * FROM hf_directory_genomes ORDER BY id').all();
+  const before = rows();
+  assert(retired.every(name => !names().includes(name)), 'fresh bootstrap omits retired indexes');
+  db.exec(`CREATE INDEX directory_predictions_asc ON hf_directory_genomes(version,predictions,accession_key);
+    CREATE INDEX directory_training ON hf_directory_genomes(version,training DESC,accession_key);
+    CREATE INDEX directory_training_asc ON hf_directory_genomes(version,training,accession_key);`);
+  assert(retired.every(name => names().includes(name)), 'simulate an existing database');
+  db.exec(apply);
+  db.exec(apply);
+  db.exec(schema);
+  assert(retired.every(name => !names().includes(name)), 'upgrade is repeatable and bootstrap cannot reintroduce indexes');
+  assert.deepEqual(rows(), before);
+  assert(db.prepare("SELECT rowid FROM hf_directory_search WHERE hf_directory_search MATCH '\"alp\"'").all().length > 0);
+  const plan = db.prepare('EXPLAIN QUERY PLAN SELECT * FROM hf_directory_genomes WHERE version=? ORDER BY predictions DESC,accession_key ASC LIMIT 25').all(storage);
+  assert(plan.some(row => row.detail.includes('directory_predictions')));
+  assert(!plan.some(row => row.detail.includes('TEMP B-TREE')));
+});
+
+test('sequencing filters paginate without duplicate genomes when several sources share a method', async () => {
+  const fixture = new DatabaseSync(':memory:');
+  try {
+    for (const migration of ['0005_genome_directory.sql', '0009_collections.sql', '0010_taxonomy_records.sql'])
+      fixture.exec(readFileSync(new URL('../database/migrations/' + migration, import.meta.url), 'utf8'));
+    fixture.exec(`CREATE TABLE sources(assembly_accession TEXT,release_version TEXT,release_status TEXT,record_count INTEGER,assay_family TEXT);
+      CREATE TABLE tracks(assembly_accession TEXT,release_version TEXT,is_public INTEGER,metadata_json TEXT)`);
+    const summary = { total: 31, sources: ['NCBI RefSeq'], phyla: ['P1'], counts: {
+      source: {'NCBI RefSeq':31}, genome_type:{isolate:31}, annotation:{Available:31}, phylum:{P1:31}, dataset:{experimental:31} } };
+    fixture.prepare('INSERT INTO hf_directory_releases VALUES(?,?,?,?,?)').run(version, revision, 'original', JSON.stringify(summary), 'ready');
+    fixture.prepare('INSERT INTO bted_collections VALUES(?,?,?,?,?,?,?,?,?)').run('experimental', version, 'Experimental', 'NCBI Taxonomy', '', 31, 0, 'ncbi', '');
+    const ids = Array.from({length:31}, (_, i) => `GCF_TEST${String(i).padStart(2,'0')}.1`);
+    for (const id of ids) {
+      fixture.prepare(`INSERT INTO hf_directory_genomes(version,genome_id,accession_key,organism_key,organism,source,genome_type,annotation,endpoints,predictions,training,phylum,class,"order",family,genus,species,search_text)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(version,id,id,id,id,'NCBI RefSeq','isolate','Available',1,0,0,'P1','','','','','',id);
+      fixture.prepare(`INSERT INTO bted_taxonomy_records(version,genome_id,system,taxonomy_version,status,match_method,source_url,retrieved_at,evidence_json)
+        VALUES(?,?,?,?,?,?,?,?,?)`).run(version,id,'ncbi','','verified','exact_assembly','https://example.test','2026-10-29','{}');
+      fixture.prepare('INSERT INTO sources VALUES(?,?,?,?,?)').run(id,'v0.4.0','published_standardized',1,'Term-seq');
+    }
+    for (const assay of ['Term-seq', 'Rend-seq']) fixture.prepare('INSERT INTO sources VALUES(?,?,?,?,?)').run(ids[0],'v0.4.0','published_standardized',1,assay);
+    const env = {BTED_DB:{prepare:sql=>({bind:(...binds)=>({
+      first:async()=>fixture.prepare(sql).get(...binds),all:async()=>({results:fixture.prepare(sql).all(...binds)})
+    })})}};
+    const get = async (page, assay='Term-seq') => {
+      const r = await worker.fetch(new Request(`https://bted.test/api/collections/experimental/directory?v=${version}&page=${page}&assay=${assay}`),env);
+      assert.equal(r.status,200);return r.json();
+    };
+    const first=await get(1), second=await get(2);
+    assert.equal(first.total,31);assert.equal(second.total,31);
+    assert.equal(first.rows.length,25);assert.equal(second.rows.length,6);
+    assert.deepEqual([...first.rows,...second.rows].map(r=>r.batter[0]),ids);
+    assert.deepEqual(first.rows[0].sequencingTechnologies,['Rend-seq','Term-seq']);
+    const rend=await get(2,'Rend-seq');assert.equal(rend.page,1);assert.equal(rend.total,1);
+    assert.deepEqual(rend.rows.map(r=>r.batter[0]),[ids[0]]);
+  } finally {fixture.close();}
 });
 
 test.after(() => db.close());

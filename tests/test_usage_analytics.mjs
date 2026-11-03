@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 
 const source = readFileSync(new URL("../worker/src/worker.js", import.meta.url), "utf8");
-const { default: worker, usageDay, shiftUsageDay } = await import(`data:text/javascript;base64,${Buffer.from(source + "\nexport { usageDay, shiftUsageDay };").toString("base64")}`);
+const { default: worker, usageDay, shiftUsageDay, usageCountryName } = await import(`data:text/javascript;base64,${Buffer.from(source + "\nexport { usageDay, shiftUsageDay, usageCountryName };").toString("base64")}`);
 
 function environment() {
   const sqlite = new DatabaseSync(":memory:");
@@ -46,25 +46,26 @@ test("repeat document views aggregate geography and normalized paths, without id
   try {
     await run(request("/index.html?secret=ignored"), env);
     await run(request("/"), env);
-    await run(request("/genomes.html"), env);
-    await run(request("/genomes/"), env);
+    assert.equal((await run(request("/genomes.html"), env)).status, 302);
+    assert.equal((await run(request("/genomes/"), env)).status, 302);
     await run(request("/genomes/GCF_000005845.2.html?loc=123"), env);
     await run(request("/genomes/GCF_000005845.2/"), env);
     await run(request("/methodology.html", { cf: { country: "hk", region: "Hong Kong", city: "Hong Kong" } }), env);
     const response = await run(request("/api/usage?days=7"), env);
     assert.equal(response.status, 200);
     const report = await response.json();
-    assert.deepEqual(report.totals, { views: 7, countries: 2, activeDays: 1 });
+    assert.deepEqual(report.totals, { views: 5, countries: 2, activeDays: 1 });
     assert.equal(report.countries[0].code, "US");
-    assert.equal(report.countries[0].share, 6 / 7);
+    assert.equal(report.countries[0].share, 4 / 5);
     assert.equal(report.countries[1].name, "Hong Kong, China");
     assert.equal(report.daily.length, 7);
-    assert.equal(report.daily.at(-1).views, 7);
+    assert.equal(report.daily.at(-1).views, 5);
     assert.equal(report.daily[0].views, 0);
     assert.equal(report.paths.find((row) => row.path === "/").views, 2);
-    assert.equal(report.paths.find((row) => row.path === "/genomes").views, 2);
+    assert.ok(!report.paths.some((row) => row.path === "/genomes"));
     assert.equal(report.paths.find((row) => row.path === "/genomes/GCF_000005845.2").views, 2);
     assert.equal(report.cities[0].city, "Los Angeles");
+    assert.equal(usageCountryName("TW"), "Taiwan, China");
     const columns = env.sqlite.prepare("PRAGMA table_info(analytics_daily_geo)").all().map((row) => row.name);
     assert.deepEqual(columns, ["day", "country_code", "region", "city", "views"]);
     assert.ok(!JSON.stringify(report).includes("secret"));

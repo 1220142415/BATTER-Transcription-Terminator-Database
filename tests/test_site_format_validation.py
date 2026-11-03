@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import importlib.util
+import contextlib
+import io
 import json
 import shutil
 import sys
 import unittest
 import uuid
 from pathlib import Path
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,6 +23,26 @@ SPEC.loader.exec_module(validate_site)
 
 
 class SiteFormatValidationTests(unittest.TestCase):
+    def test_large_recovery_registry_uses_metadata_limit_only(self) -> None:
+        test_root = ROOT / 'tmp'
+        test_root.mkdir(exist_ok=True)
+        site = test_root / f'validate-recovery-size-{uuid.uuid4().hex}'
+        (site / 'assets').mkdir(parents=True)
+        try:
+            for name in ('batter-browser.json', 'genome-browsers.json', 'other.json'):
+                (site / 'assets' / name).write_text(json.dumps({'padding': 'x' * 1500}), encoding='utf8')
+            with patch.object(sys, 'argv', ['validate-site.py', str(site)]), \
+                    patch.object(validate_site, 'MAX_FILE_BYTES', 1024), \
+                    patch.object(validate_site, 'MAX_DOWNLOAD_FILE_BYTES', 2048), \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(validate_site.main(), 1)
+            text = output.getvalue()
+            self.assertIn('assets/other.json file too large', text)
+            self.assertNotIn('assets/batter-browser.json file too large', text)
+            self.assertNotIn('assets/genome-browsers.json file too large', text)
+        finally:
+            shutil.rmtree(site)
+
     def test_pinned_hf_base_url_in_release_manifest_is_accepted(self) -> None:
         commit = "0123456789abcdef0123456789abcdef01234567"
         base = f"https://huggingface.co/datasets/liurulong/terminator/resolve/{commit}/v0.3.0"

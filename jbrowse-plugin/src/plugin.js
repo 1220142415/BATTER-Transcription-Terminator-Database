@@ -91,7 +91,8 @@ async function fetchRegisteredBtedAsset(input, init = {}) {
     || /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/[0-9a-f]{40}\/v0\.5\.0\/(genomes\/experimental-only\/GCF_000005845\.2\/reference\/reference\.fna(?:\.fai)?)$/.exec(url);
   const batter = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/v0\.5\.0\/genomes\/batter-(\d{3})\/([A-Za-z0-9_.-]+)\/(?:reference|training|predictions|annotations\/batter)\/([^/]+)$/.exec(url)
     || /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/v0\.5\.0\/batter\/batches\/(\d{3})\/genomes\/([A-Za-z0-9_.-]+)\/([^/]+)$/.exec(url);
-  const recovered = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/v0\.5\.1\/annotation-recovery\/2026-10-14\/genomes\/([A-Za-z0-9_.-]+)\/(genes\.gff3)$/.exec(url);
+  const recovered = /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/v0\.5\.1\/annotation-recovery\/2026-10-14\/genomes\/([A-Za-z0-9_.-]+)\/(genes\.gff3)$/.exec(url)
+    || /^https:\/\/huggingface\.co\/datasets\/liurulong\/terminator\/resolve\/([0-9a-f]{40})\/v0\.5\.0\/genomes\/batter-\d{3}\/([A-Za-z0-9_.-]+)\/annotations\/recovered\/(genes\.gff3)$/.exec(url);
   if ((!match && !batter && !recovered) || !['GET', 'HEAD'].includes(method)) return nativeFetch(input, init);
   const signal = init.signal || (input instanceof Request ? input.signal : undefined);
   let originalError;
@@ -295,9 +296,12 @@ export function augmentationColor(feature) {
 }
 
 export function isBtedScientificFeature(feature) {
-  return /^(?:BATTER|BTED)(?:[_-]|$)/.test(feature.get('source') || '') &&
+  const source = feature.get('source') || '';
+  const type = feature.get('type');
+  if (type === 'RNA_3prime_end' && /^(?:R\d{2}|N\d{2})_/.test(source)) return true;
+  return /^(?:BATTER|BTED)(?:[_-]|$)/.test(source) &&
     ['terminator_endpoint', 'augmented_terminator_span', 'rfam_training_span',
-      'predicted_terminator_region', 'training_sequence_window', 'rfam_training_window'].includes(feature.get('type'));
+      'predicted_terminator_region', 'training_sequence_window', 'rfam_training_window'].includes(type);
 }
 
 // Predictions contain intervals, not independently resolved single-base 3′ end sites.
@@ -316,7 +320,7 @@ export function predictionTooltip(feature) {
 export function drawBtedScientificFeature({ ctx, feature, featureLayout: box, reversed, canvasWidth }) {
   const type = feature.get('type');
   const directionalRegion = ['augmented_terminator_span', 'rfam_training_span', 'predicted_terminator_region'].includes(type);
-  const color = type === 'terminator_endpoint' || directionalRegion ? strandColor(feature) : augmentationColor(feature);
+  const color = type === 'terminator_endpoint' || type === 'RNA_3prime_end' || directionalRegion ? strandColor(feature) : augmentationColor(feature);
   const strand = feature.get('strand');
   const direction = (strand === 1 || strand === '+' ? 1 : strand === -1 || strand === '-' ? -1 : 0) * (reversed ? -1 : 1);
   const left = box.x, right = left + box.width;
@@ -329,7 +333,7 @@ export function drawBtedScientificFeature({ ctx, feature, featureLayout: box, re
     ctx.fillRect(left, top + height * 0.2, box.width, height * 0.6);
     return;
   }
-  const endpoint = type === 'terminator_endpoint';
+  const endpoint = type === 'terminator_endpoint' || type === 'RNA_3prime_end';
   // Single-base endpoints anchor at the base center; region flags anchor at the original 3′ boundary.
   const anchor = endpoint ? left + box.width / 2 : direction > 0 ? right : left;
   if (direction) {
@@ -725,14 +729,14 @@ export default class BTEDTrackPlugin {
       const about = metadataFor(config, readConfObject, getConf);
       if (!about) return null;
       const kind = value(about.kind);
-      const study = kind === 'reference' ? null : section('Study', [
+      const study = ['reference', 'augmentation'].includes(kind) ? null : section('Study', [
         facts([
           ['Title', about.title], ['Authors', about.authors], ['Journal', about.journal],
           ['Year', about.year], ['PMID', about.pmid],
         ]),
         links([['PubMed', about.pubmed_url], ['DOI', about.doi_url]]),
       ]);
-      const evidence = kind === 'reference' ? null : section(kind === 'signal' ? 'Experimental signal' : kind === 'augmentation' ? 'Augmentation / Rfam regions' : kind === 'prediction' ? 'Model prediction' : 'Endpoint evidence', [
+      const evidence = kind === 'reference' ? null : section(kind === 'signal' ? 'Experimental signal' : kind === 'augmentation' ? 'Augmented regions' : kind === 'prediction' ? 'Predicted regions' : 'Experimental 3′ ends', [
         facts([
           ['Method', about.assay], ['Strand', about.strand],
           ['Sample', kind === 'signal' ? about.sample_id : ''],
@@ -740,7 +744,8 @@ export default class BTEDTrackPlugin {
           ['Coverage', kind === 'signal' ? about.coverage : ''],
           ['Records (genome)', kind === 'endpoint' ? about.record_count : ''],
           ['Regions (genome)', ['augmentation', 'prediction'].includes(kind) ? about.record_count : ''],
-          ['Evidence', kind === 'endpoint' ? about.evidence : ''],
+          ['Derivation', kind === 'augmentation' ? about.evidence : ''],
+          ['Count scope', kind === 'augmentation' ? 'Regions only; sequence context windows excluded.' : ''],
           ['Reference assembly', about.assembly], ['Reference sequence', about.reference_name],
         ]),
       ]);
@@ -753,6 +758,7 @@ export default class BTEDTrackPlugin {
         links([
           ['Raw data', about.raw_data_url],
           ['NCBI assembly', about.reference_url],
+          ['Method reference', kind === 'augmentation' ? about.doi_url : ''],
         ]),
       ]);
       return h('div', { className: 'bted-about', ref: node => {

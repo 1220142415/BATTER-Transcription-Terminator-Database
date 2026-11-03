@@ -8,9 +8,9 @@ BTED provides bacterial RNA 3′-end records from published studies, BATTER mode
 
 | Collection | Available data | Classification |
 |---|---|---|
-| [Experimental 3′ ends](https://bted.1052596411.workers.dev/experimental.html) | 20 reference assemblies; 29,460 experimental records and 124,740 predicted regions | NCBI Taxonomy; GTDB R207.0 available separately |
+| [Experimental 3′ ends](https://bted.1052596411.workers.dev/experimental.html) | 29 reference assemblies; 39,896 experimental records and 124,740 predicted regions | NCBI Taxonomy (9 new assemblies pending classification); GTDB R207.0 available separately |
 | [GTDB predictions](https://bted.1052596411.workers.dev/gtdb.html) | BATTER-TPE predictions for 27,275 of 62,291 input genomes; partial release | GTDB R207.0 (2022) |
-| [GEM · Legacy](https://bted.1052596411.workers.dev/gem.html) | Earlier computational results for 42,904 genomes from GEM and other sources; retained without prediction updates | Original GEM-supplied classification; exact GTDB release unresolved |
+| [GEM](https://bted.1052596411.workers.dev/gem.html) | BATTER predictions and augmentation/Rfam regions for 42,904 genomes from GEM and other sources | GTDB R89 (GEM) |
 
 Counts are reported separately for each collection. Genomes may occur in more than one collection. The experimental total counts source records, including records from different studies at the same position.
 
@@ -22,9 +22,9 @@ RNA 3′ ends can result from transcription termination or RNA processing. Exper
 2. Filter by classification or data availability. Click a table heading to sort; click it again to reverse the order.
 3. Open a genome to inspect its reference, tracks, publications, and downloads.
 
-Experimental genome pages offer a study-data ZIP. Prediction and reference files have separate download links. BigWig tracks show the registered samples or conditions; each track scales to its visible window. Peak heights across separately scaled tracks are not directly comparable.
+All experimental genome pages use the same D1-driven presentation and offer study-data ZIPs, including registered GFF3/BED files and their indexes. Prediction and reference files have separate links where available. BigWig tracks show the registered samples or conditions; each track scales to its visible window. Peak heights across separately scaled tracks are not directly comparable.
 
-Scientific files are hosted in the [Hugging Face dataset](https://huggingface.co/datasets/liurulong/terminator). The website uses fixed file revisions and D1 for current metadata. The [v0.4.0 file guide](docs/releases/v0.4.0.md) describes experimental GFF3, metadata and supplementary tables. The frozen package registers 21 references; the metadata-only S002 reference is excluded from the 20-member experimental collection.
+Scientific files are hosted in the [Hugging Face dataset](https://huggingface.co/datasets/liurulong/terminator). The website uses fixed file revisions and D1 for current metadata. The [v0.4.0 file guide](docs/releases/v0.4.0.md) describes experimental GFF3, metadata and supplementary tables. The retained v0.4.0 package contributes 20 endpoint-bearing references. The v0.5.0 extension adds 9 assemblies and 10,436 records, including new endpoint data for the formerly metadata-only GCF_000005845.2 reference. See the [current release](docs/releases/current.md) for active revisions and pending GTDB ingestion.
 
 ## Run and reproduce
 
@@ -54,6 +54,8 @@ The build guide covers the JBrowse application, scientific-file snapshots, plugi
 | `docs/` | Data methods, architecture and operations |
 
 [Architecture](docs/ARCHITECTURE.md) · [Database](database/README.md) · [Script index](scripts/README.md) · [Contributing](CONTRIBUTING.md) · [Current deployment](docs/releases/current.md)
+
+Local project progress is in `_workspace/PROGRESS.md` (Git-ignored). Active maintenance resumes from `_workspace/outputs/BTED-GTDB-update-2026-10-29/STATUS.md`, its `RUNBOOK.md` and `live-only-state.json`.
 
 ## Citation and reuse
 

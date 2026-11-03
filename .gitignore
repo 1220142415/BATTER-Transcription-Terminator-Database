@@ -51,3 +51,14 @@ docs/legacy/original-directories/
 
 # Root-level abandoned temporary directories (including Windows test failures).
 /tmp*/
+
+# Local task data, SQL snapshots and migration evidence (not source).
+/_workspace/
+
+# Local literature inspection and generated upload workspace (not publication source).
+/audit_tmp/
+/exports/
+/tmp_PMC*.xml
+/tmp_records.txt
+/tmp_text_audit.txt
+/worker/_workspace/

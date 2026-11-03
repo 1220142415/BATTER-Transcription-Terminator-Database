@@ -9,7 +9,6 @@
   let params = new URLSearchParams(window.location.search);
   const browserUrl = new URL("../jbrowse/index.html", document.baseURI);
   const shareButton = document.querySelector("[data-share-view]");
-  const trackButtons = document.querySelectorAll("[data-select-tracks], [data-add-user-track]");
   const shareStatus = document.querySelector("[data-share-status]");
   const shareManual = document.querySelector("[data-share-manual]");
   const browserStatus = document.querySelector("[data-browser-status]");
@@ -86,7 +85,6 @@
       }
       setBrowserStatus("");
       if (shareButton) shareButton.disabled = false;
-      trackButtons.forEach((button) => { button.disabled = false; });
       try {
         const state = parseSharedView(params);
         if (state) {
@@ -151,13 +149,6 @@
     shareMessage({ type: "capture", id });
   });
 
-  trackButtons.forEach((button) => button.addEventListener("click", () => {
-    if (!bridgeReady) return;
-    const id = String(++requestNumber);
-    pending.set(id, "panel");
-    shareMessage({ type: button.hasAttribute("data-select-tracks") ? "select-tracks" : "add-user-track", id });
-  }));
-
   function selectedSource() {
     return params.get("source_id") || "";
   }
@@ -199,12 +190,11 @@
     bridgeReady = false;
     bridgeNonce = Math.random().toString(36).slice(2);
     if (shareButton) shareButton.disabled = true;
-    trackButtons.forEach((button) => { button.disabled = true; });
     if (shareManual) shareManual.hidden = true;
     pending.clear();
     const frameParams = new URLSearchParams();
     const configUrl = new URL(frame.dataset.config, browserUrl);
-    configUrl.searchParams.set("v", "41");
+    configUrl.searchParams.set("v", "42");
     frameParams.set("config", configUrl.href);
     frameParams.set("bted_bridge", bridgeNonce);
     ["session", "tracks", "highlight"].forEach((key) => {

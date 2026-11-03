@@ -5,9 +5,77 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import test from 'node:test';
+import {runInNewContext} from 'node:vm';
 
 const source = readFileSync(new URL('../worker/src/worker.js', import.meta.url), 'utf8');
 const {default: worker} = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+
+test('homepage experimental record total comes from D1 and updates on reload', async () => {
+  const cards = new Map(['experimental', 'gtdb', 'gem'].map(key => [key, new Map()]));
+  const card = key => ({querySelector(selector) {
+    if (!cards.get(key).has(selector)) cards.get(key).set(selector, {textContent: ''});
+    return cards.get(key).get(selector);
+  }});
+  let reload, records = 29460;
+  const payload = () => ({metadata_source: 'd1', collections: [
+    {collection:'experimental',total:20,taxonomy_label:'NCBI Taxonomy',feature_totals:{endpoints:records,predictions:124740}},
+    {collection:'gtdb',total:27275,partial:true,source_genome_count:62291,taxonomy_label:'GTDB R207.0'},
+    {collection:'gem',total:42904,taxonomy_label:'GTDB R89 (GEM)',feature_totals:{predictions:122039507}}
+  ]});
+  const document = {querySelector(selector) {
+    if (selector === '[data-collections-retry]') return {addEventListener(_, handler) {reload = handler;}};
+    const match = /^\[data-collection-card="(\w+)"\]$/.exec(selector);
+    return match ? card(match[1]) : null;
+  }};
+  runInNewContext(readFileSync(new URL('../site/assets/collections.js', import.meta.url), 'utf8'), {
+    document, fetch: async () => ({ok:true,json:async () => payload()})
+  });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(cards.get('experimental').get('[data-collection-progress]').textContent, '29,460 3′-end records');
+  assert.match(cards.get('gtdb').get('[data-collection-progress]').textContent, /27,275 of 62,291/);
+  assert.equal(cards.get('gem').get('[data-collection-progress]').textContent, '');
+  records = 30000;
+  await reload();
+  assert.equal(cards.get('experimental').get('[data-collection-progress]').textContent, '30,000 3′-end records');
+});
+
+test('directory version follows D1 collection metadata without rebuilding HTML', async () => {
+  let reload, version='a'.repeat(24);const events=[];
+  const directory={dispatchEvent:event=>events.push(event)};
+  const document={querySelector(selector){
+    if(selector==='[data-collections-retry]')return {addEventListener:(_,handler)=>{reload=handler;}};
+    return selector==='[data-genome-search-form][data-genome-prefix="experimental"]'?directory:null;
+  }};
+  class CustomEvent {constructor(type,options){this.type=type;this.detail=options.detail;}}
+  runInNewContext(readFileSync(new URL('../site/assets/collections.js',import.meta.url),'utf8'),{document,CustomEvent,
+    fetch:async()=>({ok:true,json:async()=>({metadata_source:'d1',collections:[{collection:'experimental',version,total:29,feature_totals:{endpoints:39896,predictions:124740}}]})})});
+  await new Promise(resolve=>setImmediate(resolve));assert.equal(events.at(-1).detail.version,version);
+  version='b'.repeat(24);await reload();assert.equal(events.at(-1).detail.version,version);
+  assert.equal(events.at(-1).type,'bted:collection-version');
+});
+
+test('retired aggregate directory and summary never access D1, assets or old cache entries', async () => {
+  const prior = globalThis.caches;
+  const untouched = () => assert.fail('retired entry point accessed a backing service');
+  globalThis.caches = {default:{match:untouched,put:untouched}};
+  const env = {BTED_DB:{prepare:untouched},ASSETS:{fetch:untouched}};
+  try {
+    for (const path of ['/api/genome-directory?v=old', '/api/site-summary']) {
+      const r = await worker.fetch(new Request('https://bted.test'+path),env);
+      assert.equal(r.status,410);
+      assert.equal(r.headers.get('cache-control'),'no-store');
+      assert.equal((await r.json()).collections,'/api/collections');
+    }
+    for (const path of ['/genomes','/genomes/','/genomes.html']) {
+      const r = await worker.fetch(new Request('https://bted.test'+path+'?q=ecoli&sort=accession'),env);
+      assert.equal(r.status,302);
+      assert.equal(r.headers.get('location'),'https://bted.test/gem.html?q=ecoli&sort=accession');
+    }
+    for (const path of ['/assets/genome-directory.json','/assets/home.js']) {
+      assert.equal((await worker.fetch(new Request('https://bted.test'+path),env)).status,410);
+    }
+  } finally {globalThis.caches=prior;}
+});
 const dir = mkdtempSync(join(tmpdir(), 'bted-collections-'));
 const db = join(dir, 'test.sqlite');
 const bridge = fileURLToPath(new URL('genome_directory_sqlite.py', import.meta.url));
@@ -37,6 +105,15 @@ for i,key in enumerate(['gtdb','experimental','gem'],1):
   d.execute('INSERT INTO bted_taxonomy_records(version,genome_id,system,taxonomy_version,status,match_method,phylum,species,source_url,retrieved_at,evidence_json) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
    (v,'GCA_000007325.1','gtdb','R207.0','verified','exact_assembly','GTDB phylum','Different GTDB species','https://official.test/gtdb','2026-10-22','{}'))
 d.execute("INSERT INTO hf_directory_search(hf_directory_search) VALUES('rebuild')")
+d.execute('INSERT INTO tracks VALUES(?,?,?,?)', ('GCA_000007325.1', 'v0.4.0', 1, json.dumps({'signal_sample': {'sample_id': 'GSM1'}})))
+d.executemany('INSERT INTO sources VALUES(?,?,?,?,?)', [
+ ('GCA_000007325.1','v0.4.0','published_standardized',3,'Term-seq'),
+ ('GCA_000007325.1','v0.4.0','published_standardized',2,'Rend-seq'),
+ ('GCA_000007325.1','v0.4.0','published_standardized',1,'Term-seq'),
+ ('GCA_000007325.1','v0.4.0','published_standardized',1,'3′ RNA-seq (modified from Term-seq)'),
+ ('GCA_000007325.1','v0.4.0','audit_only',0,'dRNA-seq'),
+ ('GCA_000007325.1','v0.4.0','published_standardized',0,'SEnd-seq'),
+ ('GCA_000007325.1','v0.3.0','published_standardized',2,'Old-seq')])
 d.commit()
 `, db, fileURLToPath(new URL('../database/migrations/0009_collections.sql', import.meta.url)), fileURLToPath(new URL('../database/migrations/0010_taxonomy_records.sql', import.meta.url))]);
 const queries = [];
@@ -56,6 +133,7 @@ test('three collections expose separate D1 counts and independent paged scopes',
   const summary = await response.json();
   assert.equal(summary.collections.length, 3);
   assert.equal(summary.collections[0].partial, true);
+  assert.deepEqual(summary.collections[0].phylum_counts, {P1: 1});
   for (const [i, key] of ['gtdb','experimental'].entries()) {
     const result = await worker.fetch(req(`/api/collections/${key}/directory?v=${String(i+1).repeat(24)}`), env);
     assert.equal(result.status, 200);
@@ -65,10 +143,53 @@ test('three collections expose separate D1 counts and independent paged scopes',
     assert.equal(data.rows[0].dataset.sortEndpoints, i === 0 ? '0' : '5');
     assert.equal(data.rows[0].dataset.sortPredictions, i === 0 ? '3' : '0');
     if (key === 'experimental') assert.equal(data.rows[0].dataset.taxonomyStatus,'verified');
+    if (key === 'experimental') {
+      assert.equal(data.rows[0].dataset.signalTracks,'1');
+      assert.deepEqual(data.rows[0].sequencingTechnologies,['Rend-seq','Term-seq']);
+      assert.deepEqual(data.rows[0].filterData.assay,data.rows[0].sequencingTechnologies);
+      assert.deepEqual(data.facets.assay,['Rend-seq','Term-seq']);
+    }
     assert.ok(queries.some(q => q.sql.includes('LIMIT 25 OFFSET ?') && q.binds[0] === String(i+1).repeat(24)));
   }
   assert.equal((await worker.fetch(req(`/api/collections/gtdb/directory?v=${'2'.repeat(24)}`), env)).status, 409);
   assert.equal((await worker.fetch(req(`/api/collections/gtdb/directory?v=${'1'.repeat(24)}&genome_type=environmental`), env)).status, 200);
+});
+
+test('sequencing technology filters multi-labelled genomes and linked facets without changing counts', async () => {
+  const path = `/api/collections/experimental/directory?v=${'2'.repeat(24)}`;
+  const initial=await worker.fetch(req(path),env).then(r=>r.json());
+  const client=readFileSync(new URL('../site/assets/genome-index.js',import.meta.url),'utf8');
+  const fn=client.slice(client.indexOf('function filterExperimental('),client.indexOf('    function restoreMenu('));
+  const legacyAssay=encodeURIComponent('3′ RNA-seq (modified from Term-seq)');
+  const legacy=await worker.fetch(req(path+'&assay='+legacyAssay),env).then(r=>r.json());
+  assert.equal(legacy.total,1);
+  assert.deepEqual(legacy.facets.assay,['Rend-seq','Term-seq']);
+  for (const params of ['', 'assay=Term-seq', 'assay=Rend-seq', 'assay=dRNA-seq', 'assay=Term-seq&annotation=Missing', 'assay=Rend-seq&phylum=P1', 'assay=Term-seq&q=Species']) {
+    const scope={taxonomy:['phylum','class','order','family','genus','species'].map(rank=>({dataset:{taxonomyRank:rank}})),sortField:'endpoints',direction:'desc'};
+    runInNewContext(fn+';globalThis.filter=filterExperimental;',scope);
+    const local=JSON.parse(JSON.stringify(scope.filter(initial,new URL('https://bted.test/?'+params))));
+    const remote=await worker.fetch(req(path+'&'+params),env).then(r=>r.json());
+    assert.deepEqual(local.rows,remote.rows,params);
+    assert.deepEqual(local.facets,remote.facets,params);assert.equal(local.total,remote.total,params);
+  }
+  for (const assay of ['Term-seq','Rend-seq']) {
+    const r = await worker.fetch(req(path+'&assay='+encodeURIComponent(assay)),env);
+    assert.equal(r.status,200);
+    const data=await r.json();
+    assert.equal(data.total,1);
+    assert.equal(data.rows[0].dataset.sortEndpoints,'5');
+    assert.deepEqual(data.rows[0].sequencingTechnologies,['Rend-seq','Term-seq']);
+    assert.deepEqual(data.facets.assay,['Rend-seq','Term-seq']);
+  }
+  for (const params of ['assay=dRNA-seq','assay=SEnd-seq','assay=Old-seq','assay=Term-seq&annotation=Missing',"assay=%27%20OR%201%3D1--"]) {
+    const r=await worker.fetch(req(path+'&'+params),env);
+    assert.equal(r.status,200);
+    const data=await r.json();assert.equal(data.total,0);assert.deepEqual(data.rows,[]);
+  }
+  const scoped=await worker.fetch(req(path+'&assay=Term-seq&annotation=Missing'),env).then(r=>r.json());
+  assert.deepEqual(scoped.facets.assay,[]);
+  assert.deepEqual(scoped.facets.annotation,['Available']);
+  assert.equal((await worker.fetch(req(`/api/collections/gtdb/directory?v=${'1'.repeat(24)}&assay=Term-seq`),env)).status,400);
 });
 
 test('classification records retain conflicting systems within each collection and expose the named default', async () => {
@@ -81,7 +202,10 @@ test('classification records retain conflicting systems within each collection a
   assert.equal(data.records.find(r=>r.system==='ncbi').species,'NCBI species');
   assert.equal(data.records.find(r=>r.system==='gtdb').species,'Different GTDB species');
   assert(data.records.every(r=>r.version==='2'.repeat(24)));
-  assert.equal((await worker.fetch(req('/api/collections/gem/GCA_000007325.1/taxonomy'),env).then(r=>r.json())).records.length,1);
+  const gem = await worker.fetch(req('/api/collections/gem/GCA_000007325.1/taxonomy'),env).then(r=>r.json());
+  assert.equal(gem.records.length,1);
+  assert.equal(gem.records[0].label,'GTDB R89 (GEM)');
+  assert.equal(gem.records[0].taxonomy_version,'');
   assert.equal((await worker.fetch(req(path.replace('GCA_000007325.1','GCA_999999999.1')),env)).status,404);
   assert.equal((await worker.fetch(req(path+'?revision='+'f'.repeat(40)),env)).status,409);
 });

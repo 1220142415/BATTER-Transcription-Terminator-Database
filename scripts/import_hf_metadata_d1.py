@@ -110,7 +110,7 @@ def cache_metadata(cache, release, workers, limit=0, proxy=None):
     if limit:
         entries = entries[:limit]
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({'https': proxy}) if proxy else urllib.request.ProxyHandler())
-    evidence = ROOT.parent / 'BTED-metadata-evidence-2026-10-05/hf-refresh-2026-10-07'
+    evidence = ROOT / '_workspace/BTED-metadata-evidence-2026-10-05/hf-refresh-2026-10-07'
     connections = threading.local()
 
     def get(entry, download):

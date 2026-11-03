@@ -1224,11 +1224,15 @@ def _endpoint_track_v04(
     asset: dict[str, object],
     citation: dict[str, str],
     all_assets: dict[str, dict[str, object]],
+    context: dict[str, str] | None = None,
 ) -> dict[str, object]:
     source_id = source["source_id"]
     track_id = f"bted_v04_{source_id.lower()}_endpoints"
     evidence = str(source.get("evidence_class", ""))
-    title = f"PMID {source['pmid']} · 3′ ends"
+    context = context or {}
+    labels = [context.get("genotype", "").strip(), context.get("replicate_label", "").strip()]
+    suffix = f" · {' · '.join(label for label in labels if label)}" if any(labels) else ""
+    title = f"PMID {source['pmid']}{suffix} · 3′ ends"
     description = "Study-reported 3′ ends."
     evidence_text = (
         "Author-reported 3′ end"
@@ -1419,6 +1423,10 @@ def build_v04_jbrowse_configs(
     track_ids: dict[str, str] = {}
     catalog: dict[str, object] = {"release_version": "v0.4.0", "assemblies": {}}
     citations = load_study_citations()
+    source_context = {
+        row["source_id"]: row
+        for row in v04_site.read_tsv(v04_site.TAXONOMY_REGISTRY.parent / "source_context.tsv", ("source_id",))
+    }
 
     for genome in genomes:
         if not isinstance(genome, dict):
@@ -1486,7 +1494,7 @@ def build_v04_jbrowse_configs(
             citation = citations.get(source["pmid"])
             if citation is None:
                 raise StageError(f"No verified PubMed citation for PMID {source['pmid']}")
-            track = _endpoint_track_v04(source, assembly_name, asset, citation, assets)
+            track = _endpoint_track_v04(source, assembly_name, asset, citation, assets, source_context.get(source_id, {}))
             tracks = config.setdefault("tracks", [])
             if not isinstance(tracks, list):
                 raise StageError("JBrowse config tracks must be a list")
@@ -1696,7 +1704,7 @@ def validate_v04_jbrowse_configs(
         raise StageError(
             f"JBrowse configs contain {endpoint_count} endpoint tracks, expected {expected_endpoint_count}"
         )
-    expected_signals = 8 + len(signal_assets({}))
+    expected_signals = len(signal_assets({}))
     if signal_track_count != expected_signals:
         raise StageError(f"JBrowse configs contain {signal_track_count} raw experimental BigWig tracks, expected {expected_signals}")
 
@@ -1801,7 +1809,7 @@ def assemble_v04(
             }
             config["plugins"] = [{
                 "name": "BTEDTrackPlugin",
-                "esmUrl": "plugins/bted-track-plugin.js?v=41",
+                "esmUrl": "plugins/bted-track-plugin.js?v=44",
             }]
             config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         # The upstream package also contains v0.2 source configs with relative

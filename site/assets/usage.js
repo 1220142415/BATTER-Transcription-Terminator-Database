@@ -82,21 +82,13 @@
     });
     table("usage-city-rows", report.cities, (row) => {
       const name = node("span", row.city);
-      name.append(node("small", [row.region === row.city ? "" : row.region, row.countryName].filter(Boolean).join(", ")));
+      name.append(node("small", [row.region === row.city ? "" : row.region, row.countryName]
+        .filter(Boolean).filter((value, index, values) => values.indexOf(value) === index).join(", ")));
       return [name, number(row.views)];
     });
     $("usage-no-cities").hidden = report.cities.length > 0;
-    table("usage-path-rows", report.paths, (row) => {
-      const label = row.path === "/" ? "Home" : row.path === "/genomes" ? "Genomes" : row.path === "/methodology" ? "Data notes" : row.path;
-      const link = node("a", label);
-      // Only link known page paths, never arbitrary values returned by a database.
-      if (["/", "/genomes", "/methodology"].includes(row.path) || /^\/genomes\/GCF_[0-9]+\.[0-9]+$/.test(row.path)) {
-        link.href = row.path === "/" ? "index.html" : `${row.path.slice(1)}.html`;
-      }
-      return [link, number(row.views)];
-    });
     drawTrend(report);
-    $("usage-period").textContent = `UTC: ${report.startDay} to ${report.endDay}.${report.firstRecordedDay ? ` First recorded: ${report.firstRecordedDay}.` : ""} Cities: top 50. Pages: top 30.`;
+    $("usage-period").textContent = `UTC: ${report.startDay} to ${report.endDay}.${report.firstRecordedDay ? ` First recorded: ${report.firstRecordedDay}.` : ""} Cities: top 50.`;
     $("usage-status").textContent = report.totals.views ? "" : "No views in this period.";
     $("usage-report").hidden = false;
   }

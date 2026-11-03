@@ -22,7 +22,7 @@ function fixture(predictionCount=0) {
     queries.push(sql);
     return { bind(...params) { return {
       async first() {
-        if (sql.includes('FROM bted_collections')) return { version:'2'.repeat(24),taxonomy_system:'ncbi',taxonomy_version:'' };
+        if (sql.includes('FROM bted_collections')) return { version:'2'.repeat(24),summary_json:'{}',taxonomy_system:'ncbi',taxonomy_version:'' };
         if (sql.includes("FROM release_versions")) return release;
         if (sql.includes("FROM assemblies")) return params[1] === id ? assembly : null;
         if (sql.includes("SELECT genome_id,predictions")) return {genome_id:id,predictions:predictionCount};

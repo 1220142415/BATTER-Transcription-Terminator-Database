@@ -90,8 +90,11 @@ test("indexed augmentation uses its own bgzip reference, opens the first window,
     assert.equal(config.tracks[2].displays[0].renderer.height, 14);
     assert.equal(config.tracks[2].metadata.btedAbout.explanation, "BATTER predictions with interval coordinates.");
     assert.equal(config.tracks[1].adapter.type, "Gff3TabixAdapter");
-    assert.equal(config.tracks[1].metadata.btedAbout.evidence, "OTU data augmentation and Rfam-derived training regions");
-    assert.equal(config.tracks[1].name, "Augmentation / Rfam regions");
+    assert.equal(config.tracks[1].metadata.btedAbout.evidence, "OTU-derived regions and Rfam-derived regions");
+    assert.equal(config.tracks[1].name, "Augmented regions");
+    assert.deepEqual(config.tracks[1].category, ["Augmented regions"]);
+    assert.equal(config.tracks[1].metadata.btedAbout.title, "Augmented regions");
+    assert.equal(config.tracks[1].metadata.btedAbout.explanation, "OTU-derived regions and Rfam-derived regions. Counts exclude context windows.");
     assert.deepEqual(config.tracks[1].metadata.btedContigCounts, { chr1: 1 });
     assert.deepEqual(config.tracks[1].metadata.btedContigBreakdown, { chr1: { otu: 1, rfam: 0 } });
     assert.deepEqual(config.tracks[2].metadata.btedContigCounts, { chr1: 1 });
@@ -100,6 +103,38 @@ test("indexed augmentation uses its own bgzip reference, opens the first window,
     assert.deepEqual(config.tracks[1].displays[0].jexlFilters, ["get(feature,'type')!='training_sequence_window' && get(feature,'type')!='rfam_training_window'"]);
     assert.deepEqual(config.tracks[0].displays[0].jexlFilters, ["get(feature,'type')!='region'"]);
     assert.equal(config.tracks[0].displays[0].renderer.showDescriptions, false);
+  } finally { globalThis.fetch = nativeFetch; }
+});
+
+test("failed immutable index reads retry uncached without bypassing file verification", async () => {
+  try {
+    for (const status of [403, 404, 503]) {
+      const env = environment();
+      const fixtureFetch = globalThis.fetch, attempts = [];
+      globalThis.fetch = async (url, options = {}) => {
+        if (!String(url).endsWith('reference.fa.gz.fai')) return fixtureFetch(url, options);
+        attempts.push(options);
+        return options.cache === 'no-store' ? fixtureFetch(url, options) : new Response('origin error', { status });
+      };
+      const response = await worker.fetch(request(id + '/config'), env);
+      assert.equal(response.status, 200);
+      assert.equal(attempts.length, 2);
+      assert.equal(attempts[0].cf.cacheEverything, true);
+      assert.equal(attempts[1].cache, 'no-store');
+    }
+    let env = environment();
+    const fixtureFetch = globalThis.fetch;
+    globalThis.fetch = async (url, options = {}) => !String(url).endsWith('reference.fa.gz.fai')
+      ? fixtureFetch(url, options) : new Response(options.cache === 'no-store' ? 'wrong index' : 'origin error', { status: options.cache === 'no-store' ? 200 : 503 });
+    assert.equal((await worker.fetch(request(id + '/config'), env)).status, 503);
+    env = environment();
+    const freshFetch = globalThis.fetch, failedAttempts = [];
+    globalThis.fetch = async (url, options = {}) => {
+      if (!String(url).endsWith('reference.fa.gz.fai')) return freshFetch(url, options);
+      failedAttempts.push(options); return new Response('still unavailable', { status: 503 });
+    };
+    assert.equal((await worker.fetch(request(id + '/config'), env)).status, 503);
+    assert.equal(failedAttempts.length, 2);
   } finally { globalThis.fetch = nativeFetch; }
 });
 
@@ -192,6 +227,19 @@ test("published annotation supplement verifies reference identity, preserves pro
     extraMetadata.reference.contigs = 2; partial.genomes[id].total_reference_contigs = 2;
     applyRecoveredAnnotation(extraMetadata, partial);
     assert.equal(extraMetadata.annotation.coverage, 'partial');
+    for (const [origin, label] of [['original_study', 'Original study annotation'],
+      ['primary_database_annotation', 'Primary database annotation'],
+      ['archived_primary_database_annotation', 'Archived primary database annotation'],
+      ['third_party_reannotation', 'Published third-party reannotation']]) {
+      entry.provenance = { annotation_origin: origin };
+      const annotated = await (await worker.fetch(request(id), env)).json();
+      assert.equal(annotated.annotation.annotation_origin, origin);
+      assert.equal(annotated.annotation.annotation_origin_label, label);
+      const updatedConfig = await (await worker.fetch(request(id + '/config'), env)).json();
+      const about = updatedConfig.tracks.find(track => track.trackId === 'batter_genes').metadata.btedAbout;
+      assert.equal(about.annotation_origin, origin);
+      assert.ok(about.explanation.startsWith(label + '. '));
+    }
     assert.equal(env.d1Queries.length, callsBefore);
     assert.throws(() => applyRecoveredAnnotation({ ...metadata, revision: 'b'.repeat(40) }, recovery), /revision_mismatch/);
     const invalid = structuredClone(recovery); invalid.genomes[id].reference_sha256 = 'f'.repeat(64);
@@ -359,6 +407,12 @@ test("scientific glyphs anchor one-base endpoints and preserve interval bounds a
   assert.equal(render("training_sequence_window", 1, false, 40).rectangles[0][2], 40);
   assert.equal(render("rfam_training_window", -1, false, 40).rectangles[0][2], 40);
   assert.equal(matches(feature("terminator_endpoint", 1, "BATTER_S1_010")), true);
+  assert.equal(matches(feature("RNA_3prime_end", 1, "R13_Ecoli_2019")), true);
+  assert.equal(matches(feature("RNA_3prime_end", -1, "N07_LAbrini_2026")), true);
+  assert.equal(matches(feature("RNA_3prime_end", 1, "unrelated_source")), false);
+  const v05Flag = render("RNA_3prime_end", 1);
+  assert.equal(v05Flag.paths[0].kind, "fill");
+  assert.deepEqual(v05Flag.paths[1], { kind: 'stroke', points: [[20.5,6],[20.5,18]] });
   assert.equal(matches(feature("predicted_terminator_region", 1, "BATTER-TPE")), true);
   assert.equal(matches(feature("rfam_training_window", -1, "BATTER-augmentation")), true);
   assert.equal(matches(feature("gene", 1)), false);

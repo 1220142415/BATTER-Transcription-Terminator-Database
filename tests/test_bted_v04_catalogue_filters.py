@@ -32,6 +32,40 @@ const run=()=>vm.runInThisContext(fs.readFileSync(process.argv[1],'utf8'));
 """
 
 class GenomeFiltersTests(unittest.TestCase):
+    def test_paged_retired_sort_links_never_request_the_removed_sort(self):
+        data = self.run_js(r'''
+href='https://bted.example/gem.html?sort=training&direction=asc&dataset=augmentation&source=IMG';
+form.dataset.genomePages='api/collections/gem/directory?v=aaaaaaaaaaaaaaaaaaaaaaaa';
+form.dataset.defaultSort='predictions';
+const dataset=control(),sourceFilter=control();
+dataset.options=['','augmentation'].map(value=>({value,textContent:value}));
+sourceFilter.options=['','IMG'].map(value=>({value,textContent:value}));
+Object.assign(elements,{'[data-genome-dataset]':dataset,'[data-genome-source-filter]':sourceFilter,'.genome-result-count':control(),'[data-genome-prev]':control(),'[data-genome-next]':control(),'[data-genome-page-number]':control(),'[data-genome-load-status]':control(),'[data-genome-retry]':control()});
+const requests=[];
+global.fetch=async url=>{requests.push(Object.fromEntries(new URL(url).searchParams));return {ok:true,json:async()=>({page:1,total:0,rows:[],facets:{}})};};
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+run();
+(async()=>{
+ await tick();
+ for(const suffix of ['sort=training&direction=desc','sort=predictions&direction=asc','sort=predictions&order=asc','direction=asc']){
+  href='https://bted.example/gem.html?'+suffix;listeners.popstate();await tick();
+ }
+ buttons.find(b=>b.dataset.sort==='predictions').click();await tick();
+ buttons.find(b=>b.dataset.sort==='predictions').click();await tick();
+ buttons.find(b=>b.dataset.sort==='training').click();await tick();
+ buttons.find(b=>b.dataset.sort==='size').click();await tick();
+ clear.fire('click');await tick();
+ process.stdout.write(JSON.stringify({requests,href,status:elements['[data-genome-load-status]'].textContent}));
+})();
+''')
+        self.assertEqual(data['requests'][0]['dataset'], 'augmentation')
+        self.assertEqual(data['requests'][0]['source'], 'IMG')
+        self.assertTrue(all(r['sort'] == 'predictions' and r['direction'] == 'desc'
+                            for r in data['requests'] if r['sort'] != 'size'))
+        self.assertTrue(any(r['sort'] == 'size' and r['direction'] == 'asc' for r in data['requests']))
+        self.assertEqual(data['href'], 'https://bted.example/gem.html')
+        self.assertEqual(data['status'], '')
+
     def test_d1_linked_menus_keep_labels_restore_urls_and_clear_taxonomy_children(self):
         data = self.run_js(r'''
 href='https://bted.example/genomes.html';
@@ -136,7 +170,7 @@ setImmediate(()=>{pending[0].resolve(payload(99));setImmediate(()=>{
 });});
 ''')
         self.assertEqual(data['fresh'], '2')
-        self.assertEqual(data['failed'], {'status': 'Catalog unavailable.', 'hidden': True, 'retry': False})
+        self.assertEqual(data['failed'], {'status': 'Catalog unavailable. Retry.', 'hidden': True, 'retry': False})
         self.assertEqual(data['retried'], '3')
         self.assertEqual(data['requests'], 4)
 
@@ -296,9 +330,9 @@ setImmediate(()=>{
         self.assertEqual(data['range'], 'Showing 1–5')
         self.assertTrue(all(s == {'count':'1','nodes':1,'duplicate':1} for s in data['states']))
         self.assertEqual(data['mixed'], {'otu':'GEM OTU: OTU-1','predictions':'12','training':'6'})
-        self.assertEqual(data['synthetic'], {'count':'1','nodes':1,'columns':['Genome ID','Genome source','Organism','Taxonomy','Assembly size','Transcript 3′-end data','Annotation'],'assembly':'GCF_Z','href':'genomes/GCF_Z','otu':'GEM OTU: OTU-2','source':'IMG','size':['20,000 bp','1 contig'],'counts':['20','9'],'annotation':'Missing'})
+        self.assertEqual(data['synthetic'], {'count':'1','nodes':1,'columns':['Genome ID','Genome source','Organism','Taxonomy','Genome size','3′-end data','Annotation'],'assembly':'GCF_Z','href':'genomes/GCF_Z','otu':'GEM OTU: OTU-2','source':'IMG','size':['20,000 bp','1 contig'],'counts':['20','9'],'annotation':'Not available'})
         self.assertEqual(data['noFeatures'], '1')
-        self.assertEqual(data['mismatchAnnotation'], 'Missing')
+        self.assertEqual(data['mismatchAnnotation'], 'Not available')
         self.assertEqual(data['fetchesAfterFiltering'], 1)
         self.assertEqual(data['catalogueFetches'], 2)
         self.assertEqual(data['predictionOrder'], ['GCF_Z','GCF_B','GCF_A','GCF_C','GCF_W'])

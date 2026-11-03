@@ -17,7 +17,7 @@ class SignalTests(unittest.TestCase):
             sid = sample['source_id']
             endpoint = {'trackId': 'endpoint', 'assemblyNames': ['assembly'], 'metadata': {'source_id': sid,
                 'btedAbout': {'kind': 'endpoint', 'source_id': sid, 'assembly': sample['genome_id'], 'pmid': sample['pmid']}}}
-            other = {'trackId': 'other', 'metadata': {}}
+            other = {'trackId': 'other', 'metadata': {'btedAbout': {'kind': 'signal', 'source_id': 'OTHER_SOURCE'}}}
             legacy = {'trackId': 'legacy', 'metadata': {'btedAbout': {'kind': 'signal', 'source_id': sid}}}
             config = {'tracks': [endpoint, other, legacy], 'defaultSession': {'views': [{'tracks': [
                 {'configuration': 'endpoint'}, {'configuration': 'other'}, {'configuration': 'legacy'}]}]}}
@@ -29,7 +29,8 @@ class SignalTests(unittest.TestCase):
             self.assertEqual(new['displays'][0]['scaleType'], 'linear')
             self.assertEqual(new['displays'][0]['autoscale'], 'local')
             self.assertEqual(config['tracks'][0], endpoint)
-            self.assertIn(legacy, config['tracks'])  # Preserve distinct existing coverage.
+            self.assertNotIn(legacy, config['tracks'])
+            self.assertEqual([t['trackId'] for t in config['tracks']], ['endpoint', new['trackId'], 'other'])
             visible = [t['configuration'] for t in config['defaultSession']['views'][0]['tracks']]
             self.assertEqual(visible, ['endpoint', new['trackId'], 'other'])
             for adapter in new['adapter']['subadapters']:

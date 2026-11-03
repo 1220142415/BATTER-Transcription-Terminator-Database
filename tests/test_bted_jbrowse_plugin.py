@@ -56,6 +56,13 @@ tree.props.ref({closest(){return {querySelector(){return dialogTitle;}};}});
 if(dialogTitle.textContent!=='PMID 31555254 · endpoint records')throw Error('About title exposes internal source ID');
 tree.props.ref(null);
 const text=JSON.stringify(tree);
+const augmented={kind:'augmentation',title:'Augmented regions',assembly:'GCF_TEST',record_count:6,
+  evidence:'OTU-derived regions and Rfam-derived regions',doi_url:'https://doi.org/10.1186/s40168-026-02454-1'};
+const augmentedComponent=replaceAbout(original,{config:{metadata:{btedAbout:augmented}}});
+const augmentedText=JSON.stringify(augmentedComponent({config:{metadata:{btedAbout:augmented}}}));
+if(!augmentedText.includes('Augmented regions') || !augmentedText.includes(augmented.evidence)
+  || !augmentedText.includes('Method reference') || !augmentedText.includes(augmented.doi_url)
+  || augmentedText.includes('Training regions') || augmentedText.includes('"Study"'))throw Error('Augmented-region source/copy contract failed');
 const region=mod.visibleGff3('##gff-version 3\nchr1\tS1\tterminator_endpoint\t10\t10\t.\t+\t.\tID=A%3B1\nchr1\tS1\tterminator_endpoint\t20\t20\t.\t-\t.\tID=B\nchr2\tS1\tterminator_endpoint\t10\t10\t.\t+\t.\tID=C\n',{ref:'chr1',start:9,end:10});
 const shareView={width:100,bpPerPx:2,displayedRegions:[{refName:'chr1'}],pxToBp(px){return {refName:'chr1',coord:1000+Math.round(px*2),reversed:true,oob:false};},tracks:[{configuration:'track_A',displays:[{height:44}]}]};
 const share=mod.sharedView(shareView,new Set(['track_A']));
@@ -303,6 +310,12 @@ const backup = '/api/assets/v0.4.0--'+'b'.repeat(64);
 const asset = {url, fallback_url:backup, sha256:'c'.repeat(64)};
 const calls=[];
 let mode='success';
+const recoveredRevision = 'e'.repeat(40), referenceRevision = 'f'.repeat(40);
+const recoveredUrls = [
+  `/v0.5.1/annotation-recovery/2026-10-14/genomes/3300028569_36/genes.gff3`,
+  `/v0.5.0/genomes/batter-030/3300028569_36/annotations/recovered/genes.gff3`,
+].map(path => 'https://huggingface.co/datasets/liurulong/terminator/resolve/'+recoveredRevision+path);
+let recoveredUrl;
 globalThis.fetch=async (input,init={})=>{
   const request=new Request(input,init); calls.push(request);
   request.signal.throwIfAborted();
@@ -310,6 +323,11 @@ globalThis.fetch=async (input,init={})=>{
     if(mode==='failure')throw new TypeError('Failed to fetch');
     return new Response('direct',{status:mode==='missing'?404:200});
   }
+  if(request.url.endsWith('/api/batter/3300028569_36'))return Response.json({
+    revision:referenceRevision, annotation:{annotation_revision:recoveredRevision},
+    browser_files:{'genes.gff3':{url:recoveredUrl,sha256:'c'.repeat(64),fallback_url:'/api/batter/3300028569_36/files/genes.gff3?revision='+referenceRevision}}
+  });
+  if(request.url.includes('/api/batter/3300028569_36/files/'))return new Response('CDS',{headers:{'x-bted-sha256':'c'.repeat(64),'x-bted-revision':referenceRevision}});
   if(request.url.endsWith('/assets/data-release.json'))return Response.json({releaseVersion:'v0.4.0',assets:{'assemblies/GCF_000005845.1/reference/reference.fna.fai':asset}});
   return new Response('backup',{status:206,headers:{'x-bted-sha256':'c'.repeat(64),'Content-Range':'bytes 0-5/29'}});
 };
@@ -329,6 +347,15 @@ await fetch(url,{headers:{Range:'bytes=6-9'}});
 assert.equal(calls.filter(request=>request.url===url).length,directCount);
 await assert.rejects(fetch(url.replace('a'.repeat(40),'d'.repeat(40))),/Failed to fetch/);
 await fetch('https://example.org/file');assert.equal(calls.at(-1).cache,'default');
+for(recoveredUrl of recoveredUrls){
+  // Use separate module instances as the historical and new layouts have the
+  // same registration key but are alternative releases, not concurrent files.
+  const source=fs.readFileSync(process.argv[1],'utf8');
+  await import('data:text/javascript,'+encodeURIComponent(source)+`#${encodeURIComponent(recoveredUrl)}`);
+  assert.equal(await (await fetch(recoveredUrl)).text(),'CDS');
+  assert.equal(calls.at(-1).url,'https://bted.example/api/batter/3300028569_36/files/genes.gff3?revision='+referenceRevision);
+  await assert.rejects(fetch(recoveredUrl.replace(recoveredRevision,'d'.repeat(40))),/Failed to fetch/);
+}
 '''
         result = subprocess.run(["node", "--input-type=module", "-e", script, str(PLUGIN)], cwd=ROOT, capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(result.returncode, 0, result.stderr[:1500])
@@ -442,8 +469,9 @@ assert.equal((await mod.fetchBtedAsset(url)).status, 200); // Storage failures r
             ("#0f766e", 20, 14), ("#be123c", 20, 91), ("#0f766e", 20, 52), ("#be123c", 79, 91),
         ])
         self.assertTrue(data["keepsOriginal"])
-        for required in ("Study", "Endpoint evidence", "Example paper", "Test Journal"):
+        for required in ("Study", "Example paper", "Test Journal"):
             self.assertIn(required, data["content"])
+        self.assertNotIn("Endpoint evidence", data["content"])
         self.assertNotIn('"Source"', data["content"])
         self.assertNotIn("CC BY", data["content"])
         self.assertNotIn("License", data["content"])

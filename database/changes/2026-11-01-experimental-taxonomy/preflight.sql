@@ -1,0 +1,3 @@
+SELECT collection,version,taxonomy_system FROM bted_collections WHERE collection='experimental';
+SELECT version,json_extract(summary_json,'$.storage_version') AS storage_version, json_extract(summary_json,'$.total') AS total FROM hf_directory_releases WHERE version='202610310000000000000005';
+SELECT genome_id,status,tax_id FROM bted_taxonomy_records WHERE version='202610220000000000000006' AND system='ncbi' AND genome_id IN ('GCF_000005845.2','GCF_000015005.1','GCF_000196035.1','GCF_000277735.2','GCF_000742975.1','GCF_003019785.1','GCF_040166795.1','GCF_051046855.1','GCF_051122735.1') ORDER BY genome_id;
