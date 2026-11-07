@@ -8,11 +8,12 @@ Production runs on [Cloudflare Workers](https://bted.1052596411.workers.dev/). R
 |---|---|
 | Retained experimental files | `data/public/v0.4.0/` at Git commit `8132334474a70cc609261fb0dc05011fbfd9e8ef` |
 | Experimental v0.5.0 extension | HF `277f829ad3b408f60925122ff2a498c8a158e7c3`; nine new assemblies and 11 sources; D1 `bted_experimental_v05_*` |
+| Experimental stride-1 predictions and SAP1 annotation | HF `1276a8436cebd8e4a646e7d437a04ae6f944e63d`; 29 prediction packages; per-file D1 bindings |
 | v0.4 scientific assets | HF `eea5b7225975b224a1c837f60c4fa10497fef022` |
 | Earlier references and signals | HF `90651318aedf5a5ca26b8308070927d36fd3d6c9`, bound per file |
 | GEM computational references | HF `9f81698a3cee64f4eaf90b90cd36d640f38d9315` |
 | Recovered gene annotations | HF `765f663d12e49b06721ca03aecc7d1c64daa78cb` |
-| GTDB directory | Snapshot `deffa4a7183f71a8b47b3c44`, commit `7ed77270f02862da5722dad1d7836e3444e67dfd`; scientific files use their registered per-genome revisions |
+| GTDB directory | D1 `19d287cdc5dab25026d996be`, snapshot metadata HF `a24ecb1b5192479036d328afcbd3a6ae8421cbea`; scientific files use their registered per-genome revisions |
 | Collection bindings | `data/registry/collections.json` and D1 `bted_collections` |
 | JBrowse application | Verified `preview-v0.2.0` release archive, application version 4.3.0 |
 
@@ -135,3 +136,5 @@ Keep schema, ordered migrations and small reviewed corrections in Git. Store run
 receipts and source evidence in the Git-ignored `_workspace/` directory; do not create production
 backup exports. The [current deployment record](releases/current.md) identifies
 the active version and applicable recovery conditions.
+
+Experimental prediction refreshes use the per-assembly prediction bindings and registered BED/GFF3/TBI revisions in D1. The generic extension reader includes this capability after migration 0014. Ordinary file/version and count updates do not require rebuilding the site or redeploying the Worker.

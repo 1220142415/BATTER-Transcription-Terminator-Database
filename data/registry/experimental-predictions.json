@@ -1,15 +1,15 @@
 {
-  "revision": "b35aa8a05dcab593eea7d616c1772d7212c64e1b",
+  "revision": "1276a8436cebd8e4a646e7d437a04ae6f944e63d",
   "run": "BATTER-TPE-20261014",
   "genomes": {
     "GCF_000005845.1": {
-      "prediction_count": 4415,
+      "prediction_count": 9430,
       "contig_counts": {
-        "NC_000913.2": 4415
+        "NC_000913.2": 9430
       },
       "strand_counts": {
-        "-": 2252,
-        "+": 2163
+        "+": 4740,
+        "-": 4690
       },
       "reference": {
         "genome_id": "GCF_000005845.1",
@@ -23,32 +23,32 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "a56662df49e2b782610d561bb790022639e71183604940839a66c5135186d353",
-          "byte_size": 241019
+          "sha256": "fbe0793950f75972ca6cde3502e3b6ca4c01a97140972024c2b56a2d0666c834",
+          "byte_size": 514945
         },
         "prediction.gff3.gz": {
-          "sha256": "ef448fc6cea91804ab170f65980341534475121501e345bc604fc546dff02d81",
-          "byte_size": 86708
+          "sha256": "91300ec5671ecf82e915ef705d11b544dfe039a8a6b67479304eb12907bc04fa",
+          "byte_size": 195193
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "0bf9d7791791740fb52ede707bca390db4e9cdfa6b8255474b4e57d9b3cd05cb",
-          "byte_size": 2257
+          "sha256": "dad3c95f3d1f556eed4dc706fdb2328656cbf0cde47041ceb9b655555fd530ae",
+          "byte_size": 2079
         }
       },
       "first_region": {
         "refName": "NC_000913.2",
-        "start": 265,
-        "end": 314
+        "start": 263,
+        "end": 316
       }
     },
     "GCF_000005845.2": {
-      "prediction_count": 4447,
+      "prediction_count": 9432,
       "contig_counts": {
-        "NC_000913.3": 4447
+        "NC_000913.3": 9432
       },
       "strand_counts": {
-        "-": 2261,
-        "+": 2186
+        "+": 4741,
+        "-": 4691
       },
       "reference": {
         "genome_id": "GCF_000005845.2",
@@ -62,22 +62,22 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "8de654045acb954bb7c723c84e8819dbbe5db789aeda070a195442900af34536",
-          "byte_size": 242845
+          "sha256": "726af386b1f795d9e20ee2ec36c43ac3a446b4f495cffee67a11de5e463ce9c5",
+          "byte_size": 515058
         },
         "prediction.gff3.gz": {
-          "sha256": "75fe9235fbb63617e8056c018d7714759b5ae0227396655ddc74bd6a3a0d6074",
-          "byte_size": 87534
+          "sha256": "1c9bcd1f50744d2fd9307c1454fb1c1944b21eed26be403e083f7def5ea0adcd",
+          "byte_size": 195321
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "8e9286d327eda86ebfd80d75e19fb58c05d0475d6de0fc4b8fe3a8e43ac0dbc1",
-          "byte_size": 2293
+          "sha256": "aa4647468efe0035bf61c74e0a8800121de99cb7a0acd2cb7e7367182ef6c9ca",
+          "byte_size": 2233
         }
       },
       "first_region": {
         "refName": "NC_000913.3",
-        "start": 265,
-        "end": 314
+        "start": 263,
+        "end": 316
       },
       "reference_files": {
         "reference.fna": {
@@ -93,13 +93,13 @@
       }
     },
     "GCF_000006765.1": {
-      "prediction_count": 7337,
+      "prediction_count": 16300,
       "contig_counts": {
-        "NC_002516.2": 7337
+        "NC_002516.2": 16300
       },
       "strand_counts": {
-        "+": 3673,
-        "-": 3664
+        "+": 8150,
+        "-": 8150
       },
       "reference": {
         "genome_id": "GCF_000006765.1",
@@ -113,32 +113,32 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "edea1e6037e3530fc24ab578e542e2572091b9c519c1c501d9ff34cdf7561f44",
-          "byte_size": 403089
+          "sha256": "ed6126780e84bf819097d6c2c70dfb6938c282e8ecbeda11f955fb6e0c40f303",
+          "byte_size": 895589
         },
         "prediction.gff3.gz": {
-          "sha256": "9016901dc1c7c0e8777d472b373974bd7382b2fe4af31898f501397541ffe514",
-          "byte_size": 144760
+          "sha256": "ca3cbd0bdf1563810561563203e82acc38485958678b733eb078bbb2e9106515",
+          "byte_size": 338298
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "75aac1a4edb0c80aac027e55331ceaed226952fbba4c7a2964b51cc3b1b0e6e1",
-          "byte_size": 2961
+          "sha256": "92ca6a9407643eef940ee29fa35e7467ca78256fb473b7cefcd1831b5fc74006",
+          "byte_size": 2701
         }
       },
       "first_region": {
         "refName": "NC_002516.2",
-        "start": 412,
-        "end": 461
+        "start": 424,
+        "end": 457
       }
     },
     "GCF_000006885.1": {
-      "prediction_count": 2269,
+      "prediction_count": 4650,
       "contig_counts": {
-        "NC_003028.3": 2269
+        "NC_003028.3": 4650
       },
       "strand_counts": {
-        "+": 1155,
-        "-": 1114
+        "+": 2310,
+        "-": 2340
       },
       "reference": {
         "genome_id": "GCF_000006885.1",
@@ -152,53 +152,53 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "d4f0881cb8f5e66deabdc58975d50c465ba8a8cd4551e51dbd616cf0ef501ba7",
-          "byte_size": 123656
+          "sha256": "2130f6afa06642665411e225220885a9a1dc712e8a9a45fa973550c7bcfe19d0",
+          "byte_size": 253856
         },
         "prediction.gff3.gz": {
-          "sha256": "5ff34eff5129acd47e941f65939275cf82e95f1430b1a8c30fb3a83e5bdba65e",
-          "byte_size": 45470
+          "sha256": "e89ad4f68ec17176bc616b3da35df4524d75ee4696ff3816289b42bf8c549e5f",
+          "byte_size": 98384
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "e2570c1f027f4f2bc9d528f2a2ba786e4e962e3568ba3274be9d0aaf5dbbb0d9",
-          "byte_size": 1184
+          "sha256": "7d069564b3a9911f976e2ef75b767d7e9db14afeb30daa1db2a92c639fe17c76",
+          "byte_size": 1134
         }
       },
       "first_region": {
         "refName": "NC_003028.3",
-        "start": 1538,
-        "end": 1587
+        "start": 809,
+        "end": 844
       }
     },
     "GCF_000008685.2": {
-      "prediction_count": 2036,
+      "prediction_count": 5692,
       "contig_counts": {
-        "NC_000948.1": 35,
-        "NC_000949.1": 33,
-        "NC_000950.1": 31,
-        "NC_000951.1": 26,
-        "NC_000952.1": 30,
-        "NC_000953.1": 34,
-        "NC_000954.1": 34,
-        "NC_000955.2": 19,
-        "NC_000956.1": 93,
-        "NC_000957.1": 12,
-        "NC_001318.1": 1121,
-        "NC_001849.2": 37,
-        "NC_001850.1": 45,
-        "NC_001851.2": 41,
-        "NC_001852.1": 28,
-        "NC_001853.1": 58,
-        "NC_001854.1": 54,
-        "NC_001855.1": 72,
-        "NC_001856.1": 70,
-        "NC_001857.2": 105,
-        "NC_001903.1": 37,
-        "NC_001904.1": 21
+        "NC_000948.1": 101,
+        "NC_000949.1": 105,
+        "NC_000950.1": 96,
+        "NC_000951.1": 109,
+        "NC_000952.1": 96,
+        "NC_000953.1": 99,
+        "NC_000954.1": 112,
+        "NC_000955.2": 79,
+        "NC_000956.1": 207,
+        "NC_000957.1": 25,
+        "NC_001318.1": 3222,
+        "NC_001849.2": 80,
+        "NC_001850.1": 133,
+        "NC_001851.2": 102,
+        "NC_001852.1": 88,
+        "NC_001853.1": 148,
+        "NC_001854.1": 145,
+        "NC_001855.1": 178,
+        "NC_001856.1": 178,
+        "NC_001857.2": 237,
+        "NC_001903.1": 107,
+        "NC_001904.1": 45
       },
       "strand_counts": {
-        "+": 1044,
-        "-": 992
+        "-": 2884,
+        "+": 2808
       },
       "reference": {
         "genome_id": "GCF_000008685.2",
@@ -233,32 +233,32 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "da14c761760aee5a240b603fd3b43a19ad758ce2b98da2b34ce31d0d8febf3a8",
-          "byte_size": 105234
+          "sha256": "0d93d8ea532f9f63a462b65591453ba59da567932aff4f8fab12ba5738d03d34",
+          "byte_size": 294234
         },
         "prediction.gff3.gz": {
-          "sha256": "8d1ff45c3072d3300402980351118447351fb9131a755fd4fd7648069a43873b",
-          "byte_size": 40666
+          "sha256": "d8cd34d4700eee7b224e0dd02410a97114cbfcc7cac9a18080fbbdb504fdfda1",
+          "byte_size": 116979
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "85098a678e9bc1567fd67e7827915c01d0b0d7b140b4a0319daf0ccdf0ba143c",
-          "byte_size": 1125
+          "sha256": "3b822ff30452e838ea2234109110e0c6388e4f63fe7dee69ad883985263ef291",
+          "byte_size": 1142
         }
       },
       "first_region": {
         "refName": "NC_000948.1",
-        "start": 1980,
-        "end": 2013
+        "start": 478,
+        "end": 510
       }
     },
     "GCF_000009045.1": {
-      "prediction_count": 4962,
+      "prediction_count": 10400,
       "contig_counts": {
-        "NC_000964.3": 4962
+        "NC_000964.3": 10400
       },
       "strand_counts": {
-        "+": 2461,
-        "-": 2501
+        "+": 5212,
+        "-": 5188
       },
       "reference": {
         "genome_id": "GCF_000009045.1",
@@ -272,32 +272,32 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "1421b887516f5d6f911c2f87f980bcfe88b14bd50b2500659f59c6e799140b35",
-          "byte_size": 270578
+          "sha256": "4f6c28d9c71ff5feed070ec09f88e04326f6a24b36cb4d1d046fad5f9ec2748c",
+          "byte_size": 567206
         },
         "prediction.gff3.gz": {
-          "sha256": "ddd512ec13bc26ad088481e0c81053ae4e101ce3ce7ba560a5e4b64fe77a62d5",
-          "byte_size": 96194
+          "sha256": "a444253a2c8629a2f54fb2a75e1ff176fea6cf21cb552c281c7b9df1efd24eaa",
+          "byte_size": 214163
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "32c92d8625bc999b05ef9b80af86dda4b476c436f375b840275ec1eadc290e87",
-          "byte_size": 2106
+          "sha256": "9d7214d7cd5d509eeedfb2b3e98fcad0a0bb8e5555107a4a1e6084a22d436fe8",
+          "byte_size": 2069
         }
       },
       "first_region": {
         "refName": "NC_000964.3",
-        "start": 312,
-        "end": 362
+        "start": 331,
+        "end": 363
       }
     },
     "GCF_000009725.1": {
-      "prediction_count": 1997,
+      "prediction_count": 5637,
       "contig_counts": {
-        "NC_000911.1": 1997
+        "NC_000911.1": 5637
       },
       "strand_counts": {
-        "-": 991,
-        "+": 1006
+        "+": 2871,
+        "-": 2766
       },
       "reference": {
         "genome_id": "GCF_000009725.1",
@@ -311,32 +311,32 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "6ee65741320730f58630cdee3807c16b58877effc2403cdb01b087db746e8947",
-          "byte_size": 108020
+          "sha256": "1b15609b87e63bd5efe9a55bb6638c42bea59018b89c33986ecf983df10212a6",
+          "byte_size": 304822
         },
         "prediction.gff3.gz": {
-          "sha256": "735b56a263e6a90efa84e1bf8af8f5964b3a4459972977c466a3569941bfb5e9",
-          "byte_size": 39565
+          "sha256": "6b8e380fa14cc62c7666ddafd60e6ca0da12427cf11f0b6cc45104e806daf8d2",
+          "byte_size": 114375
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "2296f785f9e904d280f98374ac0ec862d9dcf2e37943fe0d3f2e845b1bc4ef88",
-          "byte_size": 1838
+          "sha256": "6f8038f1a1615258f1d5daa3bbffcd6731fb084fa272c1d2566d225d2a31a0e6",
+          "byte_size": 1720
         }
       },
       "first_region": {
         "refName": "NC_000911.1",
-        "start": 2959,
-        "end": 3014
+        "start": 811,
+        "end": 843
       }
     },
     "GCF_000010605.1": {
-      "prediction_count": 11173,
+      "prediction_count": 27649,
       "contig_counts": {
-        "NC_010572.1": 11173
+        "NC_010572.1": 27649
       },
       "strand_counts": {
-        "+": 5608,
-        "-": 5565
+        "+": 13684,
+        "-": 13965
       },
       "reference": {
         "genome_id": "GCF_000010605.1",
@@ -350,32 +350,32 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "f69906ac58e508ea4e270ba7c100d019ae8ddaab1b7634ba0ec4fb840721d674",
-          "byte_size": 615813
+          "sha256": "1cd150a86f652a77698f09e067fd4b649481e92bb71c770dd732c09a719a9e31",
+          "byte_size": 1524026
         },
         "prediction.gff3.gz": {
-          "sha256": "cad3f0beb020ef965a9d8004e1392a4b71587fbce261785ffac038ae0b31d84e",
-          "byte_size": 221619
+          "sha256": "fe3fdf15230c2f4ba375ff879f38bced58984ff40308965dfdd5d6395649ebe1",
+          "byte_size": 578390
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "fce992e3fd3a7e9a8b40c3abd19937b2877aa647fccfd61e9e51102ae1b92679",
-          "byte_size": 4122
+          "sha256": "73b1560b14c02e5d02293680c9947f5f852a6ef3b4668d954643aff257dcd960",
+          "byte_size": 3504
         }
       },
       "first_region": {
         "refName": "NC_010572.1",
-        "start": 1876,
-        "end": 1911
+        "start": 198,
+        "end": 231
       }
     },
     "GCF_000022005.1": {
-      "prediction_count": 5343,
+      "prediction_count": 11457,
       "contig_counts": {
-        "CP001340.1": 5343
+        "CP001340.1": 11457
       },
       "strand_counts": {
-        "+": 2647,
-        "-": 2696
+        "+": 5659,
+        "-": 5798
       },
       "reference": {
         "genome_id": "GCF_000022005.1",
@@ -389,32 +389,32 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "8cb318cbd687c16f6a041657ecffe55d766e70b530c227c43641bdf760fbf849",
-          "byte_size": 285878
+          "sha256": "cc6ada1f3a3c88110701d0b75a21a56736642fa82a7343c36e079cf861a1925c",
+          "byte_size": 612580
         },
         "prediction.gff3.gz": {
-          "sha256": "1c1a02f8d006cad95a3317a79cda57e8c1c830540cd525ecdbbc2982e3e3fa2b",
-          "byte_size": 105281
+          "sha256": "905a47c0dfc22542556afd629025157369b302e2091faa265e5bc5bd68d38d43",
+          "byte_size": 236841
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "cec4cc3451f71cdf9da578a16d9075489e4fbec570180c0fa5599f83db2a917a",
-          "byte_size": 2005
+          "sha256": "b735bc20d92c8e66f7237c0569f3203ae0f03fd7b67d69a01dc50b22863dc80b",
+          "byte_size": 1814
         }
       },
       "first_region": {
         "refName": "CP001340.1",
-        "start": 157,
-        "end": 191
+        "start": 155,
+        "end": 193
       }
     },
     "GCF_000147055.1": {
-      "prediction_count": 5339,
+      "prediction_count": 12433,
       "contig_counts": {
-        "NC_014500.1": 5339
+        "NC_014500.1": 12433
       },
       "strand_counts": {
-        "+": 2686,
-        "-": 2653
+        "+": 6317,
+        "-": 6116
       },
       "reference": {
         "genome_id": "GCF_000147055.1",
@@ -428,32 +428,32 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "69026d1e688cfcd66b02aec1e550c62718e0f3a27c564b7ffae9b50f772a8043",
-          "byte_size": 291507
+          "sha256": "0f0533baadf9e4d2942dbc9cefb32afe9510f77226e188d349076bc218fbd645",
+          "byte_size": 678989
         },
         "prediction.gff3.gz": {
-          "sha256": "bbb4d39c9b7a27ee3e4b20c5ff9103893c201e45973c6555b794d56aab9f49f2",
-          "byte_size": 105008
+          "sha256": "8c0d5adf8313a1e42e59f62d62db627d9b64f822930bf2f5ac49964bfe5bbaca",
+          "byte_size": 256395
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "60ebb676f82c9f5aaf77b773864bdf5ba9b4b4dc22ef37d882d09a4e1bf237a1",
-          "byte_size": 2348
+          "sha256": "01f715ae3be7c2b3c84ee6844a6c5ccf340183c84acb28b163ef9c17013bee86",
+          "byte_size": 2203
         }
       },
       "first_region": {
         "refName": "NC_014500.1",
-        "start": 218,
-        "end": 261
+        "start": 212,
+        "end": 263
       }
     },
     "GCF_000195955.2": {
-      "prediction_count": 3739,
+      "prediction_count": 10575,
       "contig_counts": {
-        "NC_000962.3": 3739
+        "NC_000962.3": 10575
       },
       "strand_counts": {
-        "+": 1906,
-        "-": 1833
+        "+": 5419,
+        "-": 5156
       },
       "reference": {
         "genome_id": "GCF_000195955.2",
@@ -467,32 +467,32 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "12256b4c2d9fa990ab21245286d02bc0df2c24baf4eef6c595085afc3cf3dee6",
-          "byte_size": 204377
+          "sha256": "f6209433b32788bc3721bece37b567414973dc0430ba6c773f6c898439a73051",
+          "byte_size": 577707
         },
         "prediction.gff3.gz": {
-          "sha256": "cb7966efbbaccfcd58e9c10965eb85d2d4c7da87d01372591df9d43274668769",
-          "byte_size": 74076
+          "sha256": "8abaecef1c35a7ecd89a28c56d7435e24551a1bccf6f55e695b5e54a6fbc9bdf",
+          "byte_size": 218686
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "bc1ba63f35958c416fc4c92c5f2770467fa46d24b925dad3b6c3eceeea047946",
-          "byte_size": 2256
+          "sha256": "0998c5571b2cae5c02d5e7712c461122580801b3ba337ac967cc67fdb633a8bb",
+          "byte_size": 1952
         }
       },
       "first_region": {
         "refName": "NC_000962.3",
-        "start": 1551,
-        "end": 1613
+        "start": 127,
+        "end": 160
       }
     },
     "GCF_000203835.1": {
-      "prediction_count": 10775,
+      "prediction_count": 27398,
       "contig_counts": {
-        "NC_003888.3": 10775
+        "NC_003888.3": 27398
       },
       "strand_counts": {
-        "+": 5439,
-        "-": 5336
+        "+": 13730,
+        "-": 13668
       },
       "reference": {
         "genome_id": "GCF_000203835.1",
@@ -506,36 +506,36 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "7ab7de2d06414807753e71f21a1bd36f2988558c9f7ce718c83ec55ba7457492",
-          "byte_size": 593779
+          "sha256": "a493f86ad3f8ca6dc09f8a3ce929d8ba4f0a0db4270d0334d012eb5f798dbcfa",
+          "byte_size": 1510336
         },
         "prediction.gff3.gz": {
-          "sha256": "4a9414063d45e53e18e732c17bcacd2fdaf1f1853c2a9b3ea93f34051c02740c",
-          "byte_size": 213817
+          "sha256": "cd0edcee8d203311af438440c77717de6f8e9eb3dadbdb6fc80cb218bb280855",
+          "byte_size": 573963
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "e7bdbb80236680be6b8ea4820a91adce0402c630a891c8772fc14492b33214e7",
-          "byte_size": 4158
+          "sha256": "b9566005c95f2dcf180ed1347bd84f5a8a58d1d03b7dac04cc556739a79ae5e4",
+          "byte_size": 3553
         }
       },
       "first_region": {
         "refName": "NC_003888.3",
-        "start": 29,
-        "end": 78
+        "start": 116,
+        "end": 152
       }
     },
     "GCF_000739105.1": {
-      "prediction_count": 10618,
+      "prediction_count": 26417,
       "contig_counts": {
-        "CP009124.1": 10618
+        "CP009124.1": 26417
       },
       "strand_counts": {
-        "+": 5231,
-        "-": 5387
+        "+": 13170,
+        "-": 13247
       },
       "reference": {
         "genome_id": "GCF_000739105.1",
-        "organism_name": "Streptomyces lividans\u00a0TK24",
+        "organism_name": "Streptomyces lividans TK24",
         "fasta_sha256": "14f117887bc4c29f9336aef4b8ace10fef9cec66a92d37076c396b4aff8017af",
         "contigs": {
           "CP009124.1": 8345283
@@ -545,33 +545,33 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "b2c8e99a1f25e4b3f196b6e5c8f076e8f5564dfed5fb5f60654334aa8edde4fc",
-          "byte_size": 574445
+          "sha256": "9bfba3b7a22d55f741b8c536eda2c0c07d04bda529035cac0d46e51d4aa1562a",
+          "byte_size": 1429530
         },
         "prediction.gff3.gz": {
-          "sha256": "1b253252121f8f96d3401da6cb3b1dd678fffe78e4c20fb65c0ad8816e5592f1",
-          "byte_size": 210848
+          "sha256": "13cea9c5956df096e5b7ebb50bc83272c8a94665651cdf5f07943ec978e3f108",
+          "byte_size": 552208
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "93ec03ecb8bd032cb47a80edbdd438a495c0c7444e9eae60b4a8a9fc594e4e56",
-          "byte_size": 3764
+          "sha256": "2fa5463380f2029c16de96185108fec2fcc50050f786c2580d65eb7f0c3196ff",
+          "byte_size": 3499
         }
       },
       "first_region": {
         "refName": "CP009124.1",
-        "start": 27,
-        "end": 77
+        "start": 28,
+        "end": 84
       }
     },
     "GCF_001456255.1": {
-      "prediction_count": 4593,
+      "prediction_count": 8491,
       "contig_counts": {
-        "CP009977.1": 3011,
-        "CP009978.1": 1582
+        "CP009977.1": 5445,
+        "CP009978.1": 3046
       },
       "strand_counts": {
-        "+": 2325,
-        "-": 2268
+        "-": 4240,
+        "+": 4251
       },
       "reference": {
         "genome_id": "GCF_001456255.1",
@@ -586,36 +586,36 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "cda0e8bbfcb8a3527ae65eaecaf3e550bd65deae4b0d0bf7dfb3c214ec9b07ea",
-          "byte_size": 244967
+          "sha256": "5184f5e162ba406382231742493a72fb4c914f3706d41f09db04f11e13c0b2ba",
+          "byte_size": 453202
         },
         "prediction.gff3.gz": {
-          "sha256": "8d33d56efc27d045054b3f89dc13099e4024fdd95d040afbcf44a602afc82f29",
-          "byte_size": 89283
+          "sha256": "6a35920f7f0c98e6c19d2cbb7208377db18f22bd94406dd8d2c0a9a8aba84c2f",
+          "byte_size": 175649
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "ba939478a060cd150dcded7ff6b4e622b5e7083e13d6a81f389bfbe50b05473f",
-          "byte_size": 2565
+          "sha256": "f8c27b6d54c140737f2cf8986522fce05a54dcff6723033d9a28c08e7ba1c1ba",
+          "byte_size": 2404
         }
       },
       "first_region": {
         "refName": "CP009977.1",
-        "start": 1774,
-        "end": 1818
+        "start": 1364,
+        "end": 1399
       }
     },
     "GCF_003054575.1": {
-      "prediction_count": 2328,
+      "prediction_count": 5195,
       "contig_counts": {
-        "CP023715.1": 2215,
-        "CP023716.1": 33,
-        "CP023717.1": 30,
-        "CP023718.1": 27,
-        "CP023719.1": 23
+        "CP023715.1": 4886,
+        "CP023716.1": 78,
+        "CP023717.1": 79,
+        "CP023718.1": 79,
+        "CP023719.1": 73
       },
       "strand_counts": {
-        "+": 1212,
-        "-": 1116
+        "+": 2722,
+        "-": 2473
       },
       "reference": {
         "genome_id": "GCF_003054575.1",
@@ -633,32 +633,32 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "1fa85356c28a4e8d1c6505b393d3879de8ff784ab1c851f4a0e69e86063127f4",
-          "byte_size": 123729
+          "sha256": "485963733abe119396327175eda9a091e1f0eb8f20c25073ba09e2d6315d0274",
+          "byte_size": 276240
         },
         "prediction.gff3.gz": {
-          "sha256": "23a4759643c8ea37336c3f0e2018a1276c8c39a9eee7a51ead2dd498c942fb07",
-          "byte_size": 46283
+          "sha256": "998e4c0c00ac7dbef828ed2bc0626a30da52e79ce06d41126098e43d71d401ca",
+          "byte_size": 107750
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "3d298da467c41b5ae78d7153ae418ac9cf7a3d50998383ea9e496fc49d7de72d",
-          "byte_size": 1165
+          "sha256": "e0803d276ff7adaa4885012f12b75bc9826712b7d48fecf1915949970cc8fef5",
+          "byte_size": 1020
         }
       },
       "first_region": {
         "refName": "CP023715.1",
         "start": 156,
-        "end": 189
+        "end": 191
       }
     },
     "GCF_003932715.1": {
-      "prediction_count": 9919,
+      "prediction_count": 25776,
       "contig_counts": {
-        "CP020700.1": 9919
+        "CP020700.1": 25776
       },
       "strand_counts": {
-        "+": 5035,
-        "-": 4884
+        "-": 12868,
+        "+": 12908
       },
       "reference": {
         "genome_id": "GCF_003932715.1",
@@ -672,33 +672,33 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "24eaee105095837f1d7b8b8098cf26a2245cadd0f206747740d0e643367cf436",
-          "byte_size": 536763
+          "sha256": "184d14670268b062208f4564dd1737c067793d40d1d454c2039b7779a58c1c75",
+          "byte_size": 1394842
         },
         "prediction.gff3.gz": {
-          "sha256": "d7f8eb1794a71a5572835f4b6cd97d09e1a685acb28329f03b0b46cecc428b48",
-          "byte_size": 196089
+          "sha256": "a406cab806c47dcbd761bbef9bcd945d16e2a325a04cd1cb67d78f584b0ec437",
+          "byte_size": 538009
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "5bc700a1d972b7454b09e4d07ebc27807637ac631af89795ed18f18278f79ab8",
-          "byte_size": 3833
+          "sha256": "d667c2abb5e0764c30cf7405cae3d1f0e67d14e0261a1ada8123f48353026de1",
+          "byte_size": 3278
         }
       },
       "first_region": {
         "refName": "CP020700.1",
-        "start": 1297,
-        "end": 1340
+        "start": 259,
+        "end": 313
       }
     },
     "GCF_005519465.1": {
-      "prediction_count": 11098,
+      "prediction_count": 28210,
       "contig_counts": {
-        "CP027858.1": 8862,
-        "CP027859.1": 2236
+        "CP027858.1": 22131,
+        "CP027859.1": 6079
       },
       "strand_counts": {
-        "+": 5531,
-        "-": 5567
+        "+": 14052,
+        "-": 14158
       },
       "reference": {
         "genome_id": "GCF_005519465.1",
@@ -713,32 +713,32 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "47d1d37b4b6f7994b3489a33a1405bb68aa756d07ac47e24f702435f2709e80e",
-          "byte_size": 598018
+          "sha256": "4593d335d0bed09314003e0174f105254647f6e739d4e85e02c120ddb0a57103",
+          "byte_size": 1519428
         },
         "prediction.gff3.gz": {
-          "sha256": "ef5ee438f2a2512f6ef6366e4a831acae5411853fe3f88df21ff9adf74e27407",
-          "byte_size": 219922
+          "sha256": "0499e3aceeadbf535c29df27307d758e05c5d686fa60e6a191bfbc13da33a98a",
+          "byte_size": 587978
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "6baa0d3a95cf9ec18f10021899a12082673d4e76418a9bf36b95db53b1bf6581",
-          "byte_size": 4022
+          "sha256": "c95a88e9dec6596226aad23b27f6e64b4e04a117853029bb9b5bb307b0d398c9",
+          "byte_size": 3670
         }
       },
       "first_region": {
         "refName": "CP027858.1",
-        "start": 0,
-        "end": 48
+        "start": 18,
+        "end": 50
       }
     },
     "GCF_015710995.1": {
-      "prediction_count": 11715,
+      "prediction_count": 29410,
       "contig_counts": {
-        "CP059991.1": 11715
+        "CP059991.1": 29410
       },
       "strand_counts": {
-        "+": 5872,
-        "-": 5843
+        "+": 14766,
+        "-": 14644
       },
       "reference": {
         "genome_id": "GCF_015710995.1",
@@ -752,35 +752,35 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "d03bd55d9a91416ee96d462aaf58709a351cf8dbd41357958b7e44845848f2f0",
-          "byte_size": 633729
+          "sha256": "71a5b94d4ca8e3ed06a2463cb9d8583fce22ecbea577ac8b905543b3bd7baf79",
+          "byte_size": 1591956
         },
         "prediction.gff3.gz": {
-          "sha256": "71d263b3061914c45136e6faf795dbd7178215dca04c4a4fde7d7eee12f38271",
-          "byte_size": 231969
+          "sha256": "72db6fc4949a69b3379bca9ec9e68dd0ed4873c54ce5baa3f78270a0de760f10",
+          "byte_size": 613764
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "eb731736650a43d0f82d17a66b074d41e69dbb8bb3c96602941a868f1d8d7b54",
-          "byte_size": 4068
+          "sha256": "a93e3a279dc7a133c75e560055e685b35151211749476d3a2ee4b055d48b18fb",
+          "byte_size": 3561
         }
       },
       "first_region": {
         "refName": "CP059991.1",
-        "start": 1043,
-        "end": 1083
+        "start": 290,
+        "end": 330
       }
     },
     "GCF_018282115.1": {
-      "prediction_count": 2126,
+      "prediction_count": 6198,
       "contig_counts": {
-        "CP054306.1": 2046,
-        "CP054307.1": 46,
-        "CP054308.1": 29,
-        "CP054309.1": 5
+        "CP054306.1": 5988,
+        "CP054307.1": 125,
+        "CP054308.1": 75,
+        "CP054309.1": 10
       },
       "strand_counts": {
-        "+": 1059,
-        "-": 1067
+        "-": 3107,
+        "+": 3091
       },
       "reference": {
         "genome_id": "GCF_018282115.1",
@@ -797,23 +797,72 @@
       },
       "files": {
         "prediction.bed": {
-          "sha256": "7a51fcdcc688b973f895ccaf28474cdf521328c8c4f4292e7371f6658f3d4e47",
-          "byte_size": 112685
+          "sha256": "12cd589cec651c9fca3e9d20f6b0981acee0f3661b29e383404e0423b64027dc",
+          "byte_size": 328290
         },
         "prediction.gff3.gz": {
-          "sha256": "d38b94f22641e67045587de599e71a39ee0347866f274d6137bca5e49d5687c7",
-          "byte_size": 41969
+          "sha256": "a8e4a1e9afde8856d95681ad53deddcb1f36788421f06061b2b1c5272be244f5",
+          "byte_size": 125423
         },
         "prediction.gff3.gz.tbi": {
-          "sha256": "7c233592d83eb95cc1a7450f0438d3e495f974ff619993918e54377deadec87e",
-          "byte_size": 1999
+          "sha256": "3b3e82f7381ab3e3e83880c8d2809f0875a238adce10c48b842386ecca0f3280",
+          "byte_size": 1899
         }
       },
       "first_region": {
         "refName": "CP054306.1",
-        "start": 1085,
-        "end": 1121
+        "start": 376,
+        "end": 407
       }
+    },
+    "GCF_000012525.1": {
+      "prediction_count": 5122,
+      "contig_counts": {
+        "NC_007595.1": 82,
+        "NC_007604.1": 5040
+      },
+      "strand_counts": {
+        "+": 2545,
+        "-": 2577
+      },
+      "reference": {
+        "genome_id": "GCF_000012525.1",
+        "organism_name": "Synechococcus elongatus",
+        "fasta_sha256": "49785d1244f4be5c526c613cd6bbcd8373aaec1f5a98fe827ee99f636df32ed9",
+        "contigs": {
+          "NC_007604.1": 2695903,
+          "NC_007595.1": 46366
+        },
+        "genome_length": 2742269,
+        "source_url": "https://huggingface.co/datasets/liurulong/terminator/resolve/eea5b7225975b224a1c837f60c4fa10497fef022/v0.4.0/browser/GCF_000012525.1/reference.fna"
+      },
+      "files": {
+        "prediction.bed": {
+          "sha256": "4d1dba33a2f22d7f4552e103aec551b46a6746d63ffec6d6dab5ec57eebdd845",
+          "byte_size": 278253
+        },
+        "prediction.gff3.gz": {
+          "sha256": "52468a6adb2b04370c1bccc44e87d97e9244545143a78be1d0c3c884e1a1c98a",
+          "byte_size": 105979
+        },
+        "prediction.gff3.gz.tbi": {
+          "sha256": "6c412e2d202ac291b934fef8f4f46a081b758beb472add75131797212d600f0e",
+          "byte_size": 1285
+        }
+      },
+      "first_region": {
+        "refName": "NC_007595.1",
+        "start": 388,
+        "end": 420
+      },
+      "run": "BATTER-TPE-20261104"
     }
+  },
+  "execution_run": "BATTER-TPE-20261104",
+  "parameters": {
+    "window_size": 500,
+    "stride": 1,
+    "top_k": 10,
+    "both_strands": true
   }
 }

@@ -82,4 +82,28 @@ test("registered scientific revision changes are read from D1, not deployed code
  try {const r=await request("/api/experimental-v05/files?path="+encodeURIComponent(file));assert.equal(r.status,200);assert.equal(r.headers.get("x-bted-revision"),nextRevision);}
  finally {globalThis.fetch=original;db.prepare("UPDATE bted_experimental_v05_files SET hf_revision=? WHERE logical_path=?").run(revision,file);}
 });
+test("v05 predictions use pinned files, complete references and independent evidence",async()=>{
+ db.exec(readFileSync(new URL("../database/migrations/0014_experimental_prediction_bindings.sql",import.meta.url),"utf8"));
+ const run="BATTER-TPE-20261104",predictionRevision="d".repeat(40);
+ db.prepare("UPDATE bted_experimental_v05_assemblies SET prediction_count=3,prediction_run=?,prediction_revision=?,prediction_reference_sha256=?,prediction_contig_counts_json=? WHERE accession=?")
+   .run(run,predictionRevision,"a".repeat(64),JSON.stringify({ref:2,plasmid:1}),id);
+ db.prepare("UPDATE bted_experimental_v05_assemblies SET contigs_json=? WHERE accession=?").run(JSON.stringify({ref:2000000,plasmid:94287}),id);
+ for (const name of ["prediction.bed","prediction.gff3.gz","prediction.gff3.gz.tbi"]) {
+   db.prepare("INSERT INTO bted_experimental_v05_files VALUES(?,?,?,?,?,?,?)").run(`${prefix}/predictions/${run}/${name}`,id,null,name,100,"e".repeat(64),predictionRevision);
+ }
+ const cfg=await (await request(`/api/assemblies/${id}/jbrowse-config`)).json();
+ const prediction=cfg.tracks.find(t=>t.trackId==="bted_experimental_prediction");
+ assert(prediction);assert.equal(cfg.tracks.length,3);assert.equal(cfg.metadata.prediction_count,3);
+ assert.deepEqual(prediction.metadata.btedContigCounts,{ref:2,plasmid:1});
+ assert.match(prediction.adapter.gffGzLocation.uri,new RegExp(`/resolve/${predictionRevision}/`));
+ assert.equal(prediction.metadata.evidence_class,"model_prediction");
+ const data=await (await request(`/api/assemblies/${id}/page-metadata`)).json();
+ assert.equal(data.predictions.count,3);assert.equal(data.predictions.reference_contigs,2);
+ assert.equal(data.predictions.downloads.length,2);assert.equal(data.record_count,663);
+ assert.equal(data.sources[0].evidence_class,"author_called_TTS");
+ const index=`${prefix}/predictions/${run}/prediction.gff3.gz.tbi`;
+ db.prepare("UPDATE bted_experimental_v05_files SET hf_revision=? WHERE logical_path=?").run(revision,index);
+ const mismatch=await request(`/api/assemblies/${id}/jbrowse-config`);assert.equal(mismatch.status,503);
+ db.prepare("UPDATE bted_experimental_v05_files SET hf_revision=? WHERE logical_path=?").run(predictionRevision,index);
+});
 test.after(()=>db.close());

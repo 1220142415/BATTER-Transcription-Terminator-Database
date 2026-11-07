@@ -36,6 +36,19 @@ function track(request, id, name, path, files, category, extra={}) {
     metadata:{...extra,sha256:gff.sha256,btedAbout:{kind:category[0]==="Reference annotation"?"reference":"endpoint",assembly:id,...extra}}
   };
 }
+function experimentalV05PredictionTrack(request,genome,files) {
+  if (!Number(genome.prediction_count)) return null;
+  const fasta=toFile(files,"/reference/reference.fa.gz");
+  if (!fasta) throw dataReleaseError("prediction_reference_mismatch");
+  const assets=files.filter(f=>f.logical_path.includes("/predictions/")).map(f=>({
+    ...f,asset_kind:f.logical_path.endsWith(".bed")?"bed":f.logical_path.endsWith(".tbi")?"tbi":"gff3",is_public:1
+  }));
+  const manifest={assets:Object.fromEntries(assets.map(f=>[f.logical_path,{
+    ...f,revision:f.hf_revision,
+    url:`https://huggingface.co/datasets/liurulong/terminator/resolve/${f.hf_revision}/${VERSION}/${f.logical_path}`
+  }]))};
+  return experimentalPredictionTrack(request,manifest,{...genome,organism_name:genome.organism},assets,genome.accession,fasta);
+}
 async function experimentalV05Config(request,env,genome) {
   const id=genome.accession;
   const contigs=JSON.parse(genome.contigs_json);
@@ -73,6 +86,10 @@ async function experimentalV05Config(request,env,genome) {
     });
     if(t)tracks.push(t);
   }
+  try {
+    const prediction=experimentalV05PredictionTrack(request,genome,files);
+    if (prediction) tracks.push(prediction);
+  } catch (error) { return dataReleaseErrorResponse(error); }
   const first=Object.entries(contigs).sort((a,b)=>b[1]-a[1])[0];
   const sessionTracks=tracks.map((t,i)=>({
     id:"exp_v05_t"+(i+1),type:"FeatureTrack",configuration:t.trackId,
@@ -89,12 +106,13 @@ async function experimentalV05Config(request,env,genome) {
       displayedRegions:[{refName:first[0],start:0,end:first[1],reversed:false,assemblyName:id}],
       tracks:sessionTracks
     }]},
-    metadata:{assembly_accession:id,release_version:VERSION,hf_revision:genome.hf_revision,source_count:sources.length,endpoint_count:genome.endpoint_count}
+    metadata:{assembly_accession:id,release_version:VERSION,hf_revision:genome.hf_revision,source_count:sources.length,endpoint_count:genome.endpoint_count,prediction_count:Number(genome.prediction_count || 0)}
   });
 }
 
 async function experimentalV05PageMetadata(request,env,genome,directory,classifications) {
   const {sources,files}=await loadData(env,genome.accession);
+  const prediction=experimentalV05PredictionTrack(request,genome,files);
   const sourceData=sources.map(source=>{
     const metadata=JSON.parse(source.metadata_json);
     return {
@@ -114,7 +132,10 @@ async function experimentalV05PageMetadata(request,env,genome,directory,classifi
     assembly:{accession:genome.accession,organism_name:genome.organism,
       reference_url:`https://www.ncbi.nlm.nih.gov/datasets/genome/${genome.accession}/`,
       directory,classifications,contigs:Object.entries(JSON.parse(genome.contigs_json)).map(([contig_accession,length_bp])=>({contig_accession,length_bp}))},
-    predictions:null,sources:sourceData,record_count:genome.endpoint_count,
+    predictions:prediction?{count:Number(genome.prediction_count),method:"BATTER-TPE",reference_scope:"experimental",
+      reference_bases:Object.values(JSON.parse(genome.contigs_json)).reduce((a,b)=>a+b,0),
+      reference_contigs:Object.keys(JSON.parse(genome.contigs_json)).length,
+      downloads:prediction.metadata.btedDownloads}:null,sources:sourceData,record_count:genome.endpoint_count,
     study_count:new Set(sources.map(source=>source.pmid)).size,
     downloads:[{path:`${genome.accession}/metadata.tsv`,url:`/api/assemblies/${genome.accession}/metadata.tsv`},
       ...files.filter(file=>file.source_id).map(file=>({
@@ -180,13 +201,13 @@ const PUBLIC_EVIDENCE = new Set([
 const CURRENT_RELEASE_VERSION = "v0.4.0";
 const RETIRED_RELEASE_ARCHIVE = "data/archive/BTED-v0.2.0.tar.gz";
 const DATA_RELEASE_MANIFEST_PATH = "/assets/data-release.json";
-const BTED_PLUGIN_PATH = "/jbrowse/plugins/bted-track-plugin.js?v=44";
+const BTED_PLUGIN_PATH = "/jbrowse/plugins/bted-track-plugin.js?v=46";
 
 function btedExperimentalDisplay(displayId,kind) {
   const renderer={type:"SvgFeatureRenderer",color1:"jexl:btedStrandColor(feature)",color2:"jexl:btedStrandColor(feature)"};
   return kind === "endpoint"
-    ? {type:"LinearBasicDisplay",displayId,showLabels:false,height:140,renderer:{...renderer,height:14,showLabels:false}}
-    : {type:"LinearBasicDisplay",displayId,height:130,filter:{genes:"only"},renderer:{...renderer,showDescriptions:false}};
+    ? {type:"LinearBasicDisplay",displayId,showLabels:false,height:140,renderer:{...renderer,height:14,showLabels:false,labels:{name:"jexl:btedFeatureLabel(feature)"},mouseover:"jexl:btedFeatureLabel(feature)"}}
+    : {type:"LinearBasicDisplay",displayId,height:130,filter:{genes:"only"},jexlFilters:["get(feature,'type')!='region'"],renderer:{...renderer,showDescriptions:false,labels:{name:"jexl:btedAnnotationLabel(feature)"},mouseover:"jexl:btedAnnotationTooltip(feature)"}};
 }
 function btedExperimentalTheme() {
   return {theme:{palette:{primary:{main:"#343674"},secondary:{main:"#6660a9"},tertiary:{main:"#eeedf9"}},
@@ -892,7 +913,7 @@ function experimentalPredictionTrack(request, manifest, assembly, assets, assemb
   return { type: "FeatureTrack", trackId: id, name: "Predicted regions", category: ["Predicted regions"], assemblyNames: [assemblyName],
     adapter: { type: "Gff3TabixAdapter", gffGzLocation: uri("prediction.gff3.gz"), index: { location: uri("prediction.gff3.gz.tbi"), indexType: "TBI" } },
     displays: [{ type: "LinearBasicDisplay", displayId: id + "_display", height: 160, showLabels: false,
-      renderer: { type: "SvgFeatureRenderer", showLabels: false, height: 14, color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)", mouseover: "jexl:btedPredictionTooltip(feature)" } }],
+      renderer: { type: "SvgFeatureRenderer", showLabels: false, height: 14, color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)", labels: { name: "jexl:btedFeatureLabel(feature)" }, mouseover: "jexl:btedPredictionTooltip(feature)" } }],
     metadata: { evidence_class: "model_prediction", btedContigCounts: counts,
       btedAbout: { kind: "prediction", assembly: assembly.accession, evidence: "Model prediction", record_count: Number(assembly.prediction_count), assay: "BATTER-TPE",
         reference: assembly.organism_name, reference_url: `https://www.ncbi.nlm.nih.gov/datasets/genome/${assembly.accession}/` },
@@ -1772,7 +1793,7 @@ async function gtdbConfig(request, metadata) {
       displays: [{ type: "LinearBasicDisplay", displayId: `${trackId}_display`, height: kind === "prediction" ? 160 : 130, showLabels: false,
         ...(kind === "reference" ? { jexlFilters: ["get(feature,'type')!='region'"] } : {}),
         renderer: { type: "SvgFeatureRenderer", showLabels: false, showDescriptions: false, color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)",
-          ...(kind === "prediction" ? { height: 14, mouseover: "jexl:btedPredictionTooltip(feature)" } : {}) } }],
+          ...(kind === "prediction" ? { height: 14, labels: { name: "jexl:btedFeatureLabel(feature)" }, mouseover: "jexl:btedPredictionTooltip(feature)" } : { labels: { name: "jexl:btedAnnotationLabel(feature)" }, mouseover: "jexl:btedAnnotationTooltip(feature)" }) } }],
       metadata: { btedAbout: { kind, title: name, assembly: id, evidence: kind === "prediction" ? "Model prediction" : "NCBI gene annotation",
         ...(kind === "prediction" ? { record_count: metadata.feature_counts.tes_prediction } : {}),
         explanation: kind === "prediction" ? "BATTER-TPE predicted intervals on GTDB R207.0 assemblies. Hollow flags mark interval 3′ boundaries, not experimentally measured ends." : "Annotation supplied with this exact assembly version.",
@@ -2126,10 +2147,14 @@ async function batterConfig(request, metadata) {
       gff3_url: uri("genes.gff3").uri, source_url: annotation.source_url };
   }
   if (augmented || counts.otu_augmentation_window || counts.rfam_training_window) {
-    addTrack("batter_augmentation", "Augmented regions", "augmentation.gff3.gz", { color1: "jexl:btedAugmentationColor(feature)", color2: "jexl:btedAugmentationColor(feature)", mouseover: "jexl:get(feature,'type') == 'training_sequence_window' || get(feature,'type') == 'rfam_training_window' ? 'Sequence context window' : get(feature,'name')", height: 14 }, 96, "OTU-derived regions and Rfam-derived regions. Counts exclude context windows.");
+    addTrack("batter_augmentation", "Augmented regions", "augmentation.gff3.gz", { color1: "jexl:btedAugmentationColor(feature)", color2: "jexl:btedAugmentationColor(feature)", labels: { name: "jexl:btedFeatureLabel(feature)" }, mouseover: "jexl:btedFeatureLabel(feature)", height: 14 }, 96, "OTU-derived regions and Rfam-derived regions. Counts exclude context windows.");
   }
   for (const track of tracks) {
-    if (track.trackId === "batter_genes") track.displays[0].jexlFilters = ["get(feature,'type')!='region'"];
+    if (track.trackId === "batter_genes") {
+      track.displays[0].jexlFilters = ["get(feature,'type')!='region'"];
+      track.displays[0].renderer.labels = { name: "jexl:btedAnnotationLabel(feature)" };
+      track.displays[0].renderer.mouseover = "jexl:btedAnnotationTooltip(feature)";
+    }
     if (track.trackId === "batter_augmentation") {
       track.displays[0].jexlFilters = ["get(feature,'type')!='training_sequence_window' && get(feature,'type')!='rfam_training_window'"];
       track.metadata.btedContigCounts = augmentationCounts?.counts || null;
@@ -2137,7 +2162,7 @@ async function batterConfig(request, metadata) {
     }
   }
   if (counts.tes_prediction > 0) {
-    addTrack("batter_prediction", "Predicted regions", "prediction.gff3.gz", { color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)", height: 14, mouseover: "jexl:btedPredictionTooltip(feature)" }, 160, "BATTER predictions with interval coordinates.");
+    addTrack("batter_prediction", "Predicted regions", "prediction.gff3.gz", { color1: "jexl:btedStrandColor(feature)", color2: "jexl:btedStrandColor(feature)", height: 14, labels: { name: "jexl:btedFeatureLabel(feature)" }, mouseover: "jexl:btedPredictionTooltip(feature)" }, 160, "BATTER predictions with interval coordinates.");
     const about = tracks.at(-1).metadata.btedAbout;
     about.kind = "prediction"; about.evidence = "Model prediction"; about.record_count = counts.tes_prediction;
     tracks.at(-1).metadata.btedContigCounts = null;

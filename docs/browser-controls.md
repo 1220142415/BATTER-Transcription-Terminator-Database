@@ -6,7 +6,7 @@ BTED embeds JBrowse 4.3.0. **Open JBrowse** opens its standalone interface.
 
 Use the coordinate box to select a contig or interval. In the standalone browser, **Tracks** opens the track list and **Import tracks** adds local or remote files against a matching reference. Indexed formats require their matching index. Local files stay in the browser and may need reselection after reload; remote files require accessible URLs and CORS support.
 
-Click a feature for its attributes and sequence in the **Feature details** panel. **Share view** preserves the location, scale, orientation and registered public tracks. It warns when user-added tracks are omitted.
+Click a feature for its attributes and sequence in the **Feature details** panel. Gene annotations show the gene name, annotated gene product, locus tag and protein accession when available. Experimental 3′ ends show their position, strand, study and associated gene. Predicted terminator regions show their prediction score and estimated false positives per kb; augmented regions show their derivation, Rfam accession and exact reference-sequence match when available. Scientific-feature titles, labels, tooltips and details omit internal record IDs, processing fields and file paths. Downloads retain the original fields. **Share view** preserves the location, scale, orientation and registered public tracks. It warns when user-added tracks are omitted.
 
 ## Symbols and counts
 
@@ -17,7 +17,7 @@ Click a feature for its attributes and sequence in the **Feature details** panel
 | Green / red | Positive / negative strand |
 | Pale context band | Optional model-input sequence window |
 
-Interval boundaries are displayed from the published GFF3, not resolved to a new single-base endpoint. Feature details retain the original coordinates and score. GFF3 coordinates are 1-based and inclusive.
+Interval boundaries are displayed from the published GFF3, not resolved to a new single-base endpoint. Feature details retain the original coordinates. Prediction scores remain visible; experimental scores use paper-specific definitions and are retained in the source downloads. GFF3 coordinates are 1-based and inclusive.
 
 Track-header counts cover the current contig and both strands, independent of zoom or display filters. **Augmented regions** groups OTU-derived and Rfam-derived regions, separately from experimental 3′-end records. Counts exclude **Sequence context windows**. The track information retains the method citation under Source data. Missing counts are shown as unavailable, not zero. Multi-contig views do not show a single-contig total.
 

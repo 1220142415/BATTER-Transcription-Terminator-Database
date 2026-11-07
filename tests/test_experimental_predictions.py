@@ -10,9 +10,9 @@ from experimental_predictions import load_predictions, prediction_assets, apply_
 class ExperimentalPredictionTests(unittest.TestCase):
     def test_reference_identity_counts_and_track_semantics(self):
         data = load_predictions()
-        self.assertEqual(len(data['genomes']), 19)
-        self.assertEqual(sum(r['prediction_count'] for r in data['genomes'].values()), 116229)
-        self.assertEqual(len(prediction_assets({})), 59)
+        self.assertEqual(len(data['genomes']), 20)
+        self.assertEqual(sum(r['prediction_count'] for r in data['genomes'].values()), 285872)
+        self.assertEqual(len(prediction_assets({})), 62)
         for genome, row in data['genomes'].items():
             config = {'assemblies': [{'name': genome, 'sequence': {'adapter': {'fastaLocation': {'uri': row['reference']['source_url']}}}}],
                       'tracks': [{'trackId': 'endpoint'}], 'defaultSession': {'views': [{'tracks': [{'configuration': 'endpoint'}]}]}}
@@ -21,6 +21,7 @@ class ExperimentalPredictionTests(unittest.TestCase):
             self.assertEqual(track['metadata']['btedAbout']['kind'], 'prediction')
             self.assertEqual(sum(track['metadata']['btedContigCounts'].values()), row['prediction_count'])
             self.assertNotIn('pmid', track['metadata']['btedAbout'])
+            self.assertIn('/predictions/' + row.get('run', data['run']) + '/', track['adapter']['gffGzLocation']['uri'])
             before = copy.deepcopy(config)
             apply_prediction_track(config, genome)
             self.assertEqual(before, config)

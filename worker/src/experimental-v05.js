@@ -35,6 +35,19 @@ function track(request, id, name, path, files, category, extra={}) {
     metadata:{...extra,sha256:gff.sha256,btedAbout:{kind:category[0]==="Reference annotation"?"reference":"endpoint",assembly:id,...extra}}
   };
 }
+function experimentalV05PredictionTrack(request,genome,files) {
+  if (!Number(genome.prediction_count)) return null;
+  const fasta=toFile(files,"/reference/reference.fa.gz");
+  if (!fasta) throw dataReleaseError("prediction_reference_mismatch");
+  const assets=files.filter(f=>f.logical_path.includes("/predictions/")).map(f=>({
+    ...f,asset_kind:f.logical_path.endsWith(".bed")?"bed":f.logical_path.endsWith(".tbi")?"tbi":"gff3",is_public:1
+  }));
+  const manifest={assets:Object.fromEntries(assets.map(f=>[f.logical_path,{
+    ...f,revision:f.hf_revision,
+    url:`https://huggingface.co/datasets/liurulong/terminator/resolve/${f.hf_revision}/${VERSION}/${f.logical_path}`
+  }]))};
+  return experimentalPredictionTrack(request,manifest,{...genome,organism_name:genome.organism},assets,genome.accession,fasta);
+}
 async function experimentalV05Config(request,env,genome) {
   const id=genome.accession;
   const contigs=JSON.parse(genome.contigs_json);
@@ -72,6 +85,10 @@ async function experimentalV05Config(request,env,genome) {
     });
     if(t)tracks.push(t);
   }
+  try {
+    const prediction=experimentalV05PredictionTrack(request,genome,files);
+    if (prediction) tracks.push(prediction);
+  } catch (error) { return dataReleaseErrorResponse(error); }
   const first=Object.entries(contigs).sort((a,b)=>b[1]-a[1])[0];
   const sessionTracks=tracks.map((t,i)=>({
     id:"exp_v05_t"+(i+1),type:"FeatureTrack",configuration:t.trackId,
@@ -88,12 +105,13 @@ async function experimentalV05Config(request,env,genome) {
       displayedRegions:[{refName:first[0],start:0,end:first[1],reversed:false,assemblyName:id}],
       tracks:sessionTracks
     }]},
-    metadata:{assembly_accession:id,release_version:VERSION,hf_revision:genome.hf_revision,source_count:sources.length,endpoint_count:genome.endpoint_count}
+    metadata:{assembly_accession:id,release_version:VERSION,hf_revision:genome.hf_revision,source_count:sources.length,endpoint_count:genome.endpoint_count,prediction_count:Number(genome.prediction_count || 0)}
   });
 }
 
 export async function experimentalV05PageMetadata(request,env,genome,directory,classifications) {
   const {sources,files}=await loadData(env,genome.accession);
+  const prediction=experimentalV05PredictionTrack(request,genome,files);
   const sourceData=sources.map(source=>{
     const metadata=JSON.parse(source.metadata_json);
     return {
@@ -113,7 +131,10 @@ export async function experimentalV05PageMetadata(request,env,genome,directory,c
     assembly:{accession:genome.accession,organism_name:genome.organism,
       reference_url:`https://www.ncbi.nlm.nih.gov/datasets/genome/${genome.accession}/`,
       directory,classifications,contigs:Object.entries(JSON.parse(genome.contigs_json)).map(([contig_accession,length_bp])=>({contig_accession,length_bp}))},
-    predictions:null,sources:sourceData,record_count:genome.endpoint_count,
+    predictions:prediction?{count:Number(genome.prediction_count),method:"BATTER-TPE",reference_scope:"experimental",
+      reference_bases:Object.values(JSON.parse(genome.contigs_json)).reduce((a,b)=>a+b,0),
+      reference_contigs:Object.keys(JSON.parse(genome.contigs_json)).length,
+      downloads:prediction.metadata.btedDownloads}:null,sources:sourceData,record_count:genome.endpoint_count,
     study_count:new Set(sources.map(source=>source.pmid)).size,
     downloads:[{path:`${genome.accession}/metadata.tsv`,url:`/api/assemblies/${genome.accession}/metadata.tsv`},
       ...files.filter(file=>file.source_id).map(file=>({

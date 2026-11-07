@@ -1807,9 +1807,21 @@ def assemble_v04(
                     "fontFamily": '"Segoe UI", -apple-system, BlinkMacSystemFont, Arial, sans-serif',
                 },
             }
+            for track in config.get("tracks", []):
+                kind = track.get("metadata", {}).get("btedAbout", {}).get("kind")
+                if kind in {"endpoint", "prediction", "augmentation"}:
+                    for display in track.get("displays", []):
+                        renderer = display.setdefault("renderer", {"type": "SvgFeatureRenderer"})
+                        renderer.setdefault("labels", {})["name"] = "jexl:btedFeatureLabel(feature)"
+                        renderer["mouseover"] = "jexl:btedPredictionTooltip(feature)" if kind == "prediction" else "jexl:btedFeatureLabel(feature)"
+                elif kind == "reference":
+                    for display in track.get("displays", []):
+                        renderer = display.setdefault("renderer", {"type": "SvgFeatureRenderer"})
+                        renderer.setdefault("labels", {})["name"] = "jexl:btedAnnotationLabel(feature)"
+                        renderer["mouseover"] = "jexl:btedAnnotationTooltip(feature)"
             config["plugins"] = [{
                 "name": "BTEDTrackPlugin",
-                "esmUrl": "plugins/bted-track-plugin.js?v=44",
+                "esmUrl": "plugins/bted-track-plugin.js?v=46",
             }]
             config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         # The upstream package also contains v0.2 source configs with relative
@@ -1834,7 +1846,9 @@ def assemble_v04(
         computational_genomes = json.loads((REPO_ROOT / "data/registry/batter-browser.json").read_text(encoding="utf-8"))["genomes"] if mode == "worker" else ()
         build_v04_site(temp_stage, release_root, assets, browser_configs, track_ids, computational_genomes=computational_genomes, d1_metadata=mode == "worker")
         if mode == "worker":
-            build_batter_browser(temp_stage)
+            # build_collections immediately retires the aggregate genomes.html directory.
+            # Do not bind its obsolete projection to the live D1 collection site.
+            build_batter_browser(temp_stage, bind_legacy_directory=False)
             from build_collections import build as build_collections
             build_collections(temp_stage, release_root)
 

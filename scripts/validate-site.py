@@ -20,6 +20,7 @@ from experimental_signals import signal_assets
 MAX_FILE_BYTES = 1024 * 1024  # 1 MiB limit for site files
 MAX_JBROWSE_FILE_BYTES = 64 * 1024 * 1024
 MAX_DOWNLOAD_FILE_BYTES = 16 * 1024 * 1024
+MAX_BROWSER_REGISTRY_BYTES = 20 * 1024 * 1024  # Only the compact annotation registry.
 
 # Exclude raw data, spreadsheet downloads, BED and unapproved archives from site output.
 FORBIDDEN_EXTENSIONS = {
@@ -291,7 +292,7 @@ def validate_v04_release(site_dir: Path, manifest: dict[str, object], problems: 
             problems.append(f"{config_path.relative_to(site_dir).as_posix()} requires exactly one BTED plugin config")
         for plugin in configured_plugins:
             uri = plugin.get("esmUrl") if isinstance(plugin, dict) else None
-            if not isinstance(plugin, dict) or plugin.get("name") != "BTEDTrackPlugin" or uri not in {"plugins/bted-track-plugin.js", "plugins/bted-track-plugin.js?v=44"}:
+            if not isinstance(plugin, dict) or plugin.get("name") != "BTEDTrackPlugin" or uri not in {"plugins/bted-track-plugin.js", "plugins/bted-track-plugin.js?v=46"}:
                 problems.append(f"{config_path.relative_to(site_dir).as_posix()} has invalid BTED plugin config")
             elif not (jbrowse_root / uri.split("?", 1)[0]).is_file():
                 problems.append(f"{config_path.relative_to(site_dir).as_posix()} lacks the BTED plugin file")
@@ -515,6 +516,8 @@ def main() -> int:
             size_limit = MAX_JBROWSE_FILE_BYTES if in_jbrowse else (MAX_DOWNLOAD_FILE_BYTES if in_downloads else MAX_FILE_BYTES)
             if rel in {"assets/batter-browser.json", "assets/genome-browsers.json"}:
                 size_limit = MAX_DOWNLOAD_FILE_BYTES  # Compact metadata only; no genome/track files.
+            if rel == "assets/genome-browsers.json":
+                size_limit = MAX_BROWSER_REGISTRY_BYTES
             if size > size_limit:
                 problems.append(f"{rel} file too large ({size} bytes > {size_limit} byte limit)")
 

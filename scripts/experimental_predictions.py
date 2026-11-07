@@ -12,6 +12,8 @@ def load_predictions(path=REGISTRY):
     if not re.fullmatch(r'[0-9a-f]{40}', data['revision']) or not re.fullmatch(r'BATTER-TPE-\d{8}', data['run']):
         raise ValueError('Prediction files require a fixed revision and run')
     for genome, row in data['genomes'].items():
+        if not re.fullmatch(r'BATTER-TPE-\d{8}', row.get('run', data['run'])):
+            raise ValueError('Prediction files require a fixed run')
         if not re.fullmatch(r'GCF_\d+\.\d+', genome) or row['prediction_count'] != sum(row['contig_counts'].values()):
             raise ValueError('Invalid prediction assembly/count')
         if any(k not in row['reference']['contigs'] or v < 1 for k, v in row['contig_counts'].items()):
@@ -27,7 +29,7 @@ def load_predictions(path=REGISTRY):
 def prediction_assets(assets):
     data = load_predictions()
     for genome, row in data['genomes'].items():
-        root = f"genomes/experimental-only/{genome}/predictions/{data['run']}"
+        root = f"genomes/experimental-only/{genome}/predictions/{row.get('run', data['run'])}"
         for name, item in row['files'].items():
             kind = 'bed' if name.endswith('.bed') else 'tbi' if name.endswith('.tbi') else 'gff3'
             path = f'{root}/{name}'
@@ -49,7 +51,7 @@ def apply_prediction_track(config, genome):
     expected = row['reference']['source_url']
     if assembly['sequence']['adapter']['fastaLocation']['uri'] != expected:
         raise ValueError(f'Prediction reference differs from browser: {genome}')
-    urls = {name: f"{HF_PREFIX}/{data['revision']}/v0.5.0/genomes/experimental-only/{genome}/predictions/{data['run']}/{name}" for name in row['files']}
+    urls = {name: f"{HF_PREFIX}/{data['revision']}/v0.5.0/genomes/experimental-only/{genome}/predictions/{row.get('run', data['run'])}/{name}" for name in row['files']}
     track_id = 'bted_experimental_prediction'
     track = {
         'type': 'FeatureTrack', 'trackId': track_id, 'name': 'Predicted regions', 'category': ['Model prediction'], 'assemblyNames': [assembly['name']],
@@ -57,7 +59,7 @@ def apply_prediction_track(config, genome):
                     'index': {'location': {'uri': urls['prediction.gff3.gz.tbi'], 'locationType': 'UriLocation'}, 'indexType': 'TBI'}},
         'displays': [{'type': 'LinearBasicDisplay', 'displayId': track_id + '_display', 'height': 160, 'showLabels': False,
                       'renderer': {'type': 'SvgFeatureRenderer', 'showLabels': False, 'height': 14, 'color1': 'jexl:btedStrandColor(feature)',
-                                   'color2': 'jexl:btedStrandColor(feature)', 'mouseover': 'jexl:btedPredictionTooltip(feature)'}}],
+                                   'color2': 'jexl:btedStrandColor(feature)', 'labels': {'name': 'jexl:btedFeatureLabel(feature)'}, 'mouseover': 'jexl:btedPredictionTooltip(feature)'}}],
         'metadata': {'evidence_class': 'model_prediction', 'btedContigCounts': row['contig_counts'],
                      'btedAbout': {'kind': 'prediction', 'assembly': genome, 'evidence': 'Model prediction', 'record_count': row['prediction_count'],
                                    'assay': 'BATTER-TPE', 'reference': row['reference']['organism_name'],

@@ -218,11 +218,17 @@ const mod = await import('data:text/javascript,' + encodeURIComponent(fs.readFil
 let replaceWidget;
 const react = { createElement: (component, props, ...children) => ({ component, props, children }), useEffect() {}, useMemo: fn => fn(), useState: value => [value, () => {}] };
 const ThemeProvider = () => null;
+const FeatureDetails = () => null;
 const pm = {
   jexl: { addFunction() {} }, addRendererType() {}, addGlyphType() {},
   addToExtensionPoint(name, callback) { if (name === 'Core-replaceWidget') replaceWidget = callback; },
   jbrequire(name) {
     if (name === 'react') return react;
+    if (name === 'mobx-react') return { observer: fn => fn };
+    if (name === '@jbrowse/core/configuration') return {
+      readConfObject: config => config, getConf: (model, key) => model?.configuration?.[key],
+    };
+    if (name === '@jbrowse/core/BaseFeatureWidget/BaseFeatureDetail') return { '@jbrowse/core/BaseFeatureWidget/BaseFeatureDetail/FeatureDetails': FeatureDetails };
     if (name === 'react-dom') return { createPortal: (content, target) => ({ content, target }) };
     if (name === '@mui/material/styles') return { ThemeProvider, useTheme: () => ({ components: {} }) };
     if (name === '@jbrowse/core/util/tracks') return { storeBlobLocation: ({ blob }) => ({ name: blob.name, blob, locationType: 'BlobLocation' }) };
@@ -233,7 +239,82 @@ const pm = {
 new mod.default().install(pm);
 const Original = () => null;
 const model = { type: 'BaseFeatureWidget' }, props = { model, session: {}, toolbarHeight: 36 };
-assert.equal(replaceWidget(Original, props), Original); // Full browser remains native.
+assert.equal(replaceWidget(Original, props), Original); // Unrelated tracks remain native.
+const endpoint = Object.freeze({ uniqueId: 'original-feature', refName: 'CP009124.1',
+  start: 67367, end: 67368, strand: -1, type: 'terminator_endpoint',
+  id: 'BTED_INTERNAL_ID', source: 'BATTER_S1_007', author_endpoint_id: 'author-id',
+  signal_or_score: '-1.372769946', author_category: 'P', original_row_reference: 'path:row=2',
+  associated_gene_or_locus: 'SLIV_00320', published_reference_accession: 'CP009124.1' });
+const endpointModel = { ...model, featureData: endpoint,
+  track: { configuration: { name: 'PMID 31555254 · 3′ ends', metadata: { btedAbout: { kind: 'endpoint' } } } } };
+const endpointProps = { ...props, model: endpointModel };
+const Endpoint = replaceWidget(Original, endpointProps);
+assert.equal(replaceWidget(Original, endpointProps), Endpoint);
+const detail = Endpoint(endpointProps).children[0];
+assert.equal(detail.component, FeatureDetails);
+assert.equal(detail.props.model, endpointModel);
+assert.deepEqual(detail.props.feature, { uniqueId: 'original-feature', refName: 'CP009124.1',
+  start: 67367, end: 67368, strand: -1, type: 'Transcript 3′ end',
+  __jbrowsefmt: { type: null }, Publication: 'PMID 31555254', Gene: 'SLIV_00320' });
+assert.equal(endpointModel.featureData, endpoint);
+assert.equal(endpoint.signal_or_score, '-1.372769946');
+const prediction = { ...endpoint, type: 'predicted_terminator_region', end: 67410,
+  source_bed_id: 'internal-32', score: 0.97, estimated_false_positives_per_kb: 0 };
+const predictionDetails = mod.scientificFeatureDetails(prediction, 'prediction', 'Predicted regions');
+assert.equal(predictionDetails['Prediction score'], 0.97);
+assert.equal(predictionDetails['Estimated false positives per kb'], 0);
+assert.equal(predictionDetails.type, 'Predicted terminator region');
+for (const kind of ['endpoint', 'prediction', 'augmentation']) {
+  const fields = mod.scientificFeatureDetails(prediction, kind, 'Study');
+  for (const key of ['id','source','source_bed_id','author_category','signal_or_score','original_row_reference']) assert.ok(!(key in fields));
+}
+assert.equal(mod.scientificFeatureLabel({ get: key => endpoint[key] }), 'Transcript 3′ end · CP009124.1:67,368 (−)');
+
+assert.ok(!('Gene' in mod.scientificFeatureDetails({ ...endpoint, associated_gene_or_locus: 'NA' }, 'endpoint', 'PMID 33319794')));
+endpointModel.error = new Error('load error');
+assert.equal(Endpoint(endpointProps).component, Original);
+delete endpointModel.error;
+endpointModel.track.configuration.metadata.btedAbout.kind = 'unrelated';
+assert.equal(Endpoint(endpointProps).component, Original); // User-imported annotations retain the original widget.
+endpointModel.track.configuration.metadata.btedAbout.kind = 'endpoint';
+const cds = Object.freeze({ uniqueId: 'cds-1', type: 'CDS', start: 336, end: 2799, strand: 1,
+  refName: 'NC_000913.3', id: 'cds-NP_414543.1', parent: 'gene-b0002', phase: 0,
+  transl_table: '11', gene: 'thrA', locus_tag: 'b0002', product: 'bifunctional aspartate kinase/homoserine dehydrogenase I',
+  protein_id: 'NP_414543.1', gbkey: 'CDS', inference: 'internal pipeline detail' });
+const gene = Object.freeze({ uniqueId: 'gene-1', type: 'gene', name: 'thrA', id: 'gene-b0002',
+  refName: 'NC_000913.3', start: 336, end: 2799, strand: 1, gene: 'thrA', locus_tag: 'b0002', subfeatures: [cds] });
+const geneDetails = mod.scientificFeatureDetails(gene, 'reference', 'Reference gene annotation');
+assert.equal(geneDetails.name, 'thrA');
+assert.equal(geneDetails['Gene product'], cds.product);
+assert.equal(geneDetails['Locus tag'], 'b0002');
+assert.equal(geneDetails['Protein accession'], 'NP_414543.1');
+assert.equal(geneDetails.subfeatures[0].phase, 0);
+assert.equal(geneDetails.subfeatures[0].transl_table, '11');
+assert.equal(geneDetails.subfeatures[0].type, 'CDS');
+assert.deepEqual(geneDetails.subfeatures[0].__jbrowsefmt, { name: null, type: null, phase: null, transl_table: null });
+for (const f of [geneDetails, ...geneDetails.subfeatures]) for (const key of ['id','parent','source','gbkey','inference']) assert.ok(!(key in f));
+assert.equal(cds.id, 'cds-NP_414543.1');
+assert.equal(mod.annotationFeatureLabel({ get: key => cds[key] }), 'thrA');
+const augmentation = { ...endpoint, end: 67410, associated_gene_or_locus: 'NA', type: 'augmented_terminator_span', otu_id: 'OTU-19282',
+  reference_validation: 'exact_sequence', source_header: 'internal source header', source_file: 'internal.tsv' };
+const augmentationDetails = mod.scientificFeatureDetails(augmentation, 'augmentation');
+assert.deepEqual(augmentationDetails, { uniqueId: 'original-feature', refName: 'CP009124.1', start: 67367, end: 67410,
+  strand: -1, type: 'OTU-derived terminator region',
+  'Reference match': 'Exact sequence match', __jbrowsefmt: { type: null } });
+assert.ok(!('source_header' in augmentationDetails));
+const rfamDetails = mod.scientificFeatureDetails({ ...augmentation, type:'rfam_training_span', rfam_source:'RF01051-c-di-GMP-I' }, 'augmentation');
+assert.equal(rfamDetails.type, 'Rfam-derived region');
+assert.equal(rfamDetails['Rfam accession'], 'RF01051');
+assert.equal(rfamDetails['Rfam family'], 'c-di-GMP-I');
+assert.ok(!('rfam_source' in rfamDetails));
+
+const prodigal = { uniqueId:'cds-2',refName:'contig1',start:1,end:163,strand:1,type:'CDS',id:'contig1_1',phase:0,partial:'10',rbs_motif:'None' };
+const prodigalDetails = mod.scientificFeatureDetails(prodigal, 'reference');
+assert.ok(!('name' in prodigalDetails));
+assert.ok(!('rbs_motif' in prodigalDetails));
+assert.equal(prodigalDetails['Annotation status'],'Partial');
+assert.equal(mod.annotationFeatureLabel({get:key=>prodigal[key]}),'CDS · contig1:2–163');
+
 window.location.search = '?bted_bridge=test';
 window.parent = { document: { querySelector: () => null } };
 assert.equal(replaceWidget(Original, props), Original); // Missing outer host remains usable.

@@ -68,6 +68,88 @@ export function compactFeatureMenu(items, display, kind) {
   });
 }
 
+const SCIENTIFIC_KINDS = ['reference', 'endpoint', 'prediction', 'augmentation'];
+const FEATURE_TITLES = {
+  terminator_endpoint: 'Transcript 3′ end', RNA_3prime_end: 'Transcript 3′ end',
+  predicted_terminator_region: 'Predicted terminator region', augmented_terminator_span: 'OTU-derived terminator region',
+  rfam_training_span: 'Rfam-derived region', training_sequence_window: 'Sequence context window',
+  rfam_training_window: 'Sequence context window',
+};
+
+function annotationName(feature) {
+  return feature.gene || feature.locus_tag || feature.protein_id ||
+    (feature.name && feature.name !== feature.id && !/^(?:gene-|cds-|rna-|BTED_|BATTER_|ANONYMOUS$)/i.test(feature.name) ? feature.name : '');
+}
+
+function annotationDetails(feature) {
+  const { uniqueId, refName, start, end, strand, type, phase, transl_table } = feature;
+  const children = feature.subfeatures || [];
+  const proteins = children.filter(child => child.type === 'CDS');
+  const protein = proteins.length === 1 ? proteins[0] : {};
+  const details = { uniqueId, refName, start, end, strand, type, phase, transl_table,
+    __jbrowsefmt: { name: null, type: null, phase: null, transl_table: null },
+  };
+  const name = annotationName(feature);
+  if (name) details.name = name;
+  const fields = {
+    'Gene product': feature.product || protein.product,
+    'Locus tag': feature.locus_tag !== name ? feature.locus_tag : null,
+    'Protein accession': (feature.protein_id || protein.protein_id) !== name ? feature.protein_id || protein.protein_id : null,
+  };
+  for (const [label, value] of Object.entries(fields)) {
+    if (value && !['NA', 'N/A', '.', '-'].includes(String(value).trim())) details[label] = value;
+  }
+  if (feature.pseudo === true || feature.pseudo === 'true' || type === 'pseudogene') details['Annotation status'] = 'Pseudogene';
+  else if (feature.partial === true || feature.partial === 'true' || /^(?:01|10|11)$/.test(feature.partial)) details['Annotation status'] = 'Partial';
+  if (children.length) details.subfeatures = children.map(annotationDetails);
+  return details;
+}
+
+// The native sequence controls receive the original coordinates; source data stays intact.
+export function scientificFeatureDetails(feature, kind, study) {
+  if (kind === 'reference') return annotationDetails(feature);
+  const { uniqueId, refName, start, end, strand, associated_gene_or_locus: gene } = feature;
+  const details = { uniqueId, refName, start, end, strand,
+    type: FEATURE_TITLES[feature.type] || ({ endpoint: 'Transcript 3′ end', prediction: 'Predicted terminator region', augmentation: 'Augmented terminator region' })[kind] };
+  details.__jbrowsefmt = { type: null };
+  if (kind === 'endpoint' && study) details.Publication = study.match(/PMID \d+/)?.[0] || study;
+  if (gene && !['NA', 'N/A', '-', '.'].includes(String(gene).trim())) details.Gene = gene;
+  if (kind === 'prediction') {
+    if (feature.score != null) details['Prediction score'] = feature.score;
+    if (feature.estimated_false_positives_per_kb != null) {
+      details['Estimated false positives per kb'] = feature.estimated_false_positives_per_kb;
+    }
+  }
+  if (kind === 'augmentation') {
+    const rfam = /^(RF\d+)-(.+)$/.exec(feature.rfam_source || '');
+    const accession = feature.rfam_acc || rfam?.[1];
+    const family = feature.rfam_name || rfam?.[2];
+    if (accession) details['Rfam accession'] = accession;
+    if (family) details['Rfam family'] = family;
+    if (feature.reference_validation === 'exact_sequence') details['Reference match'] = 'Exact sequence match';
+  }
+  return details;
+}
+
+export function annotationFeatureLabel(feature) {
+  return annotationName(Object.fromEntries(['gene', 'locus_tag', 'protein_id', 'name', 'id'].map(key => [key, feature.get(key)]))) ||
+    `${feature.get('type') || 'Feature'} · ${feature.get('refName')}:${(Number(feature.get('start')) + 1).toLocaleString('en-US')}–${Number(feature.get('end')).toLocaleString('en-US')}`;
+}
+
+export function annotationFeatureTooltip(feature) {
+  const name = annotationFeatureLabel(feature);
+  const product = feature.get('product');
+  return product ? `${name} · ${product}` : name;
+}
+
+export function scientificFeatureLabel(feature) {
+  const strand = feature.get('strand');
+  const start = Number(feature.get('start')) + 1, end = Number(feature.get('end'));
+  const position = start === end ? start.toLocaleString('en-US') :
+    `${start.toLocaleString('en-US')}–${end.toLocaleString('en-US')}`;
+  return `${FEATURE_TITLES[feature.get('type')] || 'Region'} · ${feature.get('refName')}:${position} (${strand === 1 || strand === '+' ? '+' : strand === -1 || strand === '-' ? '−' : '?'})`;
+}
+
 export function compactTrackActions(items, hasDownload) {
   return items.flatMap(item => item.label !== 'Track actions' ? [item] :
     hasDownload ? [] : (item.subMenu || []).filter(child => child.label === 'Save track data')
@@ -544,6 +626,9 @@ export default class BTEDTrackPlugin {
     pluginManager.jexl.addFunction('btedStrandColor', strandColor);
     pluginManager.jexl.addFunction('btedAugmentationColor', augmentationColor);
     pluginManager.jexl.addFunction('btedPredictionTooltip', predictionTooltip);
+    pluginManager.jexl.addFunction('btedFeatureLabel', scientificFeatureLabel);
+    pluginManager.jexl.addFunction('btedAnnotationLabel', annotationFeatureLabel);
+    pluginManager.jexl.addFunction('btedAnnotationTooltip', annotationFeatureTooltip);
     const React = pluginManager.jbrequire('react');
     const { readConfObject, getConf, ConfigurationSchema } = pluginManager.jbrequire('@jbrowse/core/configuration');
     const { getContainingTrack, getContainingView, getSession } = pluginManager.jbrequire('@jbrowse/core/util');
@@ -770,12 +855,39 @@ export default class BTEDTrackPlugin {
         study, evidence, provenance);
     }
 
-    // Keep native detail, track selection and import callbacks intact.
-    // The portal only changes where the widget is rendered in the genome page.
+    // Keep native sequence, track selection and import callbacks intact.
+    // Scientific features use a small presentation copy; the portal controls placement.
+    if (typeof document !== 'undefined' && document.head) {
+      const style = document.createElement('style');
+      style.textContent = '.bted-feature-summary .MuiAccordionDetails-root>p,.bted-feature-summary .MuiAccordionDetails-root>hr{display:none}.bted-feature-summary .MuiAccordionSummary-content .MuiTypography-button{text-transform:none}.bted-feature-summary .MuiAccordionSummary-root,.bted-feature-summary .MuiAccordionSummary-root .MuiTypography-root,.bted-feature-summary .MuiAccordionSummary-root .MuiSvgIcon-root{color:#4b2d47!important}';
+      document.head.append(style);
+    }
     const widgetTitles = { BaseFeatureWidget: 'Feature details',
       HierarchicalTrackSelectorWidget: 'Tracks', AddTrackWidget: 'Import tracks' };
     const externalWidgets = new WeakMap();
+    const scientificWidgets = new WeakMap();
     pluginManager.addToExtensionPoint('Core-replaceWidget', (Original, { model }) => {
+      if (model?.type === 'BaseFeatureWidget' &&
+          SCIENTIFIC_KINDS.includes(metadataFor(model.track?.configuration, readConfObject, getConf)?.kind)) {
+        if (!scientificWidgets.has(Original)) {
+          const Native = Original;
+          const { observer } = pluginManager.jbrequire('mobx-react');
+          const FeatureDetails = pluginManager.jbrequire('@jbrowse/core/BaseFeatureWidget/BaseFeatureDetail')
+            ['@jbrowse/core/BaseFeatureWidget/BaseFeatureDetail/FeatureDetails'];
+          scientificWidgets.set(Original, observer(function ScientificFeatureDetails(props) {
+            const { model } = props;
+            if (model.error || !model.featureData ||
+                !SCIENTIFIC_KINDS.includes(metadataFor(model.track?.configuration, readConfObject, getConf)?.kind)) {
+              return h(Native, props);
+            }
+            const kind = metadataFor(model.track.configuration, readConfObject, getConf).kind;
+            return h('div', { className: 'bted-feature-summary' },
+              h(FeatureDetails, { model, depth: 1,
+                feature: scientificFeatureDetails(model.featureData, kind, getConf(model.track, 'name')) }));
+          }));
+        }
+        Original = scientificWidgets.get(Original);
+      }
       if (!isBtedEmbed() || !widgetTitles[model?.type]) return Original;
       let host;
       try {
@@ -832,7 +944,7 @@ export default class BTEDTrackPlugin {
                   .MuiAccordionSummary-root{background:#faf7f9!important}
                   .MuiAccordionDetails-root{padding:12px 14px!important}
                   .MuiAccordionDetails-root > p{margin:10px 0 6px;font-weight:600;color:#4b2d47}
-                  .css-2imjyh{display:grid;grid-template-columns:110px minmax(0,1fr);border-bottom:1px solid #eee8ed;font-size:13px}
+                  .css-2imjyh{display:grid;grid-template-columns:140px minmax(0,1fr);border-bottom:1px solid #eee8ed;font-size:13px}
                   .css-c392m0{width:auto!important;padding:5px 9px;background:#faf7f9;overflow-wrap:anywhere}
                   .css-1rdet1e{padding:5px 9px;overflow-wrap:anywhere}
                   [data-widget-type="HierarchicalTrackSelectorWidget"] .MuiFab-root{display:none}

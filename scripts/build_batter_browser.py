@@ -44,7 +44,7 @@ def read_browser_catalogue():
     return data, overlays
 
 
-def build(site_root):
+def build(site_root, *, bind_legacy_directory=True):
     data, overlays = read_browser_catalogue()
     (site_root / "assets/batter-browser.json").write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     directory = site_root / "genomes.html"
@@ -102,8 +102,12 @@ def build(site_root):
     catalogue_url = f"api/batter-catalogue?revision={data['revision']}&annotation={annotation_revision}&v=1"
     html = html.replace('data-genome-search-form inert>', f'data-genome-search-form data-genome-catalogue="{esc(catalogue_url)}" inert>', 1)
     directory.write_text(html, encoding="utf-8")
-    (site_root / "assets/genome-browsers.json").write_text(json.dumps(registry, indent=2), encoding="utf-8")
+    # The production annotation registry is large: whitespace-free JSON preserves
+    # all fields and stays under the Worker static-asset per-file budget.
+    (site_root / "assets/genome-browsers.json").write_text(
+        json.dumps(registry, ensure_ascii=False, separators=(",", ":")), encoding="utf-8"
+    )
     directory_manifest = Path(__file__).resolve().parents[1] / 'data/registry/genome-directory.json'
-    if directory_manifest.exists():
+    if directory_manifest.exists() and bind_legacy_directory:
         from build_genome_directory import apply_binding
         apply_binding(site_root, json.loads(directory_manifest.read_text(encoding='utf-8')))

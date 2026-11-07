@@ -46,6 +46,8 @@ activating the D1 collection does not require a per-genome page or code change.
 Migration `0013` documents the installed extension schema; do not replay the
 release SQL or all migrations as a deployment step.
 
+Migration `0014` adds prediction count, storage run, immutable file revision, reference-asset digest and per-contig counts to the extension assemblies. Both experimental branches use the established prediction-track builder. Bind `prediction_reference_sha256` to the exact registered FASTA asset consumed by that branch (BGZF FASTA for the extension; uncompressed FASTA for retained registrations). Keep uncompressed sequence provenance separately. Ordinary prediction refreshes update these fields, the BED/GFF3/TBI registrations and the active directory counts; no Worker redeploy is needed.
+
 ## Reviewed corrections
 
 | Directory | Transition | Change |

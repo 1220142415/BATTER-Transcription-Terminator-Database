@@ -76,10 +76,12 @@ def build(site, release_root=ROOT / 'data/public/v0.4.0'):
         content = content.replace('<main>', f'<main class="collection-directory" data-directory-collection="{key}">' + collection_nav(key), 1)
         content = content.replace('data-genome-search-form>', f'data-genome-search-form data-genome-prefix="{key}" data-default-sort="{default_sort}" data-genome-pages="api/collections/{key}/directory?v={r["version"]}" inert>')
         # Data type is redundant in collection-specific catalogues.
-        # Experimental RefSeq assembly type was not classified by this release;
-        # do not present "Type not recorded" as a meaningful user filter.
+        # Experimental references all have gene annotations, and genome type
+        # is not consistently curated. Neither is a useful experimental filter.
         if key == 'experimental':
-            content = re.sub(r'\s*<label>Genome type<select data-genome-type-filter>.*?</select></label>', '', content, count=1, flags=re.S)
+            for filter_name, attribute in [('Genome type', 'data-genome-type-filter'), ('Gene annotation', 'data-genome-annotation-filter')]:
+                content, removed = re.subn(r'\s*<label>' + re.escape(filter_name) + r'<select ' + attribute + r'>.*?</select></label>', '', content, count=1, flags=re.S)
+                assert removed == 1, f'Missing expected experimental filter: {filter_name}'
         if key != 'experimental':
             content = content.replace('title="Also searches study titles and PMID"', '')
         content = content.replace('<option value="unknown">', '<option value="environmental">Environmental</option><option value="unknown">')

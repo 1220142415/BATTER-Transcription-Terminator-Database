@@ -331,8 +331,10 @@ process.stdout.write(JSON.stringify({{
         self.assertEqual(default_view["offsetPx"], 18499)
         self.assertEqual(config["defaultSession"]["name"], "BTED · GCF_000009045.1")
         self.assertEqual(config["plugins"][0]["name"], "BTEDTrackPlugin")
-        self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js?v=44")
+        self.assertEqual(config["plugins"][0]["esmUrl"], "https://preview.example.test/jbrowse/plugins/bted-track-plugin.js?v=46")
         endpoint_track = next(track for track in config["tracks"] if track["metadata"]["btedAbout"]["kind"] == "endpoint")
+        self.assertEqual(endpoint_track["displays"][0]["renderer"]["mouseover"], "jexl:btedFeatureLabel(feature)")
+        self.assertEqual(endpoint_track["displays"][0]["renderer"]["labels"]["name"], "jexl:btedFeatureLabel(feature)")
         self.assertEqual(endpoint_track["trackId"], "bted_v04_batter_s1_003_endpoints")
         expected_gff3 = "https://huggingface.co/datasets/liurulong/terminator/resolve/abcdefabcdefabcdefabcdefabcdefabcdefabcd/v0.4.0/genomes/GCF_000009045.1/studies/PMID_12345678/endpoints.gff3.gz"
         self.assertEqual(endpoint_track["adapter"]["type"], "Gff3Adapter")
@@ -430,7 +432,7 @@ const env = { ASSETS: { async fetch() { return new Response('unchanged', { statu
   headers: { 'cache-control': 'no-cache', etag: 'original' } }); } } };
 for (const path of ['/jbrowse/static/js/main.de203b0d.js', '/jbrowse/static/js/6514.48beaae4.chunk.js',
   '/jbrowse/static/css/main.12345678.css', '/jbrowse/static/js/main.bted-sequence-v1.js',
-  '/jbrowse/static/js/8948.bted-sequence-v1.chunk.js', '/jbrowse/plugins/bted-track-plugin.js?v=44']) {
+  '/jbrowse/static/js/8948.bted-sequence-v1.chunk.js', '/jbrowse/plugins/bted-track-plugin.js?v=46']) {
   const result = await staticAsset(new Request('https://bted.example' + path), env);
   assert.equal(result.headers.get('cache-control'), 'public, max-age=31536000, immutable');
   assert.equal(result.headers.get('etag'), 'original'); assert.equal(await result.text(), 'unchanged');

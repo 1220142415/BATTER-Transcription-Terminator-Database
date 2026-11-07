@@ -11,12 +11,12 @@ test('experimental predictions require the exact reference and registered files 
   for (const [genome, row] of Object.entries(registry.genomes)) {
     const manifest = { assets: {} }, assets = [];
     for (const [file, info] of Object.entries(row.files)) {
-      const path = `genomes/experimental-only/${genome}/predictions/${registry.run}/${file}`;
+      const path = `genomes/experimental-only/${genome}/predictions/${row.run || registry.run}/${file}`;
       const asset_kind = file.endsWith('.bed') ? 'bed' : file.endsWith('.tbi') ? 'tbi' : 'gff3';
       manifest.assets[path] = { ...info, asset_kind, revision: registry.revision, url: `https://huggingface.co/datasets/liurulong/terminator/resolve/${registry.revision}/v0.5.0/${path}` };
       assets.push({ ...info, asset_kind, logical_path: path, is_public: 1 });
     }
-    const assembly = { accession: genome, prediction_count: row.prediction_count, prediction_run: registry.run, prediction_revision: registry.revision,
+    const assembly = { accession: genome, prediction_count: row.prediction_count, prediction_run: row.run || registry.run, prediction_revision: registry.revision,
       prediction_reference_sha256: row.reference.fasta_sha256, prediction_contig_counts_json: JSON.stringify(row.contig_counts) };
     const fasta = { sha256: row.reference.fasta_sha256 };
     const request = new Request('https://bted.example');

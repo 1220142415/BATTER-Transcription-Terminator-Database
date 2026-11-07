@@ -436,7 +436,11 @@
         td.textContent = referenceSource(record[12]);
       } else if (label === "Organism") {
         const name = document.createElement("span"); name.className = "genome-organism"; name.textContent = record[3]; td.append(name);
-        const type = document.createElement("small"); type.textContent = ({ MAG: "Metagenome-assembled", SAG: "Single-cell amplified", isolate: "Isolate", environmental: "Environmental", unknown: "Type not recorded" })[record[4]] || record[4]; td.append(type);
+        // The experimental RefSeq catalogue has no consistently curated genome-type field.
+        // Keep the organism name, but do not advertise an uninformative "Type not recorded" badge.
+        if (form.dataset.genomePrefix !== "experimental") {
+          const type = document.createElement("small"); type.textContent = ({ MAG: "Metagenome-assembled", SAG: "Single-cell amplified", isolate: "Isolate", environmental: "Environmental", unknown: "Type not recorded" })[record[4]] || record[4]; td.append(type);
+        }
       } else if (label === "Taxonomy") {
         const phylum = document.createElement("span"), genus = document.createElement("small");
         phylum.textContent = row.dataset.taxonomyPhylum || (row.dataset.taxonomyStatus === "pending" ? "NCBI taxonomy unavailable" : "Not assigned"); genus.textContent = row.dataset.taxonomyGenus || (row.dataset.taxonomyStatus === "pending" ? "Exact NCBI taxonomy unavailable for this assembly." : "Genus not assigned"); td.append(phylum, genus);
